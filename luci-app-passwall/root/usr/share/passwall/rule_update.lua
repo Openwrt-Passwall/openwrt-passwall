@@ -50,32 +50,43 @@ local log = function(...)
 	end
 end
 
-local function gen_nftset(set_name, ip_type, tmp_file, input_file)
-	f = io.open(input_file, "r")
-	local element = f:read("*all")
-	f:close()
-
-	nft_file, err = io.open(tmp_file, "w")
-	nft_file:write('#!/usr/sbin/nft -f\n')
-	nft_file:write(string.format('define %s = {%s}\n', set_name, string.gsub(element, "%s*%c+", " timeout 3650d, ")))
-	if sys.call(string.format('nft "list set %s %s" >/dev/null 2>&1', nftable_name, set_name)) ~= 0 then
-		nft_file:write(string.format('add set %s %s { type %s; flags interval, timeout; timeout 2d; gc-interval 2d; auto-merge; }\n', nftable_name, set_name, ip_type))
-	end
-	nft_file:write(string.format('add element %s %s $%s\n', nftable_name, set_name, set_name))
-	nft_file:close()
-	sys.call(string.format('nft -f %s &>/dev/null',tmp_file))
-	os.remove(tmp_file)
-end
-
 --gen cache for nftset from file
 local function gen_cache(set_name, ip_type, input_file, output_file)
-	local tmp_dir = "/tmp/"
-	local tmp_file = output_file .. "_tmp"
-	local tmp_set_name = set_name .. "_tmp"
-	gen_nftset(tmp_set_name, ip_type, tmp_file, input_file)
-	sys.call(string.format('nft list set %s %s | sed "s/%s/%s/g" | cat > %s', nftable_name, tmp_set_name, tmp_set_name, set_name, output_file))
-	sys.call(string.format('nft flush set %s %s', nftable_name, tmp_set_name))
-	sys.call(string.format('nft delete set %s %s', nftable_name, tmp_set_name))
+	local tmp_set_name = set_name .. "_tmp_" .. os.time()
+	local f_in = io.open(input_file, "r")
+	if not f_in then return false end
+	local nft_pipe = io.popen("nft -f -", "w")
+	if not nft_pipe then 
+		f_in:close()
+		return false 
+	end
+	nft_pipe:write('#!/usr/sbin/nft -f\n')
+	nft_pipe:write(string.format('add table %s\n', nftable_name))
+	nft_pipe:write(string.format('add set %s %s { type %s; flags interval, timeout; timeout 2d; gc-interval 1h; auto-merge; }\n', nftable_name, tmp_set_name, ip_type))
+	nft_pipe:write(string.format('add element %s %s { ', nftable_name, tmp_set_name))
+	local count = 0
+	local batch_size = 500
+	for line in f_in:lines() do
+		local ip = line:match("^%s*(.-)%s*$")
+		if ip and ip ~= "" then
+			nft_pipe:write(ip, "timeout 365d, ")
+			count = count + 1
+			if count % batch_size == 0 then
+				nft_pipe:write("}\n")
+				nft_pipe:write(string.format('add element %s %s { ', nftable_name, tmp_set_name))
+			end
+		end
+	end
+	nft_pipe:write("}\n")
+	f_in:close()
+
+	local success = nft_pipe:close()
+	if not (success == true or success == 0) then
+		os.execute(string.format('nft delete set %s %s 2>/dev/null', nftable_name, tmp_set_name))
+		return false
+	end
+	os.execute(string.format('nft list set %s %s | sed "s/%s/%s/g" > %s', nftable_name, tmp_set_name, tmp_set_name, set_name, output_file))
+	os.execute(string.format('nft delete set %s %s 2>/dev/null', nftable_name, tmp_set_name))
 end
 
 -- curl
@@ -506,10 +517,10 @@ local function fetch_rule(rule_name,rule_type,url,exclude_domain)
 					end
 					gen_cache(set_name, "ipv6_addr", file_tmp, output_file)
 				end
-				sys.call(string.format('mv -f %s %s', output_file, rule_path .. "/" ..rule_name.. ".nft"))
+				os.execute(string.format('mv -f %s %s', output_file, rule_path .. "/" ..rule_name.. ".nft"))
 				os.remove(output_file)
 			end
-			sys.call("mv -f "..file_tmp .. " " ..rule_path .. "/" ..rule_name)
+			os.execute("mv -f "..file_tmp .. " " ..rule_path .. "/" ..rule_name)
 			reboot = 1
 			log(rule_name.. " 更新成功，总规则数 " ..count.. " 条。")
 		else
