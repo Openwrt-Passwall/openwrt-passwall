@@ -3,6 +3,7 @@
 DIR="$(cd "$(dirname "$0")" && pwd)"
 MY_PATH=$DIR/iptables.sh
 IPSET_LOCAL="passwall_local"
+IPSET_WAN="passwall_wan"
 IPSET_LAN="passwall_lan"
 IPSET_VPS="passwall_vps"
 IPSET_SHUNT="passwall_shunt"
@@ -13,6 +14,7 @@ IPSET_WHITE="passwall_white"
 IPSET_BLOCK="passwall_block"
 
 IPSET_LOCAL6="passwall_local6"
+IPSET_WAN6="passwall_wan6"
 IPSET_LAN6="passwall_lan6"
 IPSET_VPS6="passwall_vps6"
 IPSET_SHUNT6="passwall_shunt6"
@@ -201,38 +203,31 @@ gen_lanlist_6() {
 	cat $RULES_PATH/lanlist_ipv6 | tr -s '\n' | grep -v "^#"
 }
 
-get_wan_ip() {
+get_wan_ips() {
+	local family="$1"
 	local NET_ADDR
 	local iface
 	local INTERFACES=$(ubus call network.interface dump | jsonfilter -e '@.interface[@.route[0]].interface')
 	for iface in $INTERFACES; do
-		local ipv4
-		network_get_ipaddr ipv4 "$iface"
-		if [ -n "$ipv4" ] && [ "$ipv4" != "0.0.0.0" ]; then
-			case " $NET_ADDR " in
-				*" $ipv4 "*) ;;
-				*) NET_ADDR="${NET_ADDR:+$NET_ADDR }$ipv4" ;;
+		local addr
+		if [ "$family" = "ip6" ]; then
+			network_get_ipaddr6 addr "$iface"
+			case "$addr" in
+				""|fe80*) continue ;;
+			esac
+		else
+			network_get_ipaddr addr "$iface"
+			case "$addr" in
+				""|"0.0.0.0") continue ;;
 			esac
 		fi
-	done
-	echo $NET_ADDR
-}
 
-get_wan6_ip() {
-	local NET_ADDR
-	local iface
-	local INTERFACES=$(ubus call network.interface dump | jsonfilter -e '@.interface[@.route[0]].interface')
-	for iface in $INTERFACES; do
-		local ipv6
-		network_get_ipaddr6 ipv6 "$iface"
-		if [ -n "$ipv6" ] && ! echo "$ipv6" | grep -q "^fe80:"; then
-			case " $NET_ADDR " in
-				*" $ipv6 "*) ;;
-				*) NET_ADDR="${NET_ADDR:+$NET_ADDR }$ipv6" ;;
-			esac
-		fi
+		case " $NET_ADDR " in
+			*" $addr "*) ;;
+			*) NET_ADDR="${NET_ADDR:+$NET_ADDR }$addr" ;;
+		esac
 	done
-	echo $NET_ADDR
+	echo "$NET_ADDR"
 }
 
 load_acl() {
@@ -823,6 +818,7 @@ filter_direct_node_list() {
 add_firewall_rule() {
 	echolog "开始加载 iptables 防火墙规则..."
 	ipset -! create $IPSET_LOCAL nethash maxelem 1048576
+	ipset -! create $IPSET_WAN nethash maxelem 1048576
 	ipset -! create $IPSET_LAN nethash maxelem 1048576
 	ipset -! create $IPSET_VPS nethash maxelem 1048576
 	ipset -! create $IPSET_SHUNT nethash maxelem 1048576 timeout 172800
@@ -833,6 +829,7 @@ add_firewall_rule() {
 	ipset -! create $IPSET_BLOCK nethash maxelem 1048576 timeout 172800
 
 	ipset -! create $IPSET_LOCAL6 nethash family inet6 maxelem 1048576
+	ipset -! create $IPSET_WAN6 nethash family inet6 maxelem 1048576
 	ipset -! create $IPSET_LAN6 nethash family inet6 maxelem 1048576
 	ipset -! create $IPSET_VPS6 nethash family inet6 maxelem 1048576
 	ipset -! create $IPSET_SHUNT6 nethash family inet6 maxelem 1048576 timeout 172800
@@ -1040,10 +1037,12 @@ add_firewall_rule() {
 	$ipt_m -A PSW $(dst $IPSET_VPS) -j RETURN
 	
 	[ ! -z "${WAN_IP}" ] && {
+		ipset -F $IPSET_WAN
 		for wan_ip in $WAN_IP; do
-			$ipt_m -A PSW $(comment "WAN_IP_RETURN") -d "${wan_ip}" -j RETURN
-			echolog "  - [$?]追加WAN IPv4到iptables：${wan_ip}"
+			ipset -! add $IPSET_WAN ${wan_ip}
 		done
+		$ipt_m -A PSW $(comment "WAN_IP_RETURN") $(dst $IPSET_WAN) -j RETURN
+		echolog "  - [$?]追加WAN IPv4到iptables：${wan_ip}"
 	}
 	unset WAN_IP wan_ip
 
@@ -1116,10 +1115,12 @@ add_firewall_rule() {
 	
 	WAN6_IP=$(get_wan6_ip)
 	[ ! -z "${WAN6_IP}" ] && {
+		ipset -F $IPSET_WAN6
 		for wan6_ip in $WAN6_IP; do
-			$ip6t_m -A PSW $(comment "WAN6_IP_RETURN") -d ${wan6_ip} -j RETURN
-			echolog "  - [$?]追加WAN IPv6到iptables：${wan6_ip}"
+			ipset -! add $IPSET_WAN6 ${wan6_ip}
 		done
+		$ip6t_m -A PSW $(comment "WAN6_IP_RETURN") $(dst $IPSET_WAN6) -j RETURN
+		echolog "  - [$?]追加WAN IPv6到iptables：${wan6_ip}"
 	}
 	unset WAN6_IP wan6_ip
 
@@ -1379,6 +1380,7 @@ del_firewall_rule() {
 	ip -6 route del local ::/0 dev lo table 100 2>/dev/null
 
 	destroy_ipset $IPSET_LOCAL
+	destroy_ipset $IPSET_WAN
 	destroy_ipset $IPSET_LAN
 	destroy_ipset $IPSET_VPS
 	#destroy_ipset $IPSET_SHUNT
@@ -1389,6 +1391,7 @@ del_firewall_rule() {
 	destroy_ipset $IPSET_WHITE
 
 	destroy_ipset $IPSET_LOCAL6
+	destroy_ipset $IPSET_WAN6
 	destroy_ipset $IPSET_LAN6
 	destroy_ipset $IPSET_VPS6
 	#destroy_ipset $IPSET_SHUNT6
@@ -1443,24 +1446,13 @@ gen_include() {
 			\$(${MY_PATH} insert_rule_before "$ipt_m" "PREROUTING" "mwan3" "-j PSW")
 			\$(${MY_PATH} insert_rule_before "$ipt_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT")
 
-			WAN_IP=\$(${MY_PATH} get_wan_ip)
-
-			PR_INDEX=\$(${MY_PATH} RULE_LAST_INDEX "$ipt_n" PSW WAN_IP_RETURN -1)
-			if [ \$PR_INDEX -ge 0 ]; then
-				[ ! -z "\${WAN_IP}" ] && {
-					for wan_ip in \$WAN_IP; do
-						$ipt_n -R PSW \$PR_INDEX $(comment "WAN_IP_RETURN") -d "\${wan_ip}" -j RETURN
-					done
-				}
-			fi
-
-			PR_INDEX=\$(${MY_PATH} RULE_LAST_INDEX "$ipt_m" PSW WAN_IP_RETURN -1)
-			if [ \$PR_INDEX -ge 0 ]; then
-				[ ! -z "\${WAN_IP}" ] && {
-					for wan_ip in \$WAN_IP; do
-						$ipt_m -R PSW \$PR_INDEX $(comment "WAN_IP_RETURN") -d "\${wan_ip}" -j RETURN
-					done
-				}
+			WAN_IP=\$(${MY_PATH} get_wan_ips ip4)
+			[ ! -z "\${WAN_IP}" ] && {
+				ipset -F $IPSET_WAN
+				for wan_ip in \$WAN_IP; do
+					ipset -! add $IPSET_WAN \${wan_ip}
+				done
+			}
 			fi
 		EOF
 		)
@@ -1484,15 +1476,13 @@ gen_include() {
 			\$(${MY_PATH} insert_rule_before "$ip6t_m" "PREROUTING" "mwan3" "-j PSW")
 			\$(${MY_PATH} insert_rule_before "$ip6t_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT")
 
-			PR_INDEX=\$(${MY_PATH} RULE_LAST_INDEX "$ip6t_m" PSW WAN6_IP_RETURN -1)
-			if [ \$PR_INDEX -ge 0 ]; then
-				WAN6_IP=\$(${MY_PATH} get_wan6_ip)
-				[ ! -z "\${WAN6_IP}" ] && {
-					for wan6_ip in \$WAN6_IP; do
-						$ip6t_m -R PSW \$PR_INDEX $(comment "WAN6_IP_RETURN") -d "\${wan6_ip}" -j RETURN
-					done
-				}
-			fi
+			WAN6_IP=\$(${MY_PATH} get_wan_ips ip6)
+			[ ! -z "\${WAN6_IP}" ] && {
+				ipset -F $IPSET_WAN6
+				for wan6_ip in \$WAN6_IP; do
+					ipset -! add $IPSET_WAN6 \${wan6_ip}
+				done
+			}
 		EOF
 		)
 	}
@@ -1550,11 +1540,8 @@ get_ipt_bin)
 get_ip6t_bin)
 	get_ip6t_bin
 	;;
-get_wan_ip)
-	get_wan_ip
-	;;
-get_wan6_ip)
-	get_wan6_ip
+get_wan_ips)
+	get_wan_ips
 	;;
 filter_direct_node_list)
 	filter_direct_node_list
