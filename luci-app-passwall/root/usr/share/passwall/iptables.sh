@@ -997,7 +997,7 @@ add_firewall_rule() {
 	$ipt_n -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_n -A PSW $(dst $IPSET_VPS) -j RETURN
 
-	WAN_IP=$(get_wan_ip)
+	WAN_IP=$(get_wan_ips ip4)
 	[ ! -z "${WAN_IP}" ] && {
 		for wan_ip in $WAN_IP; do
 			$ipt_n -A PSW $(comment "WAN_IP_RETURN") -d "${wan_ip}" -j RETURN
@@ -1040,9 +1040,9 @@ add_firewall_rule() {
 		ipset -F $IPSET_WAN
 		for wan_ip in $WAN_IP; do
 			ipset -! add $IPSET_WAN ${wan_ip}
+			echolog "  - [$?]追加WAN IPv4到iptables：${wan_ip}"
 		done
 		$ipt_m -A PSW $(comment "WAN_IP_RETURN") $(dst $IPSET_WAN) -j RETURN
-		echolog "  - [$?]追加WAN IPv4到iptables：${wan_ip}"
 	}
 	unset WAN_IP wan_ip
 
@@ -1113,14 +1113,14 @@ add_firewall_rule() {
 	$ip6t_m -A PSW $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_VPS6) -j RETURN
 	
-	WAN6_IP=$(get_wan6_ip)
+	WAN6_IP=$(get_wan_ips ip6)
 	[ ! -z "${WAN6_IP}" ] && {
 		ipset -F $IPSET_WAN6
 		for wan6_ip in $WAN6_IP; do
 			ipset -! add $IPSET_WAN6 ${wan6_ip}
+			echolog "  - [$?]追加WAN IPv6到iptables：${wan6_ip}"
 		done
 		$ip6t_m -A PSW $(comment "WAN6_IP_RETURN") $(dst $IPSET_WAN6) -j RETURN
-		echolog "  - [$?]追加WAN IPv6到iptables：${wan6_ip}"
 	}
 	unset WAN6_IP wan6_ip
 
