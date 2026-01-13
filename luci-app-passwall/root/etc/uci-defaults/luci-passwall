@@ -1,35 +1,44 @@
 #!/bin/sh
 
-uci -q batch <<-EOF >/dev/null
-	set dhcp.@dnsmasq[0].localuse=1
-	commit dhcp
-	[ -e "/etc/config/ucitrack" ] && {
-	delete ucitrack.@passwall[-1]
-	add ucitrack passwall
-	set ucitrack.@passwall[-1].init=passwall
-	commit ucitrack
-	}
+if [ -e "/etc/config/ucitrack" ]; then
+    uci -q batch <<-EOF
+ 		delete ucitrack.@passwall[-1]
+		add ucitrack passwall
+		set ucitrack.@passwall[-1].init=passwall
+		delete ucitrack.@passwall_server[-1]
+		add ucitrack passwall_server
+		set ucitrack.@passwall_server[-1].init=passwall_server
+		commit ucitrack
+EOF
+fi
+
+uci -q batch <<-EOF
 	delete firewall.passwall
 	set firewall.passwall=include
-	set firewall.passwall.type=script
-	set firewall.passwall.path=/var/etc/passwall.include
-	set firewall.passwall.reload=1
-	commit firewall
-	[ -e "/etc/config/ucitrack" ] && {
-	delete ucitrack.@passwall_server[-1]
-	add ucitrack passwall_server
-	set ucitrack.@passwall_server[-1].init=passwall_server
-	commit ucitrack
-	}
+	set firewall.passwall.type='script'
+	set firewall.passwall.path='/var/etc/passwall.include'
+
 	delete firewall.passwall_server
 	set firewall.passwall_server=include
-	set firewall.passwall_server.type=script
-	set firewall.passwall_server.path=/var/etc/passwall_server.include
-	set firewall.passwall_server.reload=1
-	commit firewall
+	set firewall.passwall_server.type='script'
+	set firewall.passwall_server.path='/var/etc/passwall_server.include'
+
+	set dhcp.@dnsmasq[0].localuse=1
+	commit dhcp
 	set uhttpd.main.max_requests=50
 	commit uhttpd
 EOF
+
+if [ -x "/sbin/fw4" ]; then
+	uci -q delete firewall.passwall.reload
+	uci -q delete firewall.passwall.fw4_compatible
+	uci -q delete firewall.passwall_server.reload
+	uci -q delete firewall.passwall_server.fw4_compatible
+else
+	uci -q set firewall.passwall.reload='1'
+	uci -q set firewall.passwall_server.reload='1'
+fi
+uci commit firewall
 
 [ ! -s "/etc/config/passwall" ] && cp -f /usr/share/passwall/0_default_config /etc/config/passwall
 
