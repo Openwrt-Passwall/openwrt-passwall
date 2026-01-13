@@ -1112,9 +1112,11 @@ add_firewall_rule() {
 		insert_nftset $NFTSET_WAN "-1" $WAN_IP
 		[ -z "${is_tproxy}" ] && nft "add rule $NFTABLE_NAME PSW_NAT ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
 		nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
-		echolog "  - [$?]追加WAN IPv4到nftables：${WAN_IP}"
+		for wan_ip in $WAN_IP; do
+			echolog "  - [$?]追加WAN IPv4到nftables：${wan_ip}"
+		done
 	fi
-	unset WAN_IP
+	unset WAN_IP wan_ip
 
 	ip rule add fwmark 1 lookup 100
 	ip route add local 0.0.0.0/0 dev lo table 100
@@ -1160,9 +1162,11 @@ add_firewall_rule() {
 			nft flush set $NFTABLE_NAME $NFTSET_WAN6
 			insert_nftset $NFTSET_WAN6 "-1" $WAN6_IP
 			nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_WAN6 counter return comment \"WAN6_IP_RETURN\""
-			echolog "  - [$?]追加WAN IPv6到nftables：${WAN6_IP}"
+			for wan6_ip in $WAN6_IP; do
+				echolog "  - [$?]追加WAN IPv6到nftables：${wan6_ip}"
+			done
 		}
-		unset WAN6_IP
+		unset WAN6_IP wan6_ip
 
 		ip -6 rule add fwmark 1 table 100
 		ip -6 route add local ::/0 dev lo table 100
