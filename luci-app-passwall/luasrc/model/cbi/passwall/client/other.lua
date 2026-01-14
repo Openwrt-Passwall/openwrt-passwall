@@ -3,8 +3,6 @@ local appname = "passwall"
 local fs = api.fs
 local has_singbox = api.finded_com("sing-box")
 local has_xray = api.finded_com("xray")
-local has_fw3 = api.is_finded("fw3")
-local has_fw4 = api.is_finded("fw4")
 
 local port_validate = function(self, value, t)
 	return value:gsub("-", ":")
@@ -115,14 +113,10 @@ o.cfgvalue = function(t, n)
 end
 
 ---- Use nftables
-o = s:option(ListValue, "use_nft", translate("Firewall tools"))
-o.default = "0"
-if has_fw3 then
-	o:value("0", "IPtables")
-end
-if has_fw4 then
-	o:value("1", "NFtables")
-end
+o = s:option(ListValue, "prefer_nft", translate("Prefer firewall tools"))
+o.default = "1"
+o:value("0", "Iptables")
+o:value("1", "Nftables")
 
 ---- Check the transparent proxy component
 local handle = io.popen("lsmod")

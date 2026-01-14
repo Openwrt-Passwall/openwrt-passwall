@@ -29,14 +29,14 @@ uci -q batch <<-EOF
 	commit uhttpd
 EOF
 
-if [ -x "/sbin/fw4" ]; then
+if [ -x "/sbin/fw3" ]; then
+	uci -q set firewall.passwall.reload='1'
+	uci -q set firewall.passwall_server.reload='1'
+else
 	uci -q delete firewall.passwall.reload
 	uci -q delete firewall.passwall.fw4_compatible
 	uci -q delete firewall.passwall_server.reload
 	uci -q delete firewall.passwall_server.fw4_compatible
-else
-	uci -q set firewall.passwall.reload='1'
-	uci -q set firewall.passwall_server.reload='1'
 fi
 uci commit firewall
 
