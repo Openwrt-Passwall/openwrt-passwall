@@ -859,8 +859,8 @@ filter_direct_node_list() {
 add_firewall_rule() {
 	echolog "开始加载 nftables 防火墙规则..."
 	gen_nft_tables
-	gen_nftset $NFTSET_WAN ipv4_addr 0 0
-	gen_nftset $NFTSET_VPS ipv4_addr 0 0
+	gen_nftset $NFTSET_WAN ipv4_addr 0 "-1"
+	gen_nftset $NFTSET_VPS ipv4_addr 0 "-1"
 	gen_nftset $NFTSET_GFW ipv4_addr "2d" 0
 	gen_nftset $NFTSET_LOCAL ipv4_addr 0 "-1"
 	gen_nftset $NFTSET_LAN ipv4_addr 0 "-1" $(gen_lanlist)
@@ -875,8 +875,8 @@ add_firewall_rule() {
 	gen_nftset $NFTSET_BLOCK ipv4_addr "2d" 0
 	gen_nftset $NFTSET_SHUNT ipv4_addr "2d" 0
 
-	gen_nftset $NFTSET_WAN6 ipv6_addr 0 0
-	gen_nftset $NFTSET_VPS6 ipv6_addr 0 0
+	gen_nftset $NFTSET_WAN6 ipv6_addr 0 "-1"
+	gen_nftset $NFTSET_VPS6 ipv6_addr 0 "-1"
 	gen_nftset $NFTSET_GFW6 ipv6_addr "2d" 0
 	gen_nftset $NFTSET_LOCAL6 ipv6_addr 0 "-1"
 	gen_nftset $NFTSET_LAN6 ipv6_addr 0 "-1" $(gen_lanlist_6)
