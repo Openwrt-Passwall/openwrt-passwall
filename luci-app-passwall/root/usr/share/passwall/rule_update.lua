@@ -25,10 +25,10 @@ local excluded_domain = {"apple.com","sina.cn","sina.com.cn","baidu.com","byr.cn
 
 local gfwlist_url = uci:get(name, "@global_rules[0]", "gfwlist_url") or {"https://fastly.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/gfw.txt"}
 local chnroute_url = uci:get(name, "@global_rules[0]", "chnroute_url") or {"https://ispip.clang.cn/all_cn.txt"}
-local chnroute6_url =  uci:get(name, "@global_rules[0]", "chnroute6_url") or {"https://ispip.clang.cn/all_cn_ipv6.txt"}
+local chnroute6_url = uci:get(name, "@global_rules[0]", "chnroute6_url") or {"https://ispip.clang.cn/all_cn_ipv6.txt"}
 local chnlist_url = uci:get(name, "@global_rules[0]", "chnlist_url") or {"https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/accelerated-domains.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/apple.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/google.china.conf"}
-local geoip_url =  uci:get(name, "@global_rules[0]", "geoip_url") or "https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat"
-local geosite_url =  uci:get(name, "@global_rules[0]", "geosite_url") or "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+local geoip_url = uci:get(name, "@global_rules[0]", "geoip_url") or "https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat"
+local geosite_url = uci:get(name, "@global_rules[0]", "geosite_url") or "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
 local asset_location = uci:get(name, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
 local use_nft = uci:get(name, "@global_forwarding[0]", "use_nft") or "0"
 local geo2rule = uci:get(name, "@global_rules[0]", "geo2rule") or "0"
@@ -90,19 +90,36 @@ local function gen_cache(set_name, ip_type, input_file, output_file)
 end
 
 -- curl
-local function curl(url, file, valifile)
+local function curl(url, file)
+	local http_code = 0
+	local header_str = ""
 	local args = {
-		"-skL", "-w %{http_code}", "--retry 3", "--connect-timeout 3", "--max-time 300", "--speed-limit 51200 --speed-time 15",
-		'-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"'
+		"-skL",
+		"--retry 3",
+		"--connect-timeout 3",
+		"--max-time 300",
+		"--speed-limit 51200 --speed-time 15",
+		'-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"',
+		"--dump-header -",
+		"-w '\\n%{http_code}'"
 	}
 	if file then
 		args[#args + 1] = "-o " .. file
 	end
-	if valifile then
-		args[#args + 1] = "--dump-header " .. valifile
-	end
 	local return_code, result = api.curl_auto(url, nil, args)
-	return tonumber(result)
+	if result and result ~= "" then
+		local body, code = result:match("^(.-)%s*([0-9]+)$")
+		if code then
+			http_code = tonumber(code) or 0
+			header_str = body
+		else
+			http_code = tonumber(result:match("(%d+)%s*$")) or 0
+		end
+	end
+	if header_str ~= "" then
+		header_str = header_str:gsub("\r", "")
+	end
+	return http_code, header_str
 end
 
 --check excluded domain
@@ -143,14 +160,6 @@ local function check_excluded_domain(value)
 		value = value:sub(dot_pos + 1)
 	end
 	return false
-end
-
-local function line_count(file_path)
-	local num = 0
-	for _ in io.lines(file_path) do
-		num = num + 1
-	end
-	return num;
 end
 
 -- 替代 string.find 查找 "^[#!\\[@]+"
@@ -332,18 +341,14 @@ local function extract_domain(s)
 	return nil
 end
 
-local function non_file_check(file_path, vali_file)
+local function non_file_check(file_path, header_content)
+	local remote_file_size = nil
 	local local_file_size = tonumber(fs.stat(file_path, "size")) or 0
 	if local_file_size == 0 then
 		log("下载文件为空或读取出错。")
 		return true
 	end
-
-	local remote_file_size = nil
-	local f = io.open(vali_file, "r")
-	if f then
-		local header_content = f:read("*a")
-		f:close()
+	if header_content and header_content ~= "" then
 		for size in header_content:gmatch("[Cc]ontent%-[Ll]ength:%s*(%d+)") do
 			local s = tonumber(size)
 			if s and s > 0 then
@@ -355,7 +360,7 @@ local function non_file_check(file_path, vali_file)
 		log(string.format("校验出错：远程 %dB, 下载 %dB", remote_file_size, local_file_size))
 		return true
 	end
-	return nil
+	return false
 end
 
 local function GeoToRule(rule_name, rule_type, out_path)
@@ -366,174 +371,150 @@ local function GeoToRule(rule_name, rule_type, out_path)
 	local geosite_path = asset_location .. "geosite.dat"
 	local geoip_path = asset_location .. "geoip.dat"
 	local file_path = (rule_type == "domain") and geosite_path or geoip_path
-	local arg
+	local geo_arg
 	if rule_type == "domain" then
 		if rule_name == "gfwlist" then
-			arg = "-type geosite -list gfw"
+			geo_arg = "-type geosite -list gfw"
 		else
-			arg = "-type geosite -list cn"
+			geo_arg = "-type geosite -list cn"
 		end
 	elseif rule_type == "ip4" then
-		arg = "-type geoip -list cn -ipv6=false"
+		geo_arg = "-type geoip -list cn -ipv6=false"
 	elseif rule_type == "ip6" then
-		arg = "-type geoip -list cn -ipv4=false"
+		geo_arg = "-type geoip -list cn -ipv4=false"
 	end
-	cmd = string.format("geoview -input '%s' %s -lowmem=true -output '%s'", file_path, arg, out_path)
+	local cmd = string.format("geoview -input '%s' %s -lowmem=true -output '%s'", file_path, geo_arg, out_path)
 	sys.exec(cmd)
 	return true;
 end
 
 --fetch rule
-local function fetch_rule(rule_name,rule_type,url,exclude_domain)
+local function fetch_rule(rule_name,rule_type,url,exclude_domain, max_retries)
 	local sret = 200
-	local sret_tmp = 0
-	local domains = {}
-	local file_tmp = "/tmp/" ..rule_name.. "_tmp"
-	local vali_file = "/tmp/" ..rule_name.. "_vali"
-	local download_file_tmp = "/tmp/" ..rule_name.. "_dl"
-	local unsort_file_tmp = "/tmp/" ..rule_name.. "_unsort"
-
+	local max_attempts = max_retries or 2
+	local rule_dataset = {}
+	local file_tmp = "/tmp/" .. rule_name .. "_tmp"
+	local rule_final_path = rule_path .. "/" .. rule_name
 	if geo2rule == "1" then
 		url = {"geo2rule"}
 		log(rule_name.. " 开始生成...")
 	else
 		log(rule_name.. " 开始更新...")
 	end
-	for k,v in ipairs(url) do
-		if v ~= "geo2rule" then
-			sret_tmp = curl(v, download_file_tmp..k, vali_file..k)
-			if sret_tmp == 200 and non_file_check(download_file_tmp..k, vali_file..k) then
-				log(rule_name.. " 第" ..k.. "条规则:" ..v.. "下载文件过程出错，尝试重新下载。")
-				os.remove(download_file_tmp..k)
-				os.remove(vali_file..k)
-				sret_tmp = curl(v, download_file_tmp..k, vali_file..k)
-				if sret_tmp == 200 and non_file_check(download_file_tmp..k, vali_file..k) then
-					sret = 0
-					sret_tmp = 0
-					log(rule_name.. " 第" ..k.. "条规则:" ..v.. "下载文件过程出错，请检查网络或下载链接后重试！")
+
+	for k, v in ipairs(url) do
+        local current_file = "/tmp/" .. rule_name .. "_dl" .. k
+        local success = false
+
+        if v ~= "geo2rule" then
+			for i = 1, max_attempts do
+				local http_code, header = curl(v, current_file)
+				if http_code == 200 and not non_file_check(current_file, header) then
+					success = true
+					break
 				end
+				os.remove(current_file)
+				log(string.format("%s 第%d条规则下载失败 (HTTP:%s)，正在进行第%d次尝试...", rule_name, k, tostring(http_code), i))
 			end
 		else
-			if not GeoToRule(rule_name, rule_type, download_file_tmp..k) then return 1 end
-			sret_tmp = 200
+			if not GeoToRule(rule_name, rule_type, current_file) then return 1 end
+			success = true
 		end
 
-		if sret_tmp == 200 then
-			if rule_name == "gfwlist" and geo2rule == "0" then
-				local gfwlist = io.open(download_file_tmp..k, "r")
-				local decode = api.base64Decode(gfwlist:read("*all"))
-				gfwlist:close()
-
-				gfwlist = io.open(download_file_tmp..k, "w")
-				gfwlist:write(decode)
-				gfwlist:close()
-			end
-
-			if rule_type == "domain" and exclude_domain == true then
-				for line in io.lines(download_file_tmp..k) do
-					line = line:gsub("full:", "")
-					if not (is_comment_line(line) or is_ipv4(line) or check_excluded_domain(line) or has_colon(line)) then
-						local match = extract_domain(line)
-						if match then
-							domains[match] = true
+		if success then
+			local f = io.open(current_file, "r")
+			if f then
+				if rule_name == "gfwlist" and geo2rule == "0" then
+					local decode = api.base64Decode(f:read("*all"))
+					for line in string.gmatch(decode, "[^\r\n]+") do
+						line = line:gsub("full:", "")
+						if not (is_comment_line(line) or is_ipv4(line) or has_colon(line) or (exclude_domain and check_excluded_domain(line))) then
+							local match = extract_domain(line)
+							if match then
+								rule_dataset[match] = true
+							end
+						end
+					end
+				else
+					for line in f:lines() do
+						if rule_type == "domain" then
+							line = line:gsub("full:", "")
+							if not (is_comment_line(line) or is_ipv4(line) or has_colon(line) or (exclude_domain and check_excluded_domain(line))) then
+								local match = extract_domain(line)
+								if match then
+									rule_dataset[match] = true
+								end
+							end
+						elseif rule_type == "ip4" then
+							local function is_0dot(s) -- "^0%..*"
+								return s and s:byte(1)==48 and s:byte(2)==46
+							end
+							if is_ipv4_cidr(line) and not is_0dot(line) then
+								rule_dataset[line] = true
+							end
+						elseif rule_type == "ip6" then
+							local function is_double_colon_cidr(s) -- "^::(/%d+)?$"
+							if not s or s:byte(1)~=58 or s:byte(2)~=58 then return false end
+								local l = #s
+								if l==2 then return true end
+								if l==3 or s:byte(3)~=47 then return false end
+								for i=4,l do
+									local b=s:byte(i)
+									if b<48 or b>57 then return false end
+								end
+								return true
+							end
+							if is_ipv6_cidr(line) and not is_double_colon_cidr(line) then
+								rule_dataset[line] = true
+							end
 						end
 					end
 				end
-
-			elseif rule_type == "domain" then
-				for line in io.lines(download_file_tmp..k) do
-					line = line:gsub("full:", "")
-					if not (is_comment_line(line) or is_ipv4(line) or has_colon(line)) then
-						local match = extract_domain(line)
-						if match then
-							domains[match] = true
-						end
-					end
-				end
-
-			elseif rule_type == "ip4" then
-				local out = io.open(unsort_file_tmp, "a")
-				local function is_0dot(s) -- "^0%..*"
-					return s and s:byte(1)==48 and s:byte(2)==46
-				end
-				for line in io.lines(download_file_tmp..k) do
-					if is_ipv4_cidr(line) and not is_0dot(line) then
-						out:write(line .. "\n")
-					end
-				end
-				out:close()
-
-			elseif rule_type == "ip6" then
-				local out = io.open(unsort_file_tmp, "a")
-				local function is_double_colon_cidr(s) -- "^::(/%d+)?$"
-					if not s or s:byte(1)~=58 or s:byte(2)~=58 then return false end
-					local l = #s
-					if l==2 then return true end
-					if l==3 or s:byte(3)~=47 then return false end
-					for i=4,l do
-						local b=s:byte(i)
-						if b<48 or b>57 then return false end
-					end
-					return true
-				end
-				for line in io.lines(download_file_tmp..k) do
-					if is_ipv6_cidr(line) and not is_double_colon_cidr(line) then
-						out:write(line .. "\n")
-					end
-				end
-				out:close()
+				f:close()
 			end
 		else
 			sret = 0
-			log(rule_name.. " 第" ..k.. "条规则:" ..v.. "下载失败，请检查网络或下载链接后重试！")
+			log(string.format("%s 第%d条规则: %s 下载失败！", rule_name, k, v))
 		end
-		os.remove(download_file_tmp..k)
-		os.remove(vali_file..k)
+		os.remove(current_file)
 	end
 
 	if sret == 200 then
-		if rule_type == "domain" then
-			local out = io.open(unsort_file_tmp, "w")
-			for k,v in pairs(domains) do
-				out:write(string.format("%s\n", k))
-			end
+		local result_list = {}
+		for line, _ in pairs(rule_dataset) do table.insert(result_list, line) end
+		table.sort(result_list)
+
+		local out = io.open(file_tmp, "w")
+		if out then
+			for _, line in ipairs(result_list) do out:write(line .. "\n") end
 			out:close()
 		end
-		os.execute("LC_ALL=C /bin/busybox sort -u " .. unsort_file_tmp .. " > " .. file_tmp)
-		os.remove(unsort_file_tmp)
 
-		local old_md5 = sys.exec("echo -n $(md5sum " .. rule_path .. "/" ..rule_name.. " | awk '{print $1}')"):gsub("\n", "")
-		local new_md5 = sys.exec("echo -n $([ -f '" ..file_tmp.. "' ] && md5sum " ..file_tmp.." | awk '{print $1}')"):gsub("\n", "")
+		local old_md5 = sys.exec(string.format("md5sum %s 2>/dev/null | awk '{print $1}'", rule_final_path)):gsub("\n", "")
+		local new_md5 = sys.exec(string.format("md5sum %s 2>/dev/null | awk '{print $1}'", file_tmp)):gsub("\n", "")
+
 		if old_md5 ~= new_md5 then
-			local count = line_count(file_tmp)
-			if use_nft == "1" and (rule_type == "ip6" or rule_type == "ip4") then
-				local output_file = file_tmp.. ".nft"
-				if rule_type == "ip4" then
-					local set_name = "passwall_" ..rule_name
-					if rule_name == "chnroute" then
-						set_name = "passwall_chn"
-					end
-					gen_cache(set_name, "ipv4_addr", file_tmp, output_file)
-				elseif rule_type == "ip6" then
-					local set_name = "passwall_" ..rule_name
-					if rule_name == "chnroute6" then
-						set_name = "passwall_chn6"
-					end
-					gen_cache(set_name, "ipv6_addr", file_tmp, output_file)
-				end
-				os.execute(string.format('mv -f %s %s', output_file, rule_path .. "/" ..rule_name.. ".nft"))
-				os.remove(output_file)
+			if use_nft == "1" and (rule_type == "ip4" or rule_type == "ip6") then
+				local nft_file = file_tmp .. ".nft"
+				local set_name = "passwall_" .. rule_name
+				if rule_name == "chnroute" then set_name = "passwall_chn"
+				elseif rule_name == "chnroute6" then set_name = "passwall_chn6" end
+                
+				local addr_type = (rule_type == "ip4") and "ipv4_addr" or "ipv6_addr"
+				gen_cache(set_name, addr_type, file_tmp, nft_file)
+				os.execute(string.format("mv -f %s %s.nft", nft_file, rule_final_path))
 			end
-			os.execute("mv -f "..file_tmp .. " " ..rule_path .. "/" ..rule_name)
+			os.execute(string.format("mv -f %s %s", file_tmp, rule_final_path))
 			reboot = 1
-			log(rule_name.. " 更新成功，总规则数 " ..count.. " 条。")
+			log(string.format("%s 更新成功，总规则数 %d 条。", rule_name, #result_list))
 		else
-			log(rule_name.. " 版本一致，无需更新。")
+			log(rule_name .. " 版本一致，无需更新。")
+			os.remove(file_tmp)
 		end
 	else
-		log(rule_name.. " 文件下载失败！")
+		log(rule_name .. " 更新失败（部分或全部资源无法下载）。")
+		os.remove(file_tmp)
 	end
-	os.remove(file_tmp)
 	return 0
 end
 
@@ -543,13 +524,12 @@ local function fetch_geofile(geo_name, geo_type, url)
 	local down_filename = url:match("^.*/([^/?#]+)")
 	local sha_url = url:gsub(down_filename, down_filename .. ".sha256sum")
 	local sha_path = tmp_path .. ".sha256sum"
-	local vali_file = tmp_path .. ".vali"
 
 	local function verify_sha256(sha_file)
 		return sys.call("sha256sum -c " .. sha_file .. " > /dev/null 2>&1") == 0
 	end
 
-	local sha_verify = curl(sha_url, sha_path) == 200
+	local sha_verify, _ = curl(sha_url, sha_path) == 200
 	if sha_verify then
 		local f = io.open(sha_path, "r")
 		if f then
@@ -573,13 +553,12 @@ local function fetch_geofile(geo_name, geo_type, url)
 		end
 	end
 
-	local sret_tmp = curl(url, tmp_path, vali_file)
-	if sret_tmp == 200 and non_file_check(tmp_path, vali_file) then
+	local sret_tmp, header = curl(url, tmp_path)
+	if sret_tmp == 200 and non_file_check(tmp_path, header) then
 		log(geo_type .. " 下载文件过程出错，尝试重新下载。")
 		os.remove(tmp_path)
-		os.remove(vali_file)
-		sret_tmp = curl(url, tmp_path, vali_file)
-		if sret_tmp == 200 and non_file_check(tmp_path, vali_file) then
+		sret_tmp, header= curl(url, tmp_path)
+		if sret_tmp == 200 and non_file_check(tmp_path, header) then
 			sret_tmp = 0
 			log(geo_type .. " 下载文件过程出错，请检查网络或下载链接后重试！")
 		end
@@ -689,7 +668,6 @@ end
 local function remove_tmp_geofile(name)
 	os.remove("/tmp/" .. name .. ".dat")
 	os.remove("/tmp/" .. name .. ".dat.sha256sum")
-	os.remove("/tmp/" .. name .. ".dat.vali")
 end
 
 if geo2rule == "1" then
