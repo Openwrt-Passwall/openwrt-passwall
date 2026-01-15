@@ -30,7 +30,6 @@ local chnlist_url = uci:get(name, "@global_rules[0]", "chnlist_url") or {"https:
 local geoip_url = uci:get(name, "@global_rules[0]", "geoip_url") or "https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat"
 local geosite_url = uci:get(name, "@global_rules[0]", "geosite_url") or "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
 local asset_location = uci:get(name, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
-local use_nft = uci:get(name, "@global_forwarding[0]", "use_nft") or "0"
 local geo2rule = uci:get(name, "@global_rules[0]", "geo2rule") or "0"
 local geoip_update_ok, geosite_update_ok = false, false
 asset_location = asset_location:match("/$") and asset_location or (asset_location .. "/")
@@ -494,7 +493,7 @@ local function fetch_rule(rule_name,rule_type,url,exclude_domain, max_retries)
 		local new_md5 = sys.exec(string.format("md5sum %s 2>/dev/null | awk '{print $1}'", file_tmp)):gsub("\n", "")
 
 		if old_md5 ~= new_md5 then
-			if use_nft == "1" and (rule_type == "ip4" or rule_type == "ip6") then
+			if api.is_finded("fw4") and (rule_type == "ip4" or rule_type == "ip6") then
 				local nft_file = file_tmp .. ".nft"
 				local set_name = "passwall_" .. rule_name
 				if rule_name == "chnroute" then set_name = "passwall_chn"
