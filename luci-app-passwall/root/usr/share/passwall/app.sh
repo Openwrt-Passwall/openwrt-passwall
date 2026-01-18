@@ -23,8 +23,8 @@ check_run_environment() {
 	local dnsmasq_info=$(dnsmasq -v 2>/dev/null)
 	local dnsmasq_ver=$(echo "$dnsmasq_info" | sed -n '1s/.*version \([0-9.]*\).*/\1/p')
 	# local dnsmasq_opts=$(echo "$dnsmasq_info" | grep -i "Compile time options")
-	local dnsmasq_ipset=0; [[ "$dnsmasq_info" == *" ipset"* ]] && dnsmasq_ipset=1
-	local dnsmasq_nftset=0; [[ "$dnsmasq_info" == *" nftset"* ]] && dnsmasq_nftset=1
+	local dnsmasq_ipset=0; echo "$dnsmasq_info" | grep -qw "ipset" && dnsmasq_ipset=1
+	local dnsmasq_nftset=0; echo "$dnsmasq_info" | grep -qw "nftset" && dnsmasq_nftset=1
 	local has_ipt=0; { command -v iptables-legacy || command -v iptables; } >/dev/null && has_ipt=1
 	local has_ipset=$(command -v ipset >/dev/null && echo 1 || echo 0)
 	local has_fw4=$(command -v fw4 >/dev/null && echo 1 || echo 0)
@@ -67,7 +67,7 @@ check_run_environment() {
 			fi
 		done
 	else
-		echolog "警告：不满足任何透明代理系统环境。"
+		echolog "警告：不满足任何透明代理系统环境。(has_fw4:$has_fw4/has_ipt:$has_ipt/has_ipset:$has_ipset/dnsmasq_nftset:$dnsmasq_nftset/dnsmasq_ipset:$dnsmasq_ipset)"
 	fi
 }
 
