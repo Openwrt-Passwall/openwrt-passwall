@@ -442,6 +442,9 @@ msgstr "拖动以重排"
 msgid "Type"
 msgstr "类型"
 
+msgid "Switch Type"
+msgstr "切换类型"
+
 msgid "_balancing"
 msgstr "负载均衡"
 

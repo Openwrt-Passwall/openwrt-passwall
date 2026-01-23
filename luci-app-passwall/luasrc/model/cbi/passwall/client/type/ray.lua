@@ -11,6 +11,17 @@ local jsonc = api.jsonc
 
 local type_name = "Xray"
 
+-- [[ Xray ]]
+
+s.fields["type"]:value(type_name, "Xray")
+if not s.fields["type"].default then
+	s.fields["type"].default = type_name
+end
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "xray_"
 
 local function _n(name)
@@ -28,9 +39,6 @@ local header_type_list = {
 }
 
 local xray_version = api.get_app_version("xray")
--- [[ Xray ]]
-
-s.fields["type"]:value(type_name, "Xray")
 
 o = s:option(ListValue, _n("protocol"), translate("Protocol"))
 o:value("vmess", translate("Vmess"))

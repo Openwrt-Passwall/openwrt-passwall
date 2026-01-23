@@ -8,6 +8,14 @@ end
 
 local type_name = "SS-Rust"
 
+-- [[ Shadowsocks Rust ]]
+
+s.fields["type"]:value(type_name, "Shadowsocks Rust")
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "ssrust_"
 
 local function _n(name)
@@ -20,11 +28,7 @@ local ssrust_encrypt_method_list = {
 	"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"
 }
 
--- [[ Shadowsocks Rust ]]
-
-s.fields["type"]:value(type_name, translate("Shadowsocks Rust"))
-
-o = s:option(ListValue, _n("del_protocol")) --å§‹ç»ˆéšè—ï¼Œç”¨äºåˆ é™¤ protocol
+o = s:option(ListValue, _n("del_protocol")) --Ê¼ÖÕÒş²Ø£¬ÓÃÓÚÉ¾³ı protocol
 o:depends({ [_n("__hide")] = "1" })
 o.rewrite_option = "protocol"
 

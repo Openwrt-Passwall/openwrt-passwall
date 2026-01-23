@@ -8,6 +8,14 @@ end
 
 local type_name = "SSR"
 
+-- [[ ShadowsocksR Libev ]]
+
+s.fields["type"]:value(type_name, "ShadowsocksR Libev")
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "ssr_"
 
 local function _n(name)
@@ -33,11 +41,7 @@ local ssr_obfs_list = {
 	"tls1.0_session_auth", "tls1.2_ticket_auth"
 }
 
--- [[ ShadowsocksR Libev ]]
-
-s.fields["type"]:value(type_name, translate("ShadowsocksR Libev"))
-
-o = s:option(ListValue, _n("del_protocol")) --å§‹ç»ˆéšè—ï¼Œç”¨äºåˆ é™¤ protocol
+o = s:option(ListValue, _n("del_protocol")) --Ê¼ÖÕÒş²Ø£¬ÓÃÓÚÉ¾³ı protocol
 o:depends({ [_n("__hide")] = "1" })
 o.rewrite_option = "protocol"
 

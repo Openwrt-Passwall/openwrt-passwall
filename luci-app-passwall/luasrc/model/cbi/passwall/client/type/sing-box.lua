@@ -8,14 +8,20 @@ if not singbox_bin then
 	return
 end
 
-local local_version = api.get_app_version("sing-box")
-local version_ge_1_12_0 = api.compare_versions(local_version:match("[^v]+"), ">=", "1.12.0")
-
-local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
-
 local appname = "passwall"
 
 local type_name = "sing-box"
+
+-- [[ sing-box ]]
+
+s.fields["type"]:value(type_name, "Sing-Box")
+if not s.fields["type"].default then
+	s.fields["type"].default = type_name
+end
+
+if s.val["type"] ~= type_name then
+	return
+end
 
 local option_prefix = "singbox_"
 
@@ -33,9 +39,10 @@ local ss_method_old_list = {
 
 local security_list = { "none", "auto", "aes-128-gcm", "chacha20-poly1305", "zero" }
 
--- [[ sing-box ]]
+local local_version = api.get_app_version("sing-box")
+local version_ge_1_12_0 = api.compare_versions(local_version:match("[^v]+"), ">=", "1.12.0")
 
-s.fields["type"]:value(type_name, "Sing-Box")
+local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
 
 o = s:option(ListValue, _n("protocol"), translate("Protocol"))
 o:value("socks", "Socks")
