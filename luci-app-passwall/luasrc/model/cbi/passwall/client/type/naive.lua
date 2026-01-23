@@ -8,15 +8,19 @@ end
 
 local type_name = "Naiveproxy"
 
+-- [[ Naive ]]
+
+s.fields["type"]:value(type_name, "NaiveProxy")
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "naive_"
 
 local function _n(name)
 	return option_prefix .. name
 end
-
--- [[ Naive ]]
-
-s.fields["type"]:value(type_name, translate("NaiveProxy"))
 
 o = s:option(ListValue, _n("protocol"), translate("Protocol"))
 o:value("https", translate("HTTPS"))

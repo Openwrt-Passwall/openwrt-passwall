@@ -55,34 +55,38 @@ o.write = function(self, section, value)
 	m:set(section, self.option, value)
 end
 
+local fs = api.fs
+local types_dir = "/usr/lib/lua/luci/model/cbi/passwall/client/type/"
+s.val = {}
+s.val["type"] = m.uci:get(appname, arg[1], "type")
+
 o = s:option(ListValue, "type", translate("Type"))
 
 if api.is_finded("ipt2socks") then
-	local function _n(name)
-		return "socks_" .. name
-	end
-
 	s.fields["type"]:value("Socks", translate("Socks"))
 
-	o = s:option(ListValue, _n("del_protocol"), "　") --始终隐藏，用于删除 protocol
-	o:depends({ [_n("__hide")] = "1" })
-	o.rewrite_option = "protocol"
+	if s.val["type"] == "Socks" then
+		local function _n(name)
+			return "socks_" .. name
+		end
+		o = s:option(ListValue, _n("del_protocol"), "　") --始终隐藏，用于删除 protocol
+		o:depends({ [_n("__hide")] = "1" })
+		o.rewrite_option = "protocol"
 
-	o = s:option(Value, _n("address"), translate("Address (Support Domain Name)"))
+		o = s:option(Value, _n("address"), translate("Address (Support Domain Name)"))
 
-	o = s:option(Value, _n("port"), translate("Port"))
-	o.datatype = "port"
+		o = s:option(Value, _n("port"), translate("Port"))
+		o.datatype = "port"
 
-	o = s:option(Value, _n("username"), translate("Username"))
-	
-	o = s:option(Value, _n("password"), translate("Password"))
-	o.password = true
+		o = s:option(Value, _n("username"), translate("Username"))
 
-	api.luci_types(arg[1], m, s, "Socks", "socks_")
+		o = s:option(Value, _n("password"), translate("Password"))
+		o.password = true
+
+		api.luci_types(arg[1], m, s, "Socks", "socks_")
+	end
+
 end
-
-local fs = api.fs
-local types_dir = "/usr/lib/lua/luci/model/cbi/passwall/client/type/"
 
 local type_table = {}
 for filename in fs.dir(types_dir) do
@@ -93,6 +97,15 @@ table.sort(type_table)
 for index, value in ipairs(type_table) do
 	local p_func = loadfile(types_dir .. value)
 	setfenv(p_func, getfenv(1))(m, s)
+end
+
+o = s:option(DummyValue, "switch_type", " ")
+o.template = appname .. "/node_config/switch_type"
+o:depends("___hide", true)
+for _, v in ipairs(s.fields["type"].keylist or {}) do
+	if s.val["type"] ~= v then
+		o:depends("type", v)
+	end
 end
 
 return m

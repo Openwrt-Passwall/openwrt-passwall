@@ -8,6 +8,14 @@ end
 
 local type_name = "SS"
 
+-- [[ Shadowsocks Libev ]]
+
+s.fields["type"]:value(type_name, "Shadowsocks Libev")
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "ss_"
 
 local function _n(name)
@@ -20,10 +28,6 @@ local ss_encrypt_method_list = {
 	"aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "chacha20-ietf-poly1305",
 	"xchacha20-ietf-poly1305"
 }
-
--- [[ Shadowsocks Libev ]]
-
-s.fields["type"]:value(type_name, translate("Shadowsocks Libev"))
 
 o = s:option(ListValue, _n("del_protocol")) --始终隐藏，用于删除 protocol
 o:depends({ [_n("__hide")] = "1" })

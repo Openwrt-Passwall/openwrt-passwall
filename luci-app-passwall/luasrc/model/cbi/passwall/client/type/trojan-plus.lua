@@ -8,15 +8,19 @@ end
 
 local type_name = "Trojan-Plus"
 
+-- [[ Trojan Plus ]]
+
+s.fields["type"]:value(type_name, "Trojan-Plus")
+
+if s.val["type"] ~= type_name then
+	return
+end
+
 local option_prefix = "trojan_plus_"
 
 local function _n(name)
 	return option_prefix .. name
 end
-
--- [[ Trojan Plus ]]
-
-s.fields["type"]:value(type_name, "Trojan-Plus")
 
 o = s:option(ListValue, _n("del_protocol")) --始终隐藏，用于删除 protocol
 o:depends({ [_n("__hide")] = "1" })
