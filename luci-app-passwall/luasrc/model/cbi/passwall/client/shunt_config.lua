@@ -233,4 +233,20 @@ if #nodes_table > 0 then
 	end
 end
 
+o = s:option(ListValue, "domainStrategy", translate("Domain Strategy"))
+o:value("AsIs")
+o:value("IPIfNonMatch")
+o:value("IPOnDemand")
+o.default = "IPOnDemand"
+o.description = "<br /><ul><li>" .. translate("'AsIs': Only use domain for routing. Default value.")
+	.. "</li><li>" .. translate("'IPIfNonMatch': When no rule matches current domain, resolves it into IP addresses (A or AAAA records) and try all rules again.")
+	.. "</li><li>" .. translate("'IPOnDemand': As long as there is a IP-based rule, resolves the domain into IP immediately.")
+	.. "</li></ul>"
+o:depends({ ["type"] = "Xray" })
+
+o = s:option(ListValue, "domainMatcher", translate("Domain matcher"))
+o:value("hybrid")
+o:value("linear")
+o:depends({ ["type"] = "Xray" })
+
 return m
