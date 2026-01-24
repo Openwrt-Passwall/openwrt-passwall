@@ -272,6 +272,10 @@ table td, .table .td {
 		window.location.href = '<%=api.url("copy_node")%>' + "?section=" + cbi_id;
 	}
 
+	function edit_node(cbi_id) {
+		window.location.href = '<%=api.url("edit_node")%>' + "?section=" + cbi_id;
+	}
+
 	function del_node(cbi_id) {
 		window.location.href = '<%=api.url("delete_select_nodes")%>' + "?redirect=1&ids=" + cbi_id;
 	}
@@ -797,7 +801,7 @@ table td, .table .td {
 				<input class="btn cbi-button cbi-button-edit" type="button" value="<%:To Top%>" onclick="row_top(this, '{{group}}')" title="<%:To Top%>"/>
 				<input class="btn cbi-button cbi-button-apply" type="button" value="<%:Use%>" id="apply_{{id}}" onclick="open_set_node_div('{{id}}')"/>
 				<input class="btn cbi-button cbi-button-add" type="button" value="<%:Copy%>" onclick="copy_node('{{id}}')"/>
-				<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Edit%>" onclick="location.href='<%=api.url("node_config")%>/{{id}}'" alt="<%:Edit%>" title="<%:Edit%>">
+				<input class="btn cbi-button cbi-button-edit" type="button" value="<%:Edit%>" onclick="edit_node('{{id}}')" alt="<%:Edit%>" title="<%:Edit%>">
 				<input class="btn cbi-button cbi-button-remove" type="button" value="<%:Delete%>" onclick="del_node('{{id}}')" alt="<%:Delete%>" title="<%:Delete%>">
 				<span class="drag-handle center" title="<%:Drag to reorder%>">⠿</span>
 			</div>

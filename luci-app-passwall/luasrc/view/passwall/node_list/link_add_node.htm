@@ -163,8 +163,12 @@ local api = require "luci.passwall.api"
 		}
 	}
 
-	function add_new_node() {
-		window.location.href = '<%=api.url("add_node")%>?redirect=1';
+	function add_new_node(protocol) {
+		if (protocol && protocol === "shunt") {
+			window.location.href = '<%=api.url("add_node")%>?protocol=shunt&redirect=1';
+		} else {
+			window.location.href = '<%=api.url("add_node")%>?redirect=1';
+		}
 	}
 
 	//自定义分组下拉列表事件
@@ -330,6 +334,7 @@ local api = require "luci.passwall.api"
 	<div class="pw-toolbar-field">
 		<input class="btn cbi-button cbi-button-add" type="button" onclick="add_new_node()" value="<%:Add%>" />
 		<input class="btn cbi-button cbi-button-add" type="button" onclick="open_add_link_div()" value="<%:Add the node via the link%>" />
+		<input class="btn cbi-button cbi-button-add" type="button" onclick="add_new_node('shunt')" value="<%:Add shunt node%>" />
 		<input class="btn cbi-button cbi-button-remove" type="button" onclick="clear_all_nodes()" value="<%:Clear all nodes%>" />
 		<input class="btn cbi-button cbi-button-remove" type="button" onclick="delete_select_nodes()" value="<%:Delete select nodes%>" />
 		<input class="btn cbi-button cbi-button-edit" type="button" id="select_all_btn" onclick="checked_all_node(this)" value="<%:Select all%>" />
