@@ -118,203 +118,6 @@ o:value("", translate("Close"))
 o:value("tcp", translate("Same as the tcp node"))
 o.group = {"",""}
 
--- 分流
-if (has_singbox or has_xray) and #nodes_table > 0 then
-	local function get_cfgvalue(shunt_node_id, option)
-		return function(self, section)
-			return m:get(shunt_node_id, option)
-		end
-	end
-	local function get_write(shunt_node_id, option)
-		return function(self, section, value)
-			if s.fields["tcp_node"]:formvalue(section) == shunt_node_id then
-				m:set(shunt_node_id, option, value)
-			end
-		end
-	end
-	local function get_remove(shunt_node_id, option)
-		return function(self, section)
-			if s.fields["tcp_node"]:formvalue(section) == shunt_node_id then
-				m:del(shunt_node_id, option)
-			end
-		end
-	end
-	if #normal_list > 0 then
-		for k, v in pairs(shunt_list) do
-			local vid = v.id
-			-- shunt node type, Sing-Box or Xray
-			o = s:taboption("Main", ListValue, vid .. "-type", translate("Type"))
-			if has_xray then
-				o:value("Xray", translate("Xray"))
-			end
-			if has_singbox then
-				o:value("sing-box", "Sing-Box")
-			end
-			o:depends("tcp_node", v.id)
-			o.cfgvalue = get_cfgvalue(v.id, "type")
-			o.write = get_write(v.id, "type")
-
-			-- pre-proxy
-			o = s:taboption("Main", Flag, vid .. "-preproxy_enabled", translate("Preproxy"))
-			o:depends("tcp_node", v.id)
-			o.rmempty = false
-			o.cfgvalue = get_cfgvalue(v.id, "preproxy_enabled")
-			o.write = get_write(v.id, "preproxy_enabled")
-
-			o = s:taboption("Main", ListValue, vid .. "-main_node", string.format('<a style="color:#FF8C00">%s</a>', translate("Preproxy Node")), translate("Set the node to be used as a pre-proxy. Each rule (including <code>Default</code>) has a separate switch that controls whether this rule uses the pre-proxy or not."))
-			o:depends(vid .. "-preproxy_enabled", "1")
-			o.template = appname .. "/cbi/nodes_listvalue"
-			o.group = {}
-			for k1, v1 in pairs(socks_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(balancing_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(urltest_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(iface_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(normal_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			o.cfgvalue = get_cfgvalue(v.id, "main_node")
-			o.write = get_write(v.id, "main_node")
-
-			o = s:taboption("Main", Flag, vid .. "-fakedns", "FakeDNS", translate("Use FakeDNS work in the shunt domain that proxy."))
-			o:depends("tcp_node", v.id)
-			o.cfgvalue = get_cfgvalue(v.id, "fakedns")
-			o.write = get_write(v.id, "fakedns")
-			o.remove = get_remove(v.id, "fakedns")
-
-			m.uci:foreach(appname, "shunt_rules", function(e)
-				local id = e[".name"]
-				local node_option = vid .. "-" .. id .. "_node"
-				if id and e.remarks then
-					o = s:taboption("Main", ListValue, node_option, string.format('* <a href="%s" target="_blank">%s</a>', api.url("shunt_rules", id), e.remarks))
-					o.cfgvalue = get_cfgvalue(v.id, id)
-					o.write = get_write(v.id, id)
-					o.remove = get_remove(v.id, id)
-					o:depends("tcp_node", v.id)
-					o:value("", translate("Close"))
-					o:value("_default", translate("Default"))
-					o:value("_direct", translate("Direct Connection"))
-					o:value("_blackhole", translate("Blackhole"))
-					o.template = appname .. "/cbi/nodes_listvalue"
-					o.group = {"","","",""}
-
-					local pt = s:taboption("Main", ListValue, vid .. "-".. id .. "_proxy_tag", string.format('* <a style="color:#FF8C00">%s</a>', e.remarks .. " " .. translate("Preproxy")))
-					pt.cfgvalue = get_cfgvalue(v.id, id .. "_proxy_tag")
-					pt.write = get_write(v.id, id .. "_proxy_tag")
-					pt.remove = get_remove(v.id, id .. "_proxy_tag")
-					pt:value("", translate("Close"))
-					pt:value("main", translate("Preproxy Node"))
-					pt:depends("__hide__", "1")
-
-					local fakedns_tag = s:taboption("Main", Flag, vid .. "-".. id .. "_fakedns", string.format('* <a style="color:#FF8C00">%s</a>', e.remarks .. " " .. "FakeDNS"))
-					fakedns_tag.cfgvalue = get_cfgvalue(v.id, id .. "_fakedns")
-					fakedns_tag.write = get_write(v.id, id .. "_fakedns")
-					fakedns_tag.remove = get_remove(v.id, id .. "_fakedns")
-
-					for k1, v1 in pairs(socks_list) do
-						o:value(v1.id, v1.remark)
-						o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-						fakedns_tag:depends({ [node_option] = v1.id, [vid .. "-fakedns"] = "1" })
-					end
-					for k1, v1 in pairs(balancing_list) do
-						o:value(v1.id, v1.remark)
-						o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-					end
-					for k1, v1 in pairs(urltest_list) do
-						o:value(v1.id, v1.remark)
-						o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-					end
-					for k1, v1 in pairs(iface_list) do
-						o:value(v1.id, v1.remark)
-						o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-					end
-					for k1, v1 in pairs(normal_list) do
-						o:value(v1.id, v1.remark)
-						o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-						if not api.is_local_ip(v1.address) then  --本地节点禁止使用前置
-							pt:depends({ [node_option] = v1.id, [vid .. "-preproxy_enabled"] = "1" })
-						end
-						fakedns_tag:depends({ [node_option] = v1.id, [vid .. "-fakedns"] = "1" })
-					end
-					if v.default_node ~= "_direct" or v.default_node ~= "_blackhole" then
-						fakedns_tag:depends({ [node_option] = "_default", [vid .. "-fakedns"] = "1" })
-					end
-				end
-			end)
-
-			local id = "default_node"
-			o = s:taboption("Main", ListValue, vid .. "-" .. id, string.format('* <a style="color:red">%s</a>', translate("Default")))
-			o.cfgvalue = get_cfgvalue(v.id, id)
-			o.write = get_write(v.id, id)
-			o.remove = get_remove(v.id, id)
-			o:depends("tcp_node", v.id)
-			o:value("_direct", translate("Direct Connection"))
-			o:value("_blackhole", translate("Blackhole"))
-			o.template = appname .. "/cbi/nodes_listvalue"
-			o.group = {"",""}
-			for k1, v1 in pairs(socks_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(balancing_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(urltest_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(iface_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-			for k1, v1 in pairs(normal_list) do
-				o:value(v1.id, v1.remark)
-				o.group[#o.group+1] = (v1.group and v1.group ~= "") and v1.group or translate("default")
-			end
-
-			local id = "default_proxy_tag"
-			o = s:taboption("Main", ListValue, vid .. "-" .. id, string.format('* <a style="color:#FF8C00">%s</a>', translate("Default Preproxy")), translate("When using, localhost will connect this node first and then use this node to connect the default node."))
-			o.cfgvalue = get_cfgvalue(v.id, id)
-			o.write = get_write(v.id, id)
-			o.remove = get_remove(v.id, id)
-			o:value("", translate("Close"))
-			o:value("main", translate("Preproxy Node"))
-			o:depends("__hide__", "1")
-			for k1, v1 in pairs(normal_list) do
-				if v1.protocol ~= "_balancing" and v1.protocol ~= "_urltest" and not api.is_local_ip(v1.address) then
-					o:depends({ [vid .. "-default_node"] = v1.id, [vid .. "-preproxy_enabled"] = "1" })
-				end
-			end
-		end
-	else
-		local tips = s:taboption("Main", DummyValue, "tips", "　")
-		tips.rawhtml = true
-		tips.cfgvalue = function(t, n)
-			return string.format('<a style="color: red">%s</a>', translate("There are no available nodes, please add or subscribe nodes first."))
-		end
-		tips:depends({ tcp_node = "", ["!reverse"] = true })
-		for k, v in pairs(shunt_list) do
-			tips:depends("udp_node", v.id)
-		end
-		for k, v in pairs(balancing_list) do
-			tips:depends("udp_node", v.id)
-		end
-	end
-end
-
 o = s:taboption("Main", Value, "tcp_node_socks_port", translate("TCP Node") .. " Socks " .. translate("Listen Port"))
 o.default = 1070
 o.datatype = "port"
@@ -380,10 +183,14 @@ o.default = "0"
 
 -- TCP分流时dns过滤模式保存逻辑
 function dns_mode_save(section)
-	for k, v in pairs(shunt_list) do
-		local f = s.fields[v.id .. "-type"]
-		if f then
-			local type_val = f:formvalue(section)
+	local f = s.fields["tcp_node"]
+	local id_val = f and f:formvalue(section) or ""
+	if id_val == "" then
+		return
+	end
+	for _, v in pairs(shunt_list) do
+		if v.id == id_val then
+			local type_val = v.type
 			if type_val and (type_val == "Xray" or type_val == "sing-box") then
 				local dns_shunt_val = s.fields["dns_shunt"]:formvalue(section)
 				local dns_mode_val = (dns_shunt_val ~= "smartdns") and "dns_mode" or "smartdns_dns_mode"
@@ -921,8 +728,11 @@ for k, v in pairs(nodes_table) do
 			udp.group[#udp.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 
 			s.fields["_node_sel_shunt"]:depends({ tcp_node = v.id })
-			s.fields["xray_dns_mode"]:depends({ [v.id .. "-type"] = "Xray", _node_sel_shunt = "1" })
-			s.fields["singbox_dns_mode"]:depends({ [v.id .. "-type"] = "sing-box", _node_sel_shunt = "1" })
+			if m:get(v.id, "type") == "Xray" then
+				s.fields["xray_dns_mode"]:depends({ tcp_node = v.id })
+			else
+				s.fields["singbox_dns_mode"]:depends({ tcp_node = v.id })
+			end
 		end
 	else
 		tcp:value(v.id, v["remark"])
