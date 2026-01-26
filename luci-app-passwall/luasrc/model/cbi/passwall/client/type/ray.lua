@@ -537,7 +537,7 @@ o:depends({ [_n("tls")] = true, [_n("reality")] = false })
 
 o = s:option(Flag, _n("ech"), translate("ECH"))
 o.default = "0"
-o:depends({ [_n("tls")] = true, [_n("flow")] = "", [_n("reality")] = false })
+o:depends({ [_n("tls")] = true, [_n("reality")] = false })
 o:depends({ [_n("protocol")] = "hysteria2" })
 
 o = s:option(TextValue, _n("ech_config"), translate("ECH Config"))

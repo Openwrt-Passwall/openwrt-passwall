@@ -243,7 +243,7 @@ end
 
 o = s:option(Flag, _n("ech"), translate("ECH"))
 o.default = "0"
-o:depends({ [_n("tls")] = true, [_n("flow")] = "", [_n("reality")] = false })
+o:depends({ [_n("tls")] = true, [_n("reality")] = false })
 
 o = s:option(TextValue, _n("ech_key"), translate("ECH Key"))
 o.default = ""
