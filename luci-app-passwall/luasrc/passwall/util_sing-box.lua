@@ -1087,9 +1087,10 @@ function gen_config(var)
 			local socks_node = uci:get_all(appname, socks_id) or nil
 			if socks_node then
 				if not remarks then
-					remarks = "Socks_" .. socks_node.port
+					remarks = socks_node.port
 				end
 				result = {
+					[".name"] = "Socksid_" .. socks_id,
 					remarks = remarks,
 					type = "sing-box",
 					protocol = "socks",
@@ -1127,8 +1128,17 @@ function gen_config(var)
 			end
 			return nodes
 		end
+	
+		function get_node_by_id(node_id)
+			if not node_id or node_id == "" or node_id == "nil" then return nil end
+			if node_id:find("Socks_") then
+				return gen_socks_config_node(node_id)
+			else
+				return uci:get_all(appname, node_id)
+			end
+		end
 
-		function gen_urltest(_node)
+		function gen_urltest_outbound(_node)
 			local urltest_id = _node[".name"]
 			local urltest_tag = "urltest-" .. urltest_id
 			-- existing urltest
@@ -1158,21 +1168,9 @@ function gen_config(var)
 					end
 				end
 				if is_new_ut_node then
-					local ut_node
-					if ut_node_id:find("Socks_") then
-						ut_node = gen_socks_config_node(ut_node_id)
-					else
-						ut_node = uci:get_all(appname, ut_node_id)
-					end
-					if ut_node then
-						local outbound = gen_outbound(flag, ut_node, ut_node_tag, { fragment = singbox_settings.fragment == "1" or nil, record_fragment = singbox_settings.record_fragment == "1" or nil, run_socks_instance = not no_run })
-						if outbound then
-							if ut_node.remarks then
-								outbound.tag = outbound.tag .. ":" .. ut_node.remarks
-							end
-							table.insert(outbounds, outbound)
-							valid_nodes[#valid_nodes + 1] = outbound.tag
-						end
+					local outboundTag = gen_outbound_get_tag(flag, ut_node_id, ut_node_tag, { fragment = singbox_settings.fragment == "1" or nil, record_fragment = singbox_settings.record_fragment == "1" or nil, run_socks_instance = not no_run })
+					if outboundTag then
+						valid_nodes[#valid_nodes + 1] = outboundTag
 					end
 				end
 			end
@@ -1187,8 +1185,7 @@ function gen_config(var)
 				idle_timeout = (api.format_go_time(_node.urltest_idle_timeout) ~= "0s") and api.format_go_time(_node.urltest_idle_timeout) or "30m",
 				interrupt_exist_connections = (_node.urltest_interrupt_exist_connections == "true" or _node.urltest_interrupt_exist_connections == "1") and true or false
 			}
-			table.insert(outbounds, outbound)
-			return urltest_tag
+			return outbound
 		end
 
 		function set_outbound_detour(node, outbound, outbounds_table, shunt_rule_name)
@@ -1222,7 +1219,7 @@ function gen_config(var)
 				if outbound["_flag_proxy_tag"] then
 					--Ignore
 				else
-					local preproxy_node = uci:get_all(appname, node.preproxy_node)
+					local preproxy_node = get_node_by_id(node.preproxy_node)
 					if preproxy_node then
 						local preproxy_outbound
 						if preproxy_node.protocol == "_urltest" then
@@ -1246,7 +1243,7 @@ function gen_config(var)
 				end
 			end
 			if node.chain_proxy == "2" and node.to_node then
-				local to_node = uci:get_all(appname, node.to_node)
+				local to_node = get_node_by_id(node.to_node)
 				if to_node then
 					-- Landing Node not support use special node.
 					if to_node.protocol:find("_") then
@@ -1303,122 +1300,90 @@ function gen_config(var)
 			return default_outTag, last_insert_outbound
 		end
 
+		function gen_outbound_get_tag(flag, node_id, tag, proxy_table)
+			if not node_id or node_id == "nil" then return nil end
+			local node
+			if type(node_id) == "string" then
+				node = get_node_by_id(node_id)
+			elseif type(node_id) == "table" then
+				node = node_id
+			end
+			if node then
+				if node.protocol == "_iface" then
+					if node.iface then
+						local outbound = {
+							tag = tag,
+							type = "direct",
+							bind_interface = node.iface,
+							routing_mark = 255,
+						}
+						table.insert(outbounds, outbound)
+						sys.call(string.format("mkdir -p %s && touch %s/%s", api.TMP_IFACE_PATH, api.TMP_IFACE_PATH, node.iface))
+						return outbound.tag
+					end
+					return nil
+				end
+				if proxy_table.chain_proxy == "1" or proxy_table.chain_proxy == "2" then
+					node.chain_proxy = proxy_table.chain_proxy
+					node.preproxy_node = proxy_table.chain_proxy == "1" and proxy_table.preproxy_node
+					node.to_node = proxy_table.chain_proxy == "2" and proxy_table.to_node
+					proxy_table.chain_proxy = nil
+					proxy_table.preproxy_node = nil
+					proxy_table.to_node = nil
+				end
+				local outbound
+				if node.protocol == "_urltest" then
+					if node.urltest_node then
+						outbound = gen_urltest_outbound(node)
+					end
+				else
+					outbound = gen_outbound(flag, node, tag, proxy_table)
+				end
+				if outbound then
+					if node.remarks then
+						outbound.tag = outbound.tag .. ":" .. node.remarks
+					end
+					local default_outbound_tag, last_insert_outbound = set_outbound_detour(node, outbound, outbounds)
+					table.insert(outbounds, outbound)
+					if last_insert_outbound then
+						table.insert(outbounds, last_insert_outbound)
+					end
+					return default_outbound_tag
+				end
+			end
+		end
+
 		rules = {}
 
 		if node.protocol == "_shunt" then
-			local preproxy_rule_name = node.preproxy_enabled == "1" and "main" or nil
-			local preproxy_tag = preproxy_rule_name
-			local preproxy_node_id = preproxy_rule_name and node["main_node"] or nil
-
 			inner_fakedns = node.fakedns or "0"
 
 			local function gen_shunt_node(rule_name, _node_id)
 				if not rule_name then return nil, nil end
 				if not _node_id then _node_id = node[rule_name] end
-				local rule_outboundTag
 				if _node_id == "_direct" then
-					rule_outboundTag = "direct"
+					return "direct"
 				elseif _node_id == "_blackhole" then
-					rule_outboundTag = "block"
+					return "block"
 				elseif _node_id == "_default" and rule_name ~= "default" then
-					rule_outboundTag = "default"
-				elseif _node_id and _node_id:find("Socks_") then
-					local socks_node = gen_socks_config_node(_node_id)
-					local _outbound = gen_outbound(flag, socks_node, rule_name)
-					if _outbound then
-						table.insert(outbounds, _outbound)
-						rule_outboundTag = _outbound.tag
-					end
+					return "default"
 				elseif _node_id then
-					local _node = uci:get_all(appname, _node_id)
-					if not _node then return nil, nil end
-
-					if api.is_normal_node(_node) then
-						local use_proxy = preproxy_tag and node[rule_name .. "_proxy_tag"] == preproxy_rule_name and _node_id ~= preproxy_node_id
-						local copied_outbound
-						for index, value in ipairs(outbounds) do
-							if value["_id"] == _node_id and value["_flag_proxy_tag"] == (use_proxy and preproxy_tag or nil) then
-								copied_outbound = api.clone(value)
-								break
-							end
-						end
-						if copied_outbound then
-							copied_outbound.tag = rule_name .. ":" .. _node.remarks
-							table.insert(outbounds, copied_outbound)
-							rule_outboundTag = copied_outbound.tag
-						else
-							if use_proxy then
-								local pre_proxy = nil
-								if _node.type ~= "sing-box" then
-									pre_proxy = true
-								end
-								if pre_proxy then
-									local new_port = api.get_new_port()
-									table.insert(inbounds, {
-										type = "direct",
-										tag = "proxy_" .. rule_name,
-										listen = "127.0.0.1",
-										listen_port = new_port,
-										override_address = _node.address,
-										override_port = tonumber(_node.port),
-									})
-									if _node.tls_serverName == nil then
-										_node.tls_serverName = _node.address
-									end
-									_node.address = "127.0.0.1"
-									_node.port = new_port
-									table.insert(rules, 1, {
-										inbound = {"proxy_" .. rule_name},
-										outbound = preproxy_tag,
-									})
-								end
-							end
-							local proxy_table = {
-								tag = use_proxy and preproxy_tag or nil,
-								run_socks_instance = not no_run
-							}
-							if not proxy_table.tag then
-								if singbox_settings.fragment == "1" then
-									proxy_table.fragment = true
-								end
-								if singbox_settings.record_fragment == "1" then
-									proxy_table.record_fragment = true
-								end
-							end
-							local _outbound = gen_outbound(flag, _node, rule_name, proxy_table)
-							if _outbound then
-								_outbound.tag = _outbound.tag .. ":" .. _node.remarks
-								rule_outboundTag, last_insert_outbound = set_outbound_detour(_node, _outbound, outbounds, rule_name)
-								table.insert(outbounds, _outbound)
-								if last_insert_outbound then
-									table.insert(outbounds, last_insert_outbound)
-								end
-							end
-						end
-					elseif _node.protocol == "_urltest" then
-						rule_outboundTag = gen_urltest(_node)
-					elseif _node.protocol == "_iface" then
-						if _node.iface then
-							local _outbound = {
-								type = "direct",
-								tag = rule_name .. ":" .. _node.remarks,
-								bind_interface = _node.iface,
-								routing_mark = 255,
-							}
-							table.insert(outbounds, _outbound)
-							rule_outboundTag = _outbound.tag
-							sys.call(string.format("mkdir -p %s && touch %s/%s", api.TMP_IFACE_PATH, api.TMP_IFACE_PATH, _node.iface))
-						end
+					local proxy_table = {
+						fragment = singbox_settings.fragment == "1",
+						record_fragment = singbox_settings.record_fragment == "1",
+						run_socks_instance = not no_run,
+					}
+					local preproxy_node_id = node[rule_name .. "_proxy_tag"]
+					if preproxy_node_id == _node_id then preproxy_node_id = nil end
+					if preproxy_node_id then
+						proxy_table.chain_proxy = "2"
+						proxy_table.to_node = _node_id
+						return gen_outbound_get_tag(flag, preproxy_node_id, rule_name, proxy_table)
+					else
+						return gen_outbound_get_tag(flag, _node_id, rule_name, proxy_table)
 					end
 				end
-				return rule_outboundTag
-			end
-
-			if preproxy_tag and preproxy_node_id then
-				local preproxy_outboundTag = gen_shunt_node(preproxy_rule_name, preproxy_node_id)
-				if preproxy_outboundTag then
-					preproxy_tag = preproxy_outboundTag
-				end
+				return nil
 			end
 
 			--default_node
@@ -1624,30 +1589,12 @@ function gen_config(var)
 					table.insert(rules, rule)
 				end
 			end)
-		elseif node.protocol == "_urltest" then
-				COMMON.default_outbound_tag = gen_urltest(node)
-		elseif node.protocol == "_iface" then
-			if node.iface then
-				local outbound = {
-					type = "direct",
-					tag = node.remarks or node_id,
-					bind_interface = node.iface,
-					routing_mark = 255,
-				}
-				table.insert(outbounds, outbound)
-				COMMON.default_outbound_tag = outbound.tag
-				sys.call(string.format("mkdir -p %s && touch %s/%s", api.TMP_IFACE_PATH, api.TMP_IFACE_PATH, node.iface))
-			end
 		else
-			local outbound = gen_outbound(flag, node, nil, { fragment = singbox_settings.fragment == "1" or nil, record_fragment = singbox_settings.record_fragment == "1" or nil, run_socks_instance = not no_run })
-			if outbound then
-				outbound.tag = outbound.tag .. ":" .. node.remarks
-				COMMON.default_outbound_tag, last_insert_outbound = set_outbound_detour(node, outbound, outbounds)
-				table.insert(outbounds, outbound)
-				if last_insert_outbound then
-					table.insert(outbounds, last_insert_outbound)
-				end
-			end
+			COMMON.default_outbound_tag = gen_outbound_get_tag(flag, node, nil, {
+				fragment = singbox_settings.fragment == "1" or nil,
+				record_fragment = singbox_settings.record_fragment == "1" or nil,
+				run_socks_instance = not no_run
+			})
 		end
 
 		for index, value in ipairs(rules) do
@@ -1879,7 +1826,7 @@ function gen_config(var)
 		if dns_socks_address and dns_socks_port then
 		else
 			if node_id and (tcp_redir_port or udp_redir_port) then
-				local node = uci:get_all(appname, node_id)
+				local node = get_node_by_id(node_id)
 				if node.protocol == "_shunt" then
 					if node.default_node == "_direct" then
 						default_dns_flag = "direct"

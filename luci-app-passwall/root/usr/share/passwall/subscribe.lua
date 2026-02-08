@@ -266,10 +266,6 @@ do
 				[".name"] = "default_node",
 				remarks = "默认"
 			})
-			table.insert(rules, {
-				[".name"] = "main_node",
-				remarks = "默认前置"
-			})
 
 			for k, e in pairs(rules) do
 				local _node_id = node[e[".name"]] or nil

@@ -87,13 +87,6 @@ if data.node.type == "Xray" then
 	o:value("linear")
 end
 
-o = add_option(Flag, "preproxy_enabled", translate("Preproxy") .. " " .. translate("Main switch"))
-
-main_node = add_option(ListValue, "main_node", string.format('<a style="color:red">%s</a>', translate("Preproxy Node")), translate("Set the node to be used as a pre-proxy. Each rule (including <code>Default</code>) has a separate switch that controls whether this rule uses the pre-proxy or not."))
-add_depends(main_node, {["preproxy_enabled"] = true})
-main_node.template = appname .. "/cbi/nodes_listvalue"
-main_node.group = {}
-
 o = add_option(Flag, "fakedns", '<a style="color:#FF8C00">FakeDNS</a>' .. " " .. translate("Main switch"), translate("Use FakeDNS work in the domain that proxy.") .. "<br>" ..
 	translate("Suitable scenarios for let the node servers get the target domain names.") .. "<br>" ..
 	translate("Such as: DNS unlocking of streaming media, reducing DNS query latency, etc."))
@@ -160,70 +153,66 @@ o.remove = function(self, section)
 	return m:del(current_node_id, shunt_rules[section]["_fakedns_option"])
 end
 
-o = s2:option(ListValue, "_proxy_tag", string.format('<a style="color:red">%s</a>', translate("Preproxy")))
---TODO Choose any node as a pre-proxy. Instead of main node.
-o.template = appname .. "/cbi/nodes_listvalue"
-o.group = {"",""}
-o:value("", translate("Close (Not use)"))
-o:value("main", translate("Use preproxy node"))
-o.cfgvalue = function(self, section)
+proxy_tag_node = s2:option(ListValue, "_proxy_tag", string.format('<a style="color:red" title="%s">%s</a>',
+	translate("Set the node to be used as a pre-proxy.") .. "\n" .. translate("Each rule has a separate switch that controls whether this rule uses the pre-proxy or not."),
+	translate("Preproxy")))
+proxy_tag_node.template = appname .. "/cbi/nodes_listvalue"
+proxy_tag_node.group = {""}
+proxy_tag_node:value("", translate("Close (Not use)"))
+proxy_tag_node.cfgvalue = function(self, section)
 	return m:get(current_node_id, shunt_rules[section]["_proxy_tag_option"])
 end
-o.write = function(self, section, value)
+proxy_tag_node.write = function(self, section, value)
 	return m:set(current_node_id, shunt_rules[section]["_proxy_tag_option"], value)
 end
-o.remove = function(self, section)
+proxy_tag_node.remove = function(self, section)
 	return m:del(current_node_id, shunt_rules[section]["_proxy_tag_option"])
 end
 
 if data.socks_list then
 	for k, v in pairs(data.socks_list) do
-		main_node:value(v.id, v.remark)
-		main_node.group[#main_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-
 		_node:value(v.id, v.remark)
 		_node.group[#_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+
+		proxy_tag_node:value(v.id, v.remark)
+		proxy_tag_node.group[#proxy_tag_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 	end
 end
 if data.urltest_list then
 	for k, v in pairs(data.urltest_list) do
-		main_node:value(v.id, v.remark)
-		main_node.group[#main_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-
 		_node:value(v.id, v.remark)
 		_node.group[#_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+
+		proxy_tag_node:value(v.id, v.remark)
+		proxy_tag_node.group[#proxy_tag_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 	end
 end
 if data.balancing_list then
 	for k, v in pairs(data.balancing_list) do
-		main_node:value(v.id, v.remark)
-		main_node.group[#main_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-
 		_node:value(v.id, v.remark)
 		_node.group[#_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+
+		proxy_tag_node:value(v.id, v.remark)
+		proxy_tag_node.group[#proxy_tag_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 	end
 end
 if data.iface_list then
 	for k, v in pairs(data.iface_list) do
-		main_node:value(v.id, v.remark)
-		main_node.group[#main_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-
 		_node:value(v.id, v.remark)
 		_node.group[#_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+
+		proxy_tag_node:value(v.id, v.remark)
+		proxy_tag_node.group[#proxy_tag_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 	end
 end
 if data.normal_list then
 	for k, v in pairs(data.normal_list) do
-		main_node:value(v.id, v.remark)
-		main_node.group[#main_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-
 		_node:value(v.id, v.remark)
 		_node.group[#_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-	end
-end
 
-if #main_node.keylist > 0 then
-	main_node.default = main_node.keylist[1]
+		proxy_tag_node:value(v.id, v.remark)
+		proxy_tag_node.group[#proxy_tag_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+	end
 end
 
 local footer = Template(appname .. "/include/shunt_options")

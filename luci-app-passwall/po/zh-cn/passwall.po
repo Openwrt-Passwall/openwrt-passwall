@@ -535,8 +535,11 @@ msgstr "前置代理"
 msgid "Preproxy Node"
 msgstr "前置代理节点"
 
-msgid "Set the node to be used as a pre-proxy. Each rule (including <code>Default</code>) has a separate switch that controls whether this rule uses the pre-proxy or not."
-msgstr "设置用作前置代理的节点。每条规则（包括<code>默认</code>）都有独立开关控制本规则是否使用前置代理。"
+msgid "Set the node to be used as a pre-proxy."
+msgstr "设置用作前置代理的节点。"
+
+msgid "Each rule has a separate switch that controls whether this rule uses the pre-proxy or not."
+msgstr "每条规则都有独立开关控制本规则是否使用前置代理。"
 
 msgid "Close (Not use)"
 msgstr "关闭（不使用）"
@@ -549,12 +552,6 @@ msgstr "直连"
 
 msgid "Blackhole (Block)"
 msgstr "黑洞（屏蔽）"
-
-msgid "Use preproxy node"
-msgstr "使用前置代理节点"
-
-msgid "Default Preproxy"
-msgstr "默认前置代理"
 
 msgid "There are no available nodes, please add or subscribe nodes first."
 msgstr "没有可用节点，请先添加或订阅节点。"
@@ -873,18 +870,6 @@ msgstr "恢复切换"
 
 msgid "When detects main node is available, switch back to the main node."
 msgstr "当检测到主节点可用时，切换回主节点。"
-
-msgid "If the main node is V2ray/Xray shunt"
-msgstr "如果主节点是 V2ray/Xray 分流"
-
-msgid "Switch it"
-msgstr "切掉它"
-
-msgid "Applying to the default node"
-msgstr "应用于默认节点"
-
-msgid "Applying to the preproxy node"
-msgstr "应用于前置代理节点"
 
 msgid "Add nodes to the standby node list by keywords"
 msgstr "通过关键字添加节点到备用节点列表"

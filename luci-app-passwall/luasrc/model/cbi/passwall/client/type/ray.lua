@@ -757,7 +757,7 @@ end
 
 for k, e in ipairs(api.get_valid_nodes()) do
 	if e[".name"] ~= arg[1] then
-		if e.protocol ~= "_shunt" and e.protocol ~= "_iface" and e.protocol ~= "_balancing" then
+		if e.protocol ~= "_shunt" and e.protocol ~= "_iface" then
 			o1:value(e[".name"], e["remark"])
 			o1.group[#o1.group+1] = (e["group"] and e["group"] ~= "") and e["group"] or translate("default")
 		end
