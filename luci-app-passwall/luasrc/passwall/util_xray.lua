@@ -286,9 +286,14 @@ function gen_outbound(flag, node, tag, proxy_table)
 				finalmask = (node.transport == "mkcp") and {
 					udp = (function()
 						local t = {}
+						local function to_header(v)
+							local map = {none = "none", srtp = "header-srtp", utp = "header-utp", ["wechat-video"] = "header-wechat",
+								dtls = "header-dtls", wireguard = "header-wireguard", dns = "header-dns"}
+							return map[v]
+						end
 						if node.mkcp_guise and node.mkcp_guise ~= "none" then
-							local g = { type = node.mkcp_guise }
-							if node.mkcp_guise == "header-dns" and node.mkcp_domain and node.mkcp_domain ~= "" then
+							local g = { type = to_header(node.mkcp_guise) }
+							if node.mkcp_guise == "dns" and node.mkcp_domain and node.mkcp_domain ~= "" then
 								g.settings = { domain = node.mkcp_domain }
 							end
 							t[#t + 1] = g
@@ -597,9 +602,14 @@ function gen_config_server(node)
 					finalmask = (node.transport == "mkcp") and {
 						udp = (function()
 							local t = {}
+							local function to_header(v)
+								local map = {none = "none", srtp = "header-srtp", utp = "header-utp", ["wechat-video"] = "header-wechat",
+									dtls = "header-dtls", wireguard = "header-wireguard", dns = "header-dns"}
+								return map[v]
+							end
 							if node.mkcp_guise and node.mkcp_guise ~= "none" then
-								local g = { type = node.mkcp_guise }
-								if node.mkcp_guise == "header-dns" and node.mkcp_domain and node.mkcp_domain ~= "" then
+								local g = { type = to_header(node.mkcp_guise) }
+								if node.mkcp_guise == "dns" and node.mkcp_domain and node.mkcp_domain ~= "" then
 									g.settings = { domain = node.mkcp_domain }
 								end
 								t[#t + 1] = g
