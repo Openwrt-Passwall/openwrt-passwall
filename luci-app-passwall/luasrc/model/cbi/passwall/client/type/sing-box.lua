@@ -794,12 +794,22 @@ o2:depends({ [_n("chain_proxy")] = "2" })
 o2.template = appname .. "/cbi/nodes_listvalue"
 o2.group = {}
 
-for k, v in pairs(nodes_list) do
-	if v.id ~= arg[1] and (not v.chain_proxy or v.chain_proxy == "") then
-		o1:value(v.id, v.remark)
-		o1.group[#o1.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
-		o2:value(v.id, v.remark)
-		o2.group[#o2.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+for k, v in pairs(socks_list) do
+	o1:value(v.id, v.remark)
+	o1.group[#o1.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
+end
+
+for k, e in ipairs(api.get_valid_nodes()) do
+	if e[".name"] ~= arg[1] then
+		if e.protocol ~= "_shunt" and e.protocol ~= "_iface" then
+			o1:value(e[".name"], e["remark"])
+			o1.group[#o1.group+1] = (e["group"] and e["group"] ~= "") and e["group"] or translate("default")
+		end
+		if not e.protocol:find("_") then
+			-- Landing Node not support use special node.
+			o2:value(e[".name"], e["remark"])
+			o2.group[#o2.group+1] = (e["group"] and e["group"] ~= "") and e["group"] or translate("default")
+		end
 	end
 end
 

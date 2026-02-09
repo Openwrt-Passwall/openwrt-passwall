@@ -1224,7 +1224,14 @@ function gen_config(var)
 				else
 					local preproxy_node = uci:get_all(appname, node.preproxy_node)
 					if preproxy_node then
-						local preproxy_outbound = gen_outbound(node[".name"], preproxy_node)
+						local preproxy_outbound
+						if preproxy_node.protocol == "_urltest" then
+							if preproxy_node.urltest_node then
+								preproxy_outbound = gen_urltest(preproxy_node)
+							end
+						else
+							preproxy_outbound = gen_outbound(node[".name"], preproxy_node)
+						end
 						if preproxy_outbound then
 							preproxy_outbound.tag = preproxy_node[".name"]
 							if preproxy_node.remarks then
@@ -1240,6 +1247,12 @@ function gen_config(var)
 			end
 			if node.chain_proxy == "2" and node.to_node then
 				local to_node = uci:get_all(appname, node.to_node)
+				if to_node then
+					-- Landing Node not support use special node.
+					if to_node.protocol:find("_") then
+						to_node = nil
+					end
+				end
 				if to_node then
 					local to_outbound
 					if to_node.type ~= "sing-box" then

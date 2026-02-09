@@ -994,6 +994,12 @@ function gen_config(var)
 			if node.chain_proxy == "2" and node.to_node then
 				local to_node = uci:get_all(appname, node.to_node)
 				if to_node then
+					-- Landing Node not support use special node.
+					if to_node.protocol:find("_") then
+						to_node = nil
+					end
+				end
+				if to_node then
 					local to_outbound
 					if to_node.type ~= "Xray" then
 						local tag = to_node[".name"]
