@@ -21,8 +21,6 @@ LOG_FILE = "/tmp/log/" .. appname .. ".log"
 TMP_PATH = "/tmp/etc/" .. appname
 TMP_IFACE_PATH = TMP_PATH .. "/iface"
 
-NEW_PORT = nil
-
 function log(...)
 	local result = os.date("%Y-%m-%d %H:%M:%S: ") .. table.concat({...}, " ")
 	local f, err = io.open(LOG_FILE, "a")
@@ -98,12 +96,7 @@ end
 
 function get_new_port()
 	local cmd_format = ". /usr/share/passwall/utils.sh ; echo -n $(get_new_port %s tcp,udp)"
-	local set_port = 0
-	if NEW_PORT and tonumber(NEW_PORT) then
-		set_port = tonumber(NEW_PORT) + 1
-	end
-	NEW_PORT = tonumber(sys.exec(string.format(cmd_format, set_port == 0 and "auto" or set_port)))
-	return NEW_PORT
+	return tonumber(sys.exec(string.format(cmd_format, "auto")))
 end
 
 function exec_call(cmd)

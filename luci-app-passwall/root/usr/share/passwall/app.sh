@@ -702,7 +702,7 @@ run_redir() {
 			[ -z "$can_ipt" ] && {
 				local _config_file=$config_file
 				_config_file="TCP_SOCKS_${node}.json"
-				local _port=$(get_new_port 2080)
+				local _port=$(get_new_port 3001)
 				run_socks flag="TCP" node=$node bind=127.0.0.1 socks_port=${_port} config_file=${_config_file}
 				_socks_address=127.0.0.1
 				_socks_port=${_port}
