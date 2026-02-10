@@ -218,4 +218,5 @@ end
 local footer = Template(appname .. "/include/shunt_options")
 footer.api = api
 footer.id = current_node_id
+footer.normal_list = api.jsonc.stringify(data.normal_list or {})
 m:append(footer)

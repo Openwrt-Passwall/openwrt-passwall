@@ -6,6 +6,7 @@
 </style>
 <script type="text/javascript">
 	//<![CDATA[
+	const normal_list = JSON.parse('<%=self.normal_list%>');
 	function check_fakedns(id, val) {
 		const dom_id = "cbid.table." + id + ".";
 		const fakedns_dom = document.getElementById(dom_id + "_fakedns");
@@ -29,7 +30,7 @@
 			const selectNode = document.getElementById(dom_id + "_node");
 			val = selectNode.value;
 		}
-		if (val == "" || val.startsWith("_") || val.startsWith("Socks_")) {
+		if (val == "" || val.startsWith("_") || val.startsWith("Socks_") || !normal_list.find(element => element.id == val)) {
 			const hiddenSelect = document.getElementById(cbid);
 			const panel = document.getElementById(cbid + ".panel");
 			const display = document.getElementById(cbid + ".display");
