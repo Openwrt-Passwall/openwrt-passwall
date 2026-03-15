@@ -796,7 +796,7 @@ for k, v in pairs(socks_list) do
 	udp.group[#udp.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
 end
 for k, v in pairs(nodes_table) do
-	if #normal_list == 0 then
+	if #normal_list == 0 and v.protocol ~= "_iface" then
 		break
 	end
 	if v.protocol == "_shunt" then
