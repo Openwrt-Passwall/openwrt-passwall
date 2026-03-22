@@ -154,7 +154,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 		}
 
 		local tls = nil
-		if node.protocol == "hysteria" or node.protocol == "hysteria2" or node.protocol == "tuic" then
+		if node.protocol == "hysteria" or node.protocol == "hysteria2" or node.protocol == "tuic" or node.protocol == "naive" then
 			node.tls = "1"
 		end
 		if node.tls == "1" then
@@ -486,6 +486,23 @@ function gen_outbound(flag, node, tag, proxy_table)
 				host_key = node.ssh_host_key,
 				host_key_algorithms = node.ssh_host_key_algo,
 				client_version = node.ssh_client_version
+			}
+		end
+
+		if node.protocol == "naive" then
+			protocol_table = {
+				username = (node.username and node.username ~= "") and node.username or "",
+				password = (node.password and node.password ~= "") and node.password or "",
+				insecure_concurrency = tonumber(node.naive_insecure_concurrency or 0) > 0 and tonumber(node.naive_insecure_concurrency) or 0,
+				udp_over_tcp = node.uot == "1" and {
+					enabled = true,
+					version = 2
+				} or false,
+				extra_headers = node.user_agent and {
+					["User-Agent"] = node.user_agent
+				} or nil,
+				quic = node.naive_quic == "1" and true or false,
+				quic_congestion_control = (node.naive_quic == "1" and node.naive_congestion_control) and node.naive_congestion_control or nil
 			}
 		end
 

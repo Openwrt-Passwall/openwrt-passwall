@@ -2107,3 +2107,6 @@ msgstr "当前使用的 %s 节点"
 
 msgid "Search nodes..."
 msgstr "搜索节点…"
+
+msgid "Concurrent Tunnels"
+msgstr "并发隧道连接数"

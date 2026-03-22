@@ -65,6 +65,9 @@ if singbox_tags:find("with_quic") then
 end
 o:value("anytls", "AnyTLS")
 o:value("ssh", "SSH")
+if singbox_tags:find("with_naive_outbound") then
+	o:value("naive", "NaïveProxy")
+end
 o:value("_urltest", translate("URLTest"))
 o:value("_shunt", translate("Shunt"))
 o:value("_iface", translate("Custom Interface"))
@@ -224,6 +227,7 @@ o = s:option(Value, _n("username"), translate("Username"))
 o:depends({ [_n("protocol")] = "http" })
 o:depends({ [_n("protocol")] = "socks" })
 o:depends({ [_n("protocol")] = "ssh" })
+o:depends({ [_n("protocol")] = "naive" })
 
 o = s:option(Value, _n("password"), translate("Password"))
 o.password = true
@@ -234,6 +238,7 @@ o:depends({ [_n("protocol")] = "trojan" })
 o:depends({ [_n("protocol")] = "tuic" })
 o:depends({ [_n("protocol")] = "anytls" })
 o:depends({ [_n("protocol")] = "ssh" })
+o:depends({ [_n("protocol")] = "naive" })
 
 o = s:option(ListValue, _n("security"), translate("Encrypt Method"))
 for a, t in ipairs(security_list) do o:value(t) end
@@ -248,6 +253,7 @@ o:depends({ [_n("protocol")] = "shadowsocks" })
 o = s:option(Flag, _n("uot"), translate("UDP over TCP"))
 o:depends({ [_n("protocol")] = "socks" })
 o:depends({ [_n("protocol")] = "shadowsocks" })
+o:depends({ [_n("protocol")] = "naive" })
 
 o = s:option(Value, _n("alter_id"), "Alter ID")
 o.datatype = "uinteger"
@@ -399,6 +405,26 @@ o = s:option(Value, _n("ssh_client_version"), translate("Client Version"), trans
 o:depends({ [_n("protocol")] = "ssh" })
 -- [[ SSH config end ]] --
 
+-- [[ naive start ]] --
+o = s:option(Value, _n("naive_insecure_concurrency"), translate("Concurrent Tunnels"))
+o.datatype = "uinteger"
+o.placeholder = "0"
+o.default = "0"
+o:depends({ [_n("protocol")] = "naive" })
+
+o = s:option(Flag, _n("naive_quic"), translate("QUIC"))
+o.default = 0
+o:depends({ [_n("protocol")] = "naive" })
+
+o = s:option(ListValue, _n("naive_congestion_control"), translate("Congestion control algorithm"))
+o.default = "bbr"
+o:value("bbr", translate("BBR"))
+o:value("bbr2", translate("BBRv2"))
+o:value("cubic", translate("CUBIC"))
+o:value("reno", translate("New Reno"))
+o:depends({ [_n("naive_quic")] = "1" })
+-- [[ naive end ]] --
+
 o = s:option(Flag, _n("tls"), translate("TLS"))
 o.default = 0
 o:depends({ [_n("protocol")] = "vmess" })
@@ -432,6 +458,7 @@ o:depends({ [_n("tls")] = true })
 o:depends({ [_n("protocol")] = "hysteria"})
 o:depends({ [_n("protocol")] = "tuic" })
 o:depends({ [_n("protocol")] = "hysteria2" })
+o:depends({ [_n("protocol")] = "naive" })
 
 o = s:option(Flag, _n("tls_allowInsecure"), translate("allowInsecure"), translate("Whether unsafe connections are allowed. When checked, Certificate validation will be skipped."))
 o.default = "0"
@@ -446,6 +473,7 @@ o:depends({ [_n("tls")] = true, [_n("flow")] = "", [_n("reality")] = false })
 o:depends({ [_n("protocol")] = "tuic" })
 o:depends({ [_n("protocol")] = "hysteria" })
 o:depends({ [_n("protocol")] = "hysteria2" })
+o:depends({ [_n("protocol")] = "naive" })
 
 o = s:option(TextValue, _n("ech_config"), translate("ECH Config"))
 o.default = ""
@@ -622,6 +650,7 @@ o:depends({ [_n("tcp_guise")] = "http" })
 o:depends({ [_n("transport")] = "http" })
 o:depends({ [_n("transport")] = "ws" })
 o:depends({ [_n("transport")] = "httpupgrade" })
+o:depends({ [_n("protocol")] = "naive" })
 
 -- [[ Mux ]]--
 o = s:option(Flag, _n("mux"), translate("Mux"))

@@ -1561,6 +1561,68 @@ local function processData(szType, content, add_mode, group)
 				return nil
 			end
 		end
+	elseif szType == 'naive+https' or szType == 'naive+quic' then
+		if has_singbox then
+			result.type = 'sing-box'
+			result.protocol = "naive"
+		else
+			log("跳过 NaïveProxy 节点，因未安装 NaïveProxy 核心程序 Sing-box。")
+			return nil
+		end
+
+		local alias = ""
+		if content:find("#") then
+			local idx_sp = content:find("#")
+			alias = content:sub(idx_sp + 1, -1)
+			content = content:sub(0, idx_sp - 1)
+		end
+		result.remarks = UrlDecode(alias)
+		local Info = content
+		if content:find("@", 1, true) then
+			local contents = split(content, "@")
+			local auth = contents[1] or ""
+			local idx = auth:find(":", 1, true)
+			if not idx then --修正某些链接会把username和password之间的:进行编码
+				auth = UrlDecode(auth)
+				idx = auth:find(":", 1, true)
+			end
+			if idx then
+				result.username = UrlDecode(auth:sub(1, idx - 1))
+				result.password = UrlDecode(auth:sub(idx + 1))
+			end
+			Info = (contents[2] or ""):gsub("/%?", "?")
+		end
+		local query = split(Info, "%?")
+		local host_port = query[1]
+		local params = {}
+		for _, v in pairs(split(query[2], '&')) do
+			local t = split(v, '=')
+			if #t > 1 then
+				params[string.lower(t[1])] = UrlDecode(t[2])
+			end
+		end
+		if host_port:find(":") then
+			local sp = split(host_port, ":")
+			result.port = sp[#sp]
+			if api.is_ipv6addrport(host_port) then
+				result.address = api.get_ipv6_only(host_port)
+			else
+				result.address = sp[1]
+			end
+		else
+			result.address = host_port
+		end
+		result.tls_serverName = params.sni
+		result.uot = params.uot
+		result.naive_insecure_concurrency = params["insecure-concurrency"] or "0"
+		if params.ech and params.ech ~= "" then
+			result.ech = "1"
+			result.ech_config = params.ech
+		end
+		if szType == "naive+quic" then
+			result.naive_quic = "1"
+			result.naive_congestion_control = params.congestion_control or "bbr"
+		end
 	else
 		log('暂时不支持' .. szType .. "类型的节点订阅，跳过此节点。")
 		return nil
