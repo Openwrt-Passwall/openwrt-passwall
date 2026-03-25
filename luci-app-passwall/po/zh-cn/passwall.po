@@ -1873,11 +1873,17 @@ msgstr "分片包长"
 msgid "Fragmented packet length (byte)"
 msgstr "分片包长 (byte)"
 
-msgid "Fragment Interval"
-msgstr "分片间隔"
+msgid "Fragment Delay"
+msgstr "分片延迟"
 
 msgid "Fragmentation interval (ms)"
 msgstr "分片间隔（ms）"
+
+msgid "Max Split"
+msgstr "最大分片数"
+
+msgid "Limit the maximum number of splits."
+msgstr "限制分片的最大数量。"
 
 msgid "Split handshake data into multiple TLS records for better censorship evasion. Low overhead. Recommended to enable first."
 msgstr "将握手数据拆分为多个 TLS 记录，提升抗封锁能力，几乎不增加延迟，建议优先启用。"
