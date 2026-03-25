@@ -171,8 +171,10 @@ function gen_outbound(flag, node, tag, proxy_table)
 								if not node.tls_CertByName then return "" end
 								return node.tls_CertByName
 							end)(),
-					echConfigList = (node.ech == "1") and node.ech_config or nil,
-					echForceQuery = (node.ech == "1") and (node.ech_ForceQuery or "none") or nil
+					echSettings = (node.ech == '1') and {
+						ConfigList = node.ech_config,
+						ForceQuery = node.ech_ForceQuery or "none"
+					} or nil,
 				} or nil,
 				realitySettings = (node.stream_security == "reality") and {
 					serverName = node.tls_serverName,
