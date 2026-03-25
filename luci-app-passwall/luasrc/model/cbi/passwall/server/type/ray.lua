@@ -37,6 +37,7 @@ o:value("http", "HTTP")
 o:value("socks", "Socks")
 o:value("shadowsocks", "Shadowsocks")
 o:value("trojan", "Trojan")
+o:value("hysteria2", translate("Hysteria2"))
 o:value("dokodemo-door", "dokodemo-door")
 o:depends({ [_n("custom")] = false })
 
@@ -122,6 +123,30 @@ o:value("", translate("Disable"))
 o:value("xtls-rprx-vision")
 o:depends({ [_n("protocol")] = "vless" })
 
+---- [[ hysteria2 ]]
+o = s:option(Value, _n("hysteria2_auth_password"), translate("Auth Password"))
+o.password = true
+o:depends({ [_n("protocol")] = "hysteria2"})
+
+o = s:option(Flag, _n("hysteria2_ignore_client_bandwidth"), translate("Client BBR Flow Control"))
+o.default = 0
+o:depends({ [_n("protocol")] = "hysteria2" })
+
+o = s:option(Value, _n("hysteria2_up_mbps"), translate("Max upload Mbps"))
+o:depends({ [_n("protocol")] = "hysteria2", [_n("hysteria2_ignore_client_bandwidth")] = false })
+
+o = s:option(Value, _n("hysteria2_down_mbps"), translate("Max download Mbps"))
+o:depends({ [_n("protocol")] = "hysteria2", [_n("hysteria2_ignore_client_bandwidth")] = false })
+
+o = s:option(ListValue, _n("hysteria2_obfs_type"), translate("Obfs Type"))
+o:value("", translate("Disable"))
+o:value("salamander")
+o:depends({ [_n("protocol")] = "hysteria2" })
+
+o = s:option(Value, _n("hysteria2_obfs_password"), translate("Obfs Password"))
+o:depends({ [_n("hysteria2_obfs_type")] = "salamander" })
+
+---- [[ TLS ]]
 o = s:option(Flag, _n("tls"), translate("TLS"))
 o.default = 0
 o.validate = function(self, value, t)
@@ -190,6 +215,7 @@ o:value("http/1.1")
 o:value("h2,http/1.1")
 o:value("h3,h2,http/1.1")
 o:depends({ [_n("tls")] = true, [_n("reality")] = false })
+o:depends({ [_n("protocol")] = "hysteria2"})
 
 o = s:option(Flag, _n("use_mldsa65Seed"), translate("ML-DSA-65"))
 o.default = "0"
@@ -215,6 +241,7 @@ o = s:option(FileUpload, _n("tls_certificateFile"), translate("Public key absolu
 o.default = m:get(s.section, "tls_certificateFile") or "/etc/config/ssl/" .. arg[1] .. ".pem"
 if o and o:formvalue(arg[1]) then o.default = o:formvalue(arg[1]) end
 o:depends({ [_n("tls")] = true, [_n("reality")] = false })
+o:depends({ [_n("protocol")] = "hysteria2"})
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not fs.access(value) then
@@ -230,6 +257,7 @@ o = s:option(FileUpload, _n("tls_keyFile"), translate("Private key absolute path
 o.default = m:get(s.section, "tls_keyFile") or "/etc/config/ssl/" .. arg[1] .. ".key"
 if o and o:formvalue(arg[1]) then o.default = o:formvalue(arg[1]) end
 o:depends({ [_n("tls")] = true, [_n("reality")] = false })
+o:depends({ [_n("protocol")] = "hysteria2"})
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not fs.access(value) then
@@ -398,7 +426,10 @@ o:depends({ [_n("custom")] = false })
 --[[Fast Open]]
 o = s:option(Flag, _n("tcp_fast_open"), "TCP " .. translate("Fast Open"))
 o.default = "0"
-o:depends({ [_n("custom")] = false })
+o:depends({ [_n("protocol")] = "vmess", [_n("custom")] = false })
+o:depends({ [_n("protocol")] = "vless", [_n("custom")] = false })
+o:depends({ [_n("protocol")] = "shadowsocks", [_n("custom")] = false })
+o:depends({ [_n("protocol")] = "trojan", [_n("custom")] = false })
 
 -- [[ Fallback部分 ]]--
 o = s:option(Flag, _n("fallback"), translate("Fallback"))
