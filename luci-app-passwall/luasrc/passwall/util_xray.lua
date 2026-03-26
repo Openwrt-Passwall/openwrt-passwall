@@ -248,7 +248,8 @@ function gen_outbound(flag, node, tag, proxy_table)
 				} or nil,
 				finalmask = (function()
 					local finalmask = {}
-					if node.transport == "mkcp" then
+					local TP = node.transport
+					if TP == "mkcp" then
 						local map = {none = "none", srtp = "header-srtp", utp = "header-utp", ["wechat-video"] = "header-wechat",
 							dtls = "header-dtls", wireguard = "header-wireguard", dns = "header-dns"}
 						local udp = {}
@@ -265,7 +266,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 						end
 						udp[#udp+1] = c
 						finalmask.udp = udp
-					elseif node.transport == "hysteria" then
+					elseif TP == "hysteria" then
 						if node.hysteria2_obfs_type and node.hysteria2_obfs_type ~= "" then
 							finalmask.udp = {{
 								type = node.hysteria2_obfs_type,
@@ -294,11 +295,11 @@ function gen_outbound(flag, node, tag, proxy_table)
 							disablePathMTUDiscovery = tonumber(node.hysteria2_disable_mtu_discovery) == 1
 						}
 					end
-					if (fragment and fragment_table) and ({raw=1, ws=1, httpupgrade=1, grpc=1, xhttp=1})[node.transport] then
+					if fragment and fragment_table and ({raw=1, ws=1, httpupgrade=1, grpc=1, xhttp=1})[TP] then
 						finalmask.tcp = finalmask.tcp or {}
 						finalmask.tcp[#finalmask.tcp+1] = api.clone(fragment_table)
 					end
-					if noise and noise_table and node.transport == "mkcp" then
+					if noise and noise_table and (TP == "mkcp" or (TP == "xhttp" and node.alpn == "h3")) then
 						finalmask.udp[#finalmask.udp+1] = api.clone(noise_table)
 					end
 					if node.finalmask and node.finalmask ~= "" then
@@ -766,7 +767,7 @@ function gen_config(var)
 			if n.enabled == "1" then
 				local noise = {
 					type = n.type,
-					packet = { n.packet },
+					packet = n.packet,
 					delay = string.find(n.delay, "-") and n.delay or tonumber(n.delay)
 				}
 				table.insert(noises, noise)

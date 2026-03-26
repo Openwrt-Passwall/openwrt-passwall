@@ -235,7 +235,7 @@ if has_xray then
 	o.rmempty = false
 
 	o = s_xray_noise:option(ListValue, "type", translate("Type"))
-	o:value("rand", "rand")
+	o:value("array", "array")
 	o:value("str", "str")
 	o:value("hex", "hex")
 	o:value("base64", "base64")

@@ -1855,6 +1855,9 @@ msgstr "启用 Multipath TCP，需在服务端和客户端配置中同时启用�
 msgid "An FinalMaskObject in JSON format, used for sharing."
 msgstr "JSON 格式的 FinalMaskObject，用来实现分享。"
 
+msgid "Custom finalmask overrides mkcp, hysteria2, fragment, noise, and related settings."
+msgstr "自定义 finalmask 将覆盖 mkcp、hysteria2、fragment、noise 等相关配置。"
+
 msgid "Fragment"
 msgstr "分片"
 
