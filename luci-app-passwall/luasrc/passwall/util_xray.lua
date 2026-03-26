@@ -766,8 +766,9 @@ function gen_config(var)
 		uci:foreach(appname, "xray_noise_packets", function(n)
 			if n.enabled == "1" then
 				local noise = {
-					type = n.type,
-					packet = n.packet,
+					rand = (n.type == "rand") and (string.find(n.packet, "-") and n.packet or tonumber(n.packet)) or nil,
+					type = (n.type ~= "rand") and n.type or nil,
+					packet = (n.type ~= "rand") and n.packet or nil,
 					delay = string.find(n.delay, "-") and n.delay or tonumber(n.delay)
 				}
 				table.insert(noises, noise)

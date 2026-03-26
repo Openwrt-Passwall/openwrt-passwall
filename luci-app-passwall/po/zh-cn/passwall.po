@@ -1906,8 +1906,8 @@ msgstr "在 Xray 设置中勾选 “噪声” 以发送噪声包。"
 msgid "Xray Noise Packets"
 msgstr "Xray 噪声数据包"
 
-msgid "Packet"
-msgstr "数据包"
+msgid "Packet | Rand Length"
+msgstr "数据包 | Rand 长度"
 
 msgid "Delay (ms)"
 msgstr "延迟（ms）"
