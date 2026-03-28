@@ -1312,12 +1312,7 @@ local current_node = map:get(section)
 			queryParam.security = queryParam.security || "tls";
 			opt.set(dom_prefix + 'tls', queryParam.security === "tls");
 			if (queryParam.security === "tls") {
-				var tls_serverName = queryParam.peer;
-				if (queryParam.sni) {
-					tls_serverName = queryParam.sni
-				}
-				tls_serverName = tls_serverName || "";
-				opt.set(dom_prefix + 'tls_serverName', tls_serverName);
+				opt.set(dom_prefix + 'tls_serverName', queryParam.peer || queryParam.sni || "");
 				opt.set(dom_prefix + 'alpn', queryParam.alpn || 'default');
 				opt.set(dom_prefix + 'tls_CertSha', queryParam.pcs || '');
 				opt.set(dom_prefix + 'tls_CertByName', queryParam.vcn || '');

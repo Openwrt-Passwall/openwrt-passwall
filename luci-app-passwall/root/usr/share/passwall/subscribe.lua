@@ -997,14 +997,10 @@ local function processData(szType, content, add_mode, group)
 			else
 				result.address = host_port
 			end
-
-			local peer, sni = nil, ""
-			if params.peer then peer = params.peer end
-			sni = params.sni and params.sni or ""
 			result.port = port
 
 			result.tls = '1'
-			result.tls_serverName = peer and peer or sni
+			result.tls_serverName = params.peer or params.sni or ""
 			result.tls_CertSha = params.pcs
 			result.tls_CertByName = params.vcn
 
@@ -1346,7 +1342,7 @@ local function processData(szType, content, add_mode, group)
 		result.hysteria_obfs = params.obfsParam
 		result.hysteria_auth_type = "string"
 		result.hysteria_auth_password = params.auth
-		result.tls_serverName = params.peer
+		result.tls_serverName = params.peer or params.sni or ""
 		params.allowinsecure = params.allowinsecure or params.insecure
 		if params.allowinsecure and (params.allowinsecure == "1" or params.allowinsecure == "0") then
 			result.tls_allowInsecure = params.allowinsecure
