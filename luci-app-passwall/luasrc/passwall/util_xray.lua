@@ -1064,17 +1064,17 @@ function gen_config(var)
 				local to_node = get_node_by_id(node.to_node)
 				if to_node then
 					-- Landing Node not support use special node.
-					if to_node.protocol:find("^_") then
+					if to_node.protocol and to_node.protocol:find("^_") then
 						to_node = nil
 					end
 				end
 				if to_node then
 					local to_outbound
 					if to_node.type ~= "Xray" then
-						local tag = to_node[".name"]
+						local in_tag = "inbound_" .. to_node[".name"] .. "_" .. tostring(outbound.tag)
 						local new_port = api.get_new_port()
 						table.insert(inbounds, {
-							tag = tag,
+							tag = in_tag,
 							listen = "127.0.0.1",
 							port = new_port,
 							protocol = "dokodemo-door",
@@ -1086,11 +1086,11 @@ function gen_config(var)
 						to_node.address = "127.0.0.1"
 						to_node.port = new_port
 						table.insert(rules, 1, {
-							inboundTag = {tag},
+							inboundTag = {in_tag},
 							outboundTag = outbound.tag
 						})
-						to_outbound = gen_outbound(node[".name"], to_node, tag, {
-							tag = tag,
+						to_outbound = gen_outbound(node[".name"], to_node, to_node[".name"], {
+							tag = to_node[".name"],
 							run_socks_instance = not no_run
 						})
 					else
