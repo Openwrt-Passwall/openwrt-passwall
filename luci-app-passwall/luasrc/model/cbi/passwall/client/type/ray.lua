@@ -297,6 +297,7 @@ o = s:option(ListValue, _n("flow"), translate("flow"))
 o.default = ""
 o:value("", translate("Disable"))
 o:value("xtls-rprx-vision")
+o:value("xtls-rprx-vision-udp443")
 o:depends({ [_n("protocol")] = "vless" })
 
 ---- [[hysteria2]]
