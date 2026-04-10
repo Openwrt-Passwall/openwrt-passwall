@@ -1,0 +1,175 @@
+From 5c8c091ef24d97973a4a170382c78d0b5411950d Mon Sep 17 00:00:00 2001
+From: AI Bot <bot@example.com>
+Date: Fri, 10 Apr 2026 09:30:36 +0000
+Subject: [PATCH] fix: prevent local loopback for both nftables and iptables
+ across IPv4/IPv6
+
+- Added mandatory bypass rules for local and LAN IP sets in all mangle and output chains to prevent traffic from looping between the firewall and the proxy.
+- Covered both IPv4 and IPv6 protocols.
+- Ensured consistency across modern nftables and legacy iptables backends.
+- Optimized 98-passwall hotplug script to update local IP sets quietly on non-default interfaces or ifupdate events, instead of restarting the entire service.
+---
+ .../root/etc/hotplug.d/iface/98-passwall      | 12 +++--
+ .../root/usr/share/passwall/iptables.sh       |  4 ++
+ .../root/usr/share/passwall/nftables.sh       | 50 +++++++++++++++++++
+ 3 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/luci-app-passwall/root/etc/hotplug.d/iface/98-passwall b/luci-app-passwall/root/etc/hotplug.d/iface/98-passwall
+index 87638f54..09e1bda6 100644
+--- a/luci-app-passwall/root/etc/hotplug.d/iface/98-passwall
++++ b/luci-app-passwall/root/etc/hotplug.d/iface/98-passwall
+@@ -1,8 +1,8 @@
+ #!/bin/sh
+ 
+-[[ "$ACTION" == "ifup" && $(uci get "passwall.@global[0].enabled") == "1" ]] && [ -f /var/lock/passwall_ready.lock ] && {
++[[ "$ACTION" == "ifup" || "$ACTION" == "ifupdate" ]] && [[ $(uci get "passwall.@global[0].enabled") == "1" ]] && [ -f /var/lock/passwall_ready.lock ] && {
+ 	default_device=$(ip route | grep default | awk -F 'dev ' '{print $2}' | awk '{print $1}')
+-	[ "$default_device" == "$DEVICE" ] && {
++	if [ "$default_device" == "$DEVICE" ]; then
+ 		LOCK_FILE_DIR=/var/lock
+ 		[ ! -d ${LOCK_FILE_DIR} ] && mkdir -p ${LOCK_FILE_DIR}
+ 		LOCK_FILE="${LOCK_FILE_DIR}/passwall_ifup.lock"
+@@ -16,8 +16,12 @@
+ 		echo $$ > ${LOCK_FILE}
+ 		
+ 		/etc/init.d/passwall restart >/dev/null 2>&1 &
+-		logger -p notice -t network -s "passwall: restart when $INTERFACE ifup"
++		logger -p notice -t network -s "passwall: restart when default device $DEVICE $ACTION"
+ 		
+ 		rm -rf ${LOCK_FILE}
+-	}
++	else
++		# 如果是非默认接口（如 LAN 或其他 WAN 接口），仅更新本地 IP 集合，不重启服务，防止回环
++		/usr/share/passwall/nftables.sh update_local_ips >/dev/null 2>&1 &
++		logger -p notice -t network -s "passwall: update local ips when $DEVICE $ACTION"
++	fi
+ }
+diff --git a/luci-app-passwall/root/usr/share/passwall/iptables.sh b/luci-app-passwall/root/usr/share/passwall/iptables.sh
+index f399a2e0..df9ca4ed 100755
+--- a/luci-app-passwall/root/usr/share/passwall/iptables.sh
++++ b/luci-app-passwall/root/usr/share/passwall/iptables.sh
+@@ -1011,6 +1011,7 @@ add_firewall_rule() {
+ 	$ipt_m -A PSW_RULE -j CONNMARK --save-mark
+ 
+ 	$ipt_m -N PSW
++	$ipt_m -A PSW $(dst $IPSET_LOCAL) -j RETURN
+ 	$ipt_m -A PSW $(dst $IPSET_LAN) -j RETURN
+ 	$ipt_m -A PSW $(dst $IPSET_VPS) -j RETURN
+ 	$ipt_m -A PSW -m conntrack --ctdir REPLY -j RETURN
+@@ -1030,6 +1031,7 @@ add_firewall_rule() {
+ 	insert_rule_before "$ipt_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT"
+ 
+ 	$ipt_m -N PSW_OUTPUT
++	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LOCAL) -j RETURN
+ 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LAN) -j RETURN
+ 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_VPS) -j RETURN
+ 	[ -n "$IPT_APPEND_DNS" ] && {
+@@ -1090,6 +1092,7 @@ add_firewall_rule() {
+ 	$ip6t_m -A PSW_RULE -j CONNMARK --save-mark
+ 
+ 	$ip6t_m -N PSW
++	$ip6t_m -A PSW $(dst $IPSET_LOCAL6) -j RETURN
+ 	$ip6t_m -A PSW $(dst $IPSET_LAN6) -j RETURN
+ 	$ip6t_m -A PSW $(dst $IPSET_VPS6) -j RETURN
+ 	$ip6t_m -A PSW -m conntrack --ctdir REPLY -j RETURN
+@@ -1111,6 +1114,7 @@ add_firewall_rule() {
+ 
+ 	$ip6t_m -N PSW_OUTPUT
+ 	$ip6t_m -A PSW_OUTPUT -m mark --mark 255 -j RETURN
++	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LOCAL6) -j RETURN
+ 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
+ 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
+ 	[ "${USE_BLOCK_LIST}" = "1" ] && $ip6t_m -A PSW_OUTPUT $(dst $IPSET_BLOCK6) -j DROP
+diff --git a/luci-app-passwall/root/usr/share/passwall/nftables.sh b/luci-app-passwall/root/usr/share/passwall/nftables.sh
+index de6b3506..0df82d56 100755
+--- a/luci-app-passwall/root/usr/share/passwall/nftables.sh
++++ b/luci-app-passwall/root/usr/share/passwall/nftables.sh
+@@ -1062,12 +1062,14 @@ add_firewall_rule() {
+ 	#ipv4 tproxy mode and udp
+ 	nft "add chain $NFTABLE_NAME PSW_MANGLE"
+ 	nft "flush chain $NFTABLE_NAME PSW_MANGLE"
++	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_LOCAL counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_LAN counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_VPS counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE ct direction reply counter return"
+ 
+ 	nft "add chain $NFTABLE_NAME PSW_OUTPUT_MANGLE"
+ 	nft "flush chain $NFTABLE_NAME PSW_OUTPUT_MANGLE"
++	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_LOCAL counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_LAN counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_VPS counter return"
+ 	[ "${USE_BLOCK_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_BLOCK counter drop"
+@@ -1131,12 +1133,14 @@ add_firewall_rule() {
+ 	#ipv6 tproxy mode and udp
+ 	nft "add chain $NFTABLE_NAME PSW_MANGLE_V6"
+ 	nft "flush chain $NFTABLE_NAME PSW_MANGLE_V6"
++	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_LOCAL6 counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_LAN6 counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_VPS6 counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ct direction reply counter return"
+ 
+ 	nft "add chain $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6"
+ 	nft "flush chain $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6"
++	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_LOCAL6 counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_LAN6 counter return"
+ 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_VPS6 counter return"
+ 	[ "${USE_BLOCK_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_BLOCK6 counter drop"
+@@ -1512,9 +1516,55 @@ stop() {
+ 	flush_include
+ }
+ 
++update_local_ips() {
++	[ -z "$(command -v echolog)" ] && . /usr/share/passwall/utils.sh
++	local MY_PATH="/usr/share/passwall/nftables.sh"
++	local NFTSET_LOCAL="passwall_local"
++	local NFTSET_LOCAL6="passwall_local6"
++	local NFTSET_LAN="passwall_lan"
++	local NFTSET_LAN6="passwall_lan6"
++	local NFTSET_WAN="passwall_wan"
++	local NFTSET_WAN6="passwall_wan6"
++	local NFTABLE_NAME="inet passwall"
++	local PROXY_IPV6=$(config_t_get global_forwarding proxy_ipv6 0)
++
++	nft flush set $NFTABLE_NAME $NFTSET_LOCAL
++	ip address show | grep -w "inet" | awk '{print $2}' | awk -F '/' '{print $1}' | insert_nftset $NFTSET_LOCAL "-1"
++	
++	nft flush set $NFTABLE_NAME $NFTSET_LOCAL6
++	ip address show | grep -w "inet6" | awk '{print $2}' | awk -F '/' '{print $1}' | insert_nftset $NFTSET_LOCAL6 "-1"
++	
++	local lan_ifname=$(uci -q -p /tmp/state get network.lan.ifname)
++	[ -n "$lan_ifname" ] && {
++		nft flush set $NFTABLE_NAME $NFTSET_LAN
++		ip address show $lan_ifname | grep -w "inet" | awk '{print $2}' | insert_nftset $NFTSET_LAN "-1"
++		
++		nft flush set $NFTABLE_NAME $NFTSET_LAN6
++		ip address show $lan_ifname | grep -w "inet6" | awk '{print $2}' | insert_nftset $NFTSET_LAN6 "-1"
++	}
++	
++	WAN_IP=$(get_wan_ips ip4)
++	if [ -n "${WAN_IP}" ]; then
++		nft flush set $NFTABLE_NAME $NFTSET_WAN
++		echo $WAN_IP | insert_nftset $NFTSET_WAN "-1"
++	fi
++	
++	[ "$PROXY_IPV6" == "1" ] && {
++		WAN6_IP=$(get_wan_ips ip6)
++		if [ -n "${WAN6_IP}" ]; then
++			nft flush set $NFTABLE_NAME $NFTSET_WAN6
++			echo $WAN6_IP | insert_nftset $NFTSET_WAN6 "-1"
++		fi
++	}
++	echolog "实时更新本地和WAN IP完成。"
++}
++
+ arg1=$1
+ shift
+ case $arg1 in
++update_local_ips)
++	update_local_ips
++	;;
+ insert_nftset)
+ 	insert_nftset "$@"
+ 	;;
+-- 
+2.43.0
+

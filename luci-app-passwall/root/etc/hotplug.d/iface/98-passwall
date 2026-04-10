@@ -1,8 +1,9 @@
 #!/bin/sh
 
-[[ "$ACTION" == "ifup" && $(uci get "passwall.@global[0].enabled") == "1" ]] && [ -f /var/lock/passwall_ready.lock ] && {
+[[ "$ACTION" == "ifup" || "$ACTION" == "ifupdate" ]] && [[ $(uci get "passwall.@global[0].enabled") == "1" ]] && [ -f /var/lock/passwall_ready.lock ] && {
 	default_device=$(ip route | grep default | awk -F 'dev ' '{print $2}' | awk '{print $1}')
-	[ "$default_device" == "$DEVICE" ] && {
+	if [ "$default_device" == "$DEVICE" ] && [ "$ACTION" == "ifup" ]; then
+		# 如果是默认出口网卡（如PPPoE拨号口）真正重新上线 (ifup)，执行完整服务重启以确保路由表和代理进程同步
 		LOCK_FILE_DIR=/var/lock
 		[ ! -d ${LOCK_FILE_DIR} ] && mkdir -p ${LOCK_FILE_DIR}
 		LOCK_FILE="${LOCK_FILE_DIR}/passwall_ifup.lock"
@@ -15,9 +16,15 @@
 		fi
 		echo $$ > ${LOCK_FILE}
 		
+		logger -p notice -t network -s "passwall: [检测到主路由网卡 $DEVICE $ACTION] 准备触发完整服务重启，这可能导致几秒钟的网络不可达 (Host Unreachable)"
 		/etc/init.d/passwall restart >/dev/null 2>&1 &
-		logger -p notice -t network -s "passwall: restart when $INTERFACE ifup"
+		logger -p notice -t network -s "passwall: restart when default device $DEVICE $ACTION"
 		
 		rm -rf ${LOCK_FILE}
-	}
+	else
+		# 如果是非默认接口（如 LAN 或其他 WAN 接口）的变动，或者仅仅是主路由网卡的 IP 动态刷新 (ifupdate)
+		# 仅执行轻量级更新：静默刷新本地 IP 集合（nftset/ipset），不重启服务，防止打断用户当前连接，同时杜绝回环死机
+		/usr/share/passwall/nftables.sh update_local_ips >/dev/null 2>&1 &
+		logger -p notice -t network -s "passwall: update local ips when $DEVICE $ACTION"
+	fi
 }

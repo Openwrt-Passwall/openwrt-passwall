@@ -1062,12 +1062,16 @@ add_firewall_rule() {
 	#ipv4 tproxy mode and udp
 	nft "add chain $NFTABLE_NAME PSW_MANGLE"
 	nft "flush chain $NFTABLE_NAME PSW_MANGLE"
+	# 强制直连本地和局域网流量，防止在IP变动时因规则未刷新导致流量被错误代理而引发无限回环死机
+	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_LOCAL counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_LAN counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_VPS counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE ct direction reply counter return"
 
 	nft "add chain $NFTABLE_NAME PSW_OUTPUT_MANGLE"
 	nft "flush chain $NFTABLE_NAME PSW_OUTPUT_MANGLE"
+	# 路由器本机输出流量同样需要强制直连本地地址，杜绝回环
+	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_LOCAL counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_LAN counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_VPS counter return"
 	[ "${USE_BLOCK_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ip daddr @$NFTSET_BLOCK counter drop"
@@ -1131,12 +1135,16 @@ add_firewall_rule() {
 	#ipv6 tproxy mode and udp
 	nft "add chain $NFTABLE_NAME PSW_MANGLE_V6"
 	nft "flush chain $NFTABLE_NAME PSW_MANGLE_V6"
+	# IPv6前缀经常动态变动，强制放行发往本机的流量是防止“变动即死机”的核心修复
+	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_LOCAL6 counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_LAN6 counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_VPS6 counter return"
 	nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ct direction reply counter return"
 
 	nft "add chain $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6"
 	nft "flush chain $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6"
+	# 本机输出链同样强制直连本机IPv6，防止拦截本机产生的响应包
+	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_LOCAL6 counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_LAN6 counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_VPS6 counter return"
 	[ "${USE_BLOCK_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ip6 daddr @$NFTSET_BLOCK6 counter drop"
@@ -1494,6 +1502,8 @@ gen_include() {
 start() {
 	[ "$ENABLED_DEFAULT_ACL" == 0 -a "$ENABLED_ACLS" == 0 ] && return
 	add_firewall_rule
+	update_local_ips
+	echolog "【防回环保护已激活】已强制直连本地所有 IPv4 和 IPv6 流量，免疫动态 IP 变动死机！"
 	gen_include
 }
 
@@ -1512,9 +1522,59 @@ stop() {
 	flush_include
 }
 
+update_local_ips() {
+	[ -z "$(command -v echolog)" ] && . /usr/share/passwall/utils.sh
+	local MY_PATH="/usr/share/passwall/nftables.sh"
+	local NFTSET_LOCAL="passwall_local"
+	local NFTSET_LOCAL6="passwall_local6"
+	local NFTSET_LAN="passwall_lan"
+	local NFTSET_LAN6="passwall_lan6"
+	local NFTSET_WAN="passwall_wan"
+	local NFTSET_WAN6="passwall_wan6"
+	local NFTABLE_NAME="inet passwall"
+	local PROXY_IPV6=$(config_t_get global_forwarding proxy_ipv6 0)
+
+	nft flush set $NFTABLE_NAME $NFTSET_LOCAL
+	local local_ips=$(ip address show | grep -w "inet" | awk '{print $2}' | awk -F '/' '{print $1}')
+	echo "$local_ips" | insert_nftset $NFTSET_LOCAL "-1"
+	[ -n "$local_ips" ] && echolog "  - [$?]加入本地 IPv4 到 nftset[$NFTSET_LOCAL]"
+	
+	nft flush set $NFTABLE_NAME $NFTSET_LOCAL6
+	local local6_ips=$(ip address show | grep -w "inet6" | awk '{print $2}' | awk -F '/' '{print $1}')
+	echo "$local6_ips" | insert_nftset $NFTSET_LOCAL6 "-1"
+	[ -n "$local6_ips" ] && echolog "  - [$?]加入本地 IPv6 到 nftset[$NFTSET_LOCAL6]"
+	
+	local lan_ifname=$(uci -q -p /tmp/state get network.lan.ifname)
+	[ -n "$lan_ifname" ] && {
+		nft flush set $NFTABLE_NAME $NFTSET_LAN
+		ip address show $lan_ifname | grep -w "inet" | awk '{print $2}' | insert_nftset $NFTSET_LAN "-1"
+		
+		nft flush set $NFTABLE_NAME $NFTSET_LAN6
+		ip address show $lan_ifname | grep -w "inet6" | awk '{print $2}' | insert_nftset $NFTSET_LAN6 "-1"
+	}
+	
+	WAN_IP=$(get_wan_ips ip4)
+	if [ -n "${WAN_IP}" ]; then
+		nft flush set $NFTABLE_NAME $NFTSET_WAN
+		echo $WAN_IP | insert_nftset $NFTSET_WAN "-1"
+	fi
+	
+	[ "$PROXY_IPV6" == "1" ] && {
+		WAN6_IP=$(get_wan_ips ip6)
+		if [ -n "${WAN6_IP}" ]; then
+			nft flush set $NFTABLE_NAME $NFTSET_WAN6
+			echo $WAN6_IP | insert_nftset $NFTSET_WAN6 "-1"
+		fi
+	}
+	echolog "实时更新本地和WAN IP完成。"
+}
+
 arg1=$1
 shift
 case $arg1 in
+update_local_ips)
+	update_local_ips
+	;;
 insert_nftset)
 	insert_nftset "$@"
 	;;

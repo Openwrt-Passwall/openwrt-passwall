@@ -1011,6 +1011,8 @@ add_firewall_rule() {
 	$ipt_m -A PSW_RULE -j CONNMARK --save-mark
 
 	$ipt_m -N PSW
+	# 即使在旧版iptables模式下，也必须强制放行本机IP，防止地址变动回环
+	$ipt_m -A PSW $(dst $IPSET_LOCAL) -j RETURN
 	$ipt_m -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_m -A PSW $(dst $IPSET_VPS) -j RETURN
 	$ipt_m -A PSW -m conntrack --ctdir REPLY -j RETURN
@@ -1030,6 +1032,7 @@ add_firewall_rule() {
 	insert_rule_before "$ipt_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT"
 
 	$ipt_m -N PSW_OUTPUT
+	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LOCAL) -j RETURN
 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LAN) -j RETURN
 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_VPS) -j RETURN
 	[ -n "$IPT_APPEND_DNS" ] && {
@@ -1090,6 +1093,8 @@ add_firewall_rule() {
 	$ip6t_m -A PSW_RULE -j CONNMARK --save-mark
 
 	$ip6t_m -N PSW
+	# IPv6动态前缀环境下，旧版ip6tables同样需要此强制放行规则
+	$ip6t_m -A PSW $(dst $IPSET_LOCAL6) -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_VPS6) -j RETURN
 	$ip6t_m -A PSW -m conntrack --ctdir REPLY -j RETURN
@@ -1111,6 +1116,7 @@ add_firewall_rule() {
 
 	$ip6t_m -N PSW_OUTPUT
 	$ip6t_m -A PSW_OUTPUT -m mark --mark 255 -j RETURN
+	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LOCAL6) -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
 	[ "${USE_BLOCK_LIST}" = "1" ] && $ip6t_m -A PSW_OUTPUT $(dst $IPSET_BLOCK6) -j DROP
@@ -1491,6 +1497,7 @@ get_ip6t_bin() {
 start() {
 	[ "$ENABLED_DEFAULT_ACL" == 0 -a "$ENABLED_ACLS" == 0 ] && return
 	add_firewall_rule
+	echolog "【防回环保护已激活 (iptables)】已强制直连本地所有 IPv4 和 IPv6 流量，免疫动态 IP 变动死机！"
 	gen_include
 }
 
