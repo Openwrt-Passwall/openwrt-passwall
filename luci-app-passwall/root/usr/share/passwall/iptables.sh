@@ -107,6 +107,88 @@ destroy_ipset() {
 	done
 }
 
+replace_ipset() {
+	local ipset_name="$1"
+	local family="${2:-inet}"
+	local tmp_ipset="${ipset_name}_tmp"
+
+	if [ "$family" = "inet6" ]; then
+		ipset -! create "$tmp_ipset" nethash family inet6 maxelem 1048576
+	else
+		ipset -! create "$tmp_ipset" nethash maxelem 1048576
+	fi
+
+	ipset -F "$tmp_ipset"
+	# 先写入临时集合，再 swap，避免刷新时命中空集合。
+	{
+		if [ $# -gt 2 ]; then
+			shift 2
+			printf "%s\n" "$@"
+		else
+			cat
+		fi
+	} | while read -r addr; do
+		[ -n "$addr" ] && ipset -! add "$tmp_ipset" "$addr"
+	done
+
+	ipset -! swap "$tmp_ipset" "$ipset_name"
+	ipset -F "$tmp_ipset"
+	ipset -q -X "$tmp_ipset"
+}
+
+refresh_interface_ipsets() {
+	[ -z "$(command -v echolog)" ] && . /usr/share/passwall/utils.sh
+
+	ipset list "$IPSET_LOCAL" >/dev/null 2>&1 || return 0
+
+	local lan_ifname local_ips local6_ips lan_ips lan6_ips
+	local WAN_IP WAN6_IP wan_ip wan6_ip
+	local proxy_ipv6=$(config_t_get global_forwarding proxy_ipv6 0)
+
+	local_ips=$(ip -o -4 address show | awk '{print $4}' | awk -F '/' '{print $1}' | sort -u)
+	printf "%s\n" "$local_ips" | replace_ipset "$IPSET_LOCAL" inet
+
+	local6_ips=$(ip -o -6 address show | awk '{print $4}' | awk -F '/' '{print $1}' | sort -u)
+	printf "%s\n" "$local6_ips" | replace_ipset "$IPSET_LOCAL6" inet6
+
+	lan_ifname=$(uci -q -p /tmp/state get network.lan.device)
+	[ -z "$lan_ifname" ] && lan_ifname=$(uci -q -p /tmp/state get network.lan.ifname)
+	lan_ifname=${lan_ifname%% *}
+	if [ -n "$lan_ifname" ]; then
+		lan_ips=$(ip -o -4 address show dev "$lan_ifname" | awk '{print $4}' | sort -u)
+		printf "%s\n" "$lan_ips" | replace_ipset "$IPSET_LAN" inet
+
+		lan6_ips=$(ip -o -6 address show dev "$lan_ifname" | awk '{print $4}' | sort -u)
+		printf "%s\n" "$lan6_ips" | replace_ipset "$IPSET_LAN6" inet6
+	fi
+
+	WAN_IP=$(get_wan_ips ip4)
+	if [ -n "$WAN_IP" ]; then
+		printf "%s\n" "$WAN_IP" | replace_ipset "$IPSET_WAN" inet
+		for wan_ip in $WAN_IP; do
+			echolog "  - [$?]加入WAN IPv4到ipset[$IPSET_WAN]：${wan_ip}"
+		done
+	else
+		replace_ipset "$IPSET_WAN" inet
+	fi
+
+	if [ "$proxy_ipv6" = "1" ]; then
+		WAN6_IP=$(get_wan_ips ip6)
+		if [ -n "$WAN6_IP" ]; then
+			printf "%s\n" "$WAN6_IP" | replace_ipset "$IPSET_WAN6" inet6
+			for wan6_ip in $WAN6_IP; do
+				echolog "  - [$?]加入WAN IPv6到ipset[$IPSET_WAN6]：${wan6_ip}"
+			done
+		else
+			replace_ipset "$IPSET_WAN6" inet6
+		fi
+	else
+		replace_ipset "$IPSET_WAN6" inet6
+	fi
+
+	echolog "实时更新本地和WAN IP完成。"
+}
+
 insert_rule_before() {
 	[ $# -ge 3 ] || {
 		return 1
@@ -972,6 +1054,11 @@ add_firewall_rule() {
 	fi
 
 	$ipt_n -N PSW
+	$ipt_n -A PSW $(dst $IPSET_LOCAL) -j RETURN
+	$ipt_n -A PSW -d 127.0.0.0/8 -j RETURN
+	$ipt_n -A PSW -d 169.254.0.0/16 -j RETURN
+	$ipt_n -A PSW -d 224.0.0.0/4 -j RETURN
+	$ipt_n -A PSW -d 255.255.255.255/32 -j RETURN
 	$ipt_n -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_n -A PSW $(dst $IPSET_VPS) -j RETURN
 
@@ -986,6 +1073,11 @@ add_firewall_rule() {
 	[ -z "${is_tproxy}" ] && insert_rule_after "$ipt_n" "PREROUTING" "prerouting_rule" "-p tcp -j PSW"
 
 	$ipt_n -N PSW_OUTPUT
+	$ipt_n -A PSW_OUTPUT $(dst $IPSET_LOCAL) -j RETURN
+	$ipt_n -A PSW_OUTPUT -d 127.0.0.0/8 -j RETURN
+	$ipt_n -A PSW_OUTPUT -d 169.254.0.0/16 -j RETURN
+	$ipt_n -A PSW_OUTPUT -d 224.0.0.0/4 -j RETURN
+	$ipt_n -A PSW_OUTPUT -d 255.255.255.255/32 -j RETURN
 	$ipt_n -A PSW_OUTPUT $(dst $IPSET_LAN) -j RETURN
 	$ipt_n -A PSW_OUTPUT $(dst $IPSET_VPS) -j RETURN
 	[ "${USE_DIRECT_LIST}" = "1" ] && $ipt_n -A PSW_OUTPUT $(dst $IPSET_WHITE) -j RETURN
@@ -1011,8 +1103,11 @@ add_firewall_rule() {
 	$ipt_m -A PSW_RULE -j CONNMARK --save-mark
 
 	$ipt_m -N PSW
-	# 即使在旧版iptables模式下，也必须强制放行本机IP，防止地址变动回环
 	$ipt_m -A PSW $(dst $IPSET_LOCAL) -j RETURN
+	$ipt_m -A PSW -d 127.0.0.0/8 -j RETURN
+	$ipt_m -A PSW -d 169.254.0.0/16 -j RETURN
+	$ipt_m -A PSW -d 224.0.0.0/4 -j RETURN
+	$ipt_m -A PSW -d 255.255.255.255/32 -j RETURN
 	$ipt_m -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_m -A PSW $(dst $IPSET_VPS) -j RETURN
 	$ipt_m -A PSW -m conntrack --ctdir REPLY -j RETURN
@@ -1033,6 +1128,10 @@ add_firewall_rule() {
 
 	$ipt_m -N PSW_OUTPUT
 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LOCAL) -j RETURN
+	$ipt_m -A PSW_OUTPUT -d 127.0.0.0/8 -j RETURN
+	$ipt_m -A PSW_OUTPUT -d 169.254.0.0/16 -j RETURN
+	$ipt_m -A PSW_OUTPUT -d 224.0.0.0/4 -j RETURN
+	$ipt_m -A PSW_OUTPUT -d 255.255.255.255/32 -j RETURN
 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_LAN) -j RETURN
 	$ipt_m -A PSW_OUTPUT $(dst $IPSET_VPS) -j RETURN
 	[ -n "$IPT_APPEND_DNS" ] && {
@@ -1062,11 +1161,17 @@ add_firewall_rule() {
 
 	[ "$accept_icmpv6" = "1" ] && {
 		$ip6t_n -N PSW
+		$ip6t_n -A PSW $(dst $IPSET_LOCAL6) -j RETURN
+		$ip6t_n -A PSW -d fe80::/10 -j RETURN
+		$ip6t_n -A PSW -d ff00::/8 -j RETURN
 		$ip6t_n -A PSW $(dst $IPSET_LAN6) -j RETURN
 		$ip6t_n -A PSW $(dst $IPSET_VPS6) -j RETURN
 		$ip6t_n -A PREROUTING -p ipv6-icmp -j PSW
 
 		$ip6t_n -N PSW_OUTPUT
+		$ip6t_n -A PSW_OUTPUT $(dst $IPSET_LOCAL6) -j RETURN
+		$ip6t_n -A PSW_OUTPUT -d fe80::/10 -j RETURN
+		$ip6t_n -A PSW_OUTPUT -d ff00::/8 -j RETURN
 		$ip6t_n -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
 		$ip6t_n -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
 		[ "${USE_DIRECT_LIST}" = "1" ] && $ip6t_n -A PSW_OUTPUT $(dst $IPSET_WHITE6) -j RETURN
@@ -1093,8 +1198,9 @@ add_firewall_rule() {
 	$ip6t_m -A PSW_RULE -j CONNMARK --save-mark
 
 	$ip6t_m -N PSW
-	# IPv6动态前缀环境下，旧版ip6tables同样需要此强制放行规则
 	$ip6t_m -A PSW $(dst $IPSET_LOCAL6) -j RETURN
+	$ip6t_m -A PSW -d fe80::/10 -j RETURN
+	$ip6t_m -A PSW -d ff00::/8 -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_VPS6) -j RETURN
 	$ip6t_m -A PSW -m conntrack --ctdir REPLY -j RETURN
@@ -1117,6 +1223,8 @@ add_firewall_rule() {
 	$ip6t_m -N PSW_OUTPUT
 	$ip6t_m -A PSW_OUTPUT -m mark --mark 255 -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LOCAL6) -j RETURN
+	$ip6t_m -A PSW_OUTPUT -d fe80::/10 -j RETURN
+	$ip6t_m -A PSW_OUTPUT -d ff00::/8 -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
 	[ "${USE_BLOCK_LIST}" = "1" ] && $ip6t_m -A PSW_OUTPUT $(dst $IPSET_BLOCK6) -j DROP
@@ -1497,7 +1605,6 @@ get_ip6t_bin() {
 start() {
 	[ "$ENABLED_DEFAULT_ACL" == 0 -a "$ENABLED_ACLS" == 0 ] && return
 	add_firewall_rule
-	echolog "【防回环保护已激活 (iptables)】已强制直连本地所有 IPv4 和 IPv6 流量，免疫动态 IP 变动死机！"
 	gen_include
 }
 
@@ -1518,6 +1625,9 @@ stop() {
 arg1=$1
 shift
 case $arg1 in
+refresh_interface_ipsets)
+	refresh_interface_ipsets
+	;;
 RULE_LAST_INDEX)
 	RULE_LAST_INDEX "$@"
 	;;

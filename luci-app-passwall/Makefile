@@ -194,6 +194,18 @@ rm -f $${IPKG_INSTROOT}/usr/share/passwall/rules/*.nft
 exit 0
 endef
 
+define Package/$(PKG_NAME)/postinst
+[ -n "$${IPKG_INSTROOT}" ] || {
+	if [ -s /etc/uci-defaults/luci-passwall ]; then
+		(. /etc/uci-defaults/luci-passwall) && rm -f /etc/uci-defaults/luci-passwall
+	fi
+	rm -f /tmp/luci-indexcache
+	rm -rf /tmp/luci-modulecache/
+	killall -HUP rpcd 2>/dev/null
+	exit 0
+}
+endef
+
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature

@@ -1,30 +1,76 @@
 #!/bin/sh
 
-[[ "$ACTION" == "ifup" || "$ACTION" == "ifupdate" ]] && [[ $(uci get "passwall.@global[0].enabled") == "1" ]] && [ -f /var/lock/passwall_ready.lock ] && {
-	default_device=$(ip route | grep default | awk -F 'dev ' '{print $2}' | awk '{print $1}')
-	if [ "$default_device" == "$DEVICE" ] && [ "$ACTION" == "ifup" ]; then
-		# 如果是默认出口网卡（如PPPoE拨号口）真正重新上线 (ifup)，执行完整服务重启以确保路由表和代理进程同步
-		LOCK_FILE_DIR=/var/lock
-		[ ! -d ${LOCK_FILE_DIR} ] && mkdir -p ${LOCK_FILE_DIR}
-		LOCK_FILE="${LOCK_FILE_DIR}/passwall_ifup.lock"
-		if [ -s ${LOCK_FILE} ]; then
-			SPID=$(cat ${LOCK_FILE})
-			if [ -e /proc/${SPID}/status ]; then
-				exit 1
-			fi
-			cat /dev/null > ${LOCK_FILE}
+[ "$(uci -q get passwall.@global[0].enabled)" = "1" ] || exit 0
+[ -f /var/lock/passwall_ready.lock ] || exit 0
+
+case "$ACTION" in
+ifup|ifupdate) ;;
+*) exit 0 ;;
+esac
+
+default_device=$(ip route | awk '/^default / {for (i = 1; i <= NF; i++) if ($i == "dev") {print $(i + 1); exit}}')
+[ -n "$default_device" ] || exit 0
+
+STATE_FILE=/var/run/passwall_default_device
+last_default_device=""
+[ -s "$STATE_FILE" ] && read -r last_default_device < "$STATE_FILE"
+printf '%s\n' "$default_device" > "$STATE_FILE"
+HOTPLUG_LOCK_DIR=/var/lock
+HOTPLUG_LOCK_FILE=${HOTPLUG_LOCK_DIR}/passwall_hotplug.lock
+
+run_async_once() {
+	[ ! -d "${HOTPLUG_LOCK_DIR}" ] && mkdir -p "${HOTPLUG_LOCK_DIR}"
+	if [ -s "${HOTPLUG_LOCK_FILE}" ]; then
+		local spid
+		read -r spid < "${HOTPLUG_LOCK_FILE}"
+		# 避免热插拔事件并发刷新/重启，拉长地址集合空窗。
+		if [ -n "${spid}" ] && [ -e "/proc/${spid}/status" ]; then
+			return 0
 		fi
-		echo $$ > ${LOCK_FILE}
-		
-		logger -p notice -t network -s "passwall: [检测到主路由网卡 $DEVICE $ACTION] 准备触发完整服务重启，这可能导致几秒钟的网络不可达 (Host Unreachable)"
-		/etc/init.d/passwall restart >/dev/null 2>&1 &
-		logger -p notice -t network -s "passwall: restart when default device $DEVICE $ACTION"
-		
-		rm -rf ${LOCK_FILE}
-	else
-		# 如果是非默认接口（如 LAN 或其他 WAN 接口）的变动，或者仅仅是主路由网卡的 IP 动态刷新 (ifupdate)
-		# 仅执行轻量级更新：静默刷新本地 IP 集合（nftset/ipset），不重启服务，防止打断用户当前连接，同时杜绝回环死机
-		/usr/share/passwall/nftables.sh update_local_ips >/dev/null 2>&1 &
-		logger -p notice -t network -s "passwall: update local ips when $DEVICE $ACTION"
+		: > "${HOTPLUG_LOCK_FILE}"
 	fi
+	(
+		echo $$ > "${HOTPLUG_LOCK_FILE}"
+		"$@"
+		rm -f "${HOTPLUG_LOCK_FILE}"
+	) >/dev/null 2>&1 &
 }
+
+refresh_sets() {
+	. /usr/share/passwall/utils.sh
+	eval_cache_var
+	echolog "检测到接口[${INTERFACE:-unknown}]设备[${DEVICE:-unknown}]发生${ACTION}，开始轻量刷新防火墙地址集合..."
+	case "${USE_TABLES:-}" in
+	nftables)
+		/usr/share/passwall/nftables.sh refresh_interface_nftsets >/dev/null 2>&1
+		;;
+	iptables)
+		/usr/share/passwall/iptables.sh refresh_interface_ipsets >/dev/null 2>&1
+		;;
+	*)
+		if [ "$(uci -q get passwall.@global_forwarding[0].use_nft)" = "1" ]; then
+			/usr/share/passwall/nftables.sh refresh_interface_nftsets >/dev/null 2>&1
+		else
+			/usr/share/passwall/iptables.sh refresh_interface_ipsets >/dev/null 2>&1
+		fi
+		;;
+	esac
+}
+
+if [ "$ACTION" = "ifupdate" ] || [ "$DEVICE" != "$default_device" ]; then
+	run_async_once refresh_sets
+	logger -p notice -t network -s "passwall: refresh interface sets when $INTERFACE $ACTION"
+	exit 0
+fi
+
+if [ -n "$last_default_device" ] && [ "$last_default_device" != "$default_device" ]; then
+	. /usr/share/passwall/utils.sh
+	echolog "检测到默认出口设备由[${last_default_device}]切换为[${default_device}]，执行 Passwall 完整重启..."
+	# 重启与轻量刷新共用一把锁，避免规则刷新和完整重启交错执行。
+	run_async_once /etc/init.d/passwall restart
+	logger -p notice -t network -s "passwall: restart when default device changes from ${last_default_device} to ${default_device}"
+	exit 0
+fi
+
+run_async_once refresh_sets
+logger -p notice -t network -s "passwall: refresh interface sets when default device ${default_device} ${ACTION}"
