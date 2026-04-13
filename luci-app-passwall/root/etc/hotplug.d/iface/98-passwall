@@ -1,22 +1,23 @@
 #!/bin/sh
 
+. /usr/share/passwall/utils.sh
+
 [ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifupdate" ] || exit 0
 
-[ "$(uci get passwall.@global[0].enabled 2>/dev/null)" = "1" ] && [ -f /var/lock/passwall_ready.lock ] && {
+([ "$(get_cache_var "ENABLED_DEFAULT_ACL")" = "1" ] || [ "$(get_cache_var "ENABLED_ACLS")" = "1" ]) && [ -f ${LOCK_PATH}/${CONFIG}_ready.lock ] && {
 
 	default_device=$(ip route show default 2>/dev/null | awk -F 'dev ' '{print $2}' | awk '{print $1}' | head -n1)
 	default6_device=$(ip -6 route show default 2>/dev/null | awk -F 'dev ' '{print $2}' | awk '{print $1}' | head -n1)
 	( [ "$default_device" = "$DEVICE" ] || [ "$default6_device" = "$DEVICE" ] ) && {
 
 		if [ "$ACTION" = "ifupdate" ]; then
-			FWI=$(uci -q get firewall.passwall.path 2>/dev/null)
-			[ -n "$FWI" ] && [ -f "$FWI" ] && sh "$FWI" >/dev/null 2>&1 &
+			USE_TABLES=$(get_cache_var "USE_TABLES")
+			[ -n "$USE_TABLES" ] && ${APP_PATH}/${USE_TABLES}.sh update_wan_sets >/dev/null 2>&1 &
 			exit 0
 		fi
 
-		LOCK_FILE_DIR=/var/lock
-		[ ! -d ${LOCK_FILE_DIR} ] && mkdir -p ${LOCK_FILE_DIR}
-		LOCK_FILE="${LOCK_FILE_DIR}/passwall_ifup.lock"
+		[ ! -d ${LOCK_PATH} ] && mkdir -p ${LOCK_PATH}
+		LOCK_FILE="${LOCK_PATH}/${CONFIG}_ifup.lock"
 		if [ -s ${LOCK_FILE} ]; then
 			SPID=$(cat ${LOCK_FILE})
 			if [ -e /proc/${SPID}/status ]; then
@@ -26,8 +27,8 @@
 		fi
 		echo $$ > ${LOCK_FILE}
 		
-		/etc/init.d/passwall restart >/dev/null 2>&1 &
-		logger -p notice -t network -s "passwall: restart when $INTERFACE ifup"
+		/etc/init.d/${CONFIG} restart >/dev/null 2>&1 &
+		logger -p notice -t network -s "${CONFIG}: restart when $INTERFACE ifup"
 		
 		rm -rf ${LOCK_FILE}
 	}

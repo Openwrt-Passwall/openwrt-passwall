@@ -858,6 +858,34 @@ mwan3_start() {
 	nft list chain ip mangle mwan3_hook >/dev/null 2>&1 && nft insert rule ip mangle mwan3_hook ct mark ${FWMARK} counter return >/dev/null 2>&1
 }
 
+update_wan_sets() {
+	local log=$1
+
+	local WAN_IP=$(get_wan_ips ip4)
+	[ -n "$WAN_IP" ] && {
+		nft flush set $NFTABLE_NAME $NFTSET_WAN
+		echo "$WAN_IP" | insert_nftset $NFTSET_WAN "-1"
+		[ "$log" = "log" ] && {
+			local wan_ip
+			for wan_ip in $WAN_IP; do
+				echolog "  - [$?]加入WAN IPv4到nftset[$NFTSET_WAN]：${wan_ip}"
+			done
+		}
+	}
+
+	local WAN6_IP=$(get_wan_ips ip6)
+	[ -n "${WAN6_IP}" ] && {
+		nft flush set $NFTABLE_NAME $NFTSET_WAN6
+		echo "$WAN6_IP" | insert_nftset $NFTSET_WAN6 "-1"
+		[ "$log" = "log" ] && {
+			local wan6_ip
+			for wan6_ip in $WAN6_IP; do
+				echolog "  - [$?]加入WAN IPv6到nftset[$NFTSET_WAN6]：${wan6_ip}"
+			done
+		}
+	}
+}
+
 add_firewall_rule() {
 	echolog "开始加载 nftables 防火墙规则..."
 	gen_nft_tables
@@ -999,6 +1027,8 @@ add_firewall_rule() {
 		[ -n "$lan_ip6" ] && echo $lan_ip6 | insert_nftset $NFTSET_LAN6 "-1"
 	}
 
+	update_wan_sets "log"
+
 	[ -n "$ISP_DNS" ] && {
 		#echolog "处理 ISP DNS 例外..."
 		echo "$ISP_DNS" | insert_nftset $NFTSET_WHITE 0
@@ -1113,17 +1143,9 @@ add_firewall_rule() {
 		nft "add rule $NFTABLE_NAME nat_output meta l4proto {icmp,icmpv6} counter jump PSW_ICMP_REDIRECT"
 	fi
 
-	WAN_IP=$(get_wan_ips ip4)
-	if [ -n "${WAN_IP}" ]; then
-		nft flush set $NFTABLE_NAME $NFTSET_WAN
-		echo $WAN_IP | insert_nftset $NFTSET_WAN "-1"
-		[ -z "${is_tproxy}" ] && nft "add rule $NFTABLE_NAME PSW_NAT ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
-		nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
-		for wan_ip in $WAN_IP; do
-			echolog "  - [$?]加入WAN IPv4到nftset[$NFTSET_WAN]：${wan_ip}"
-		done
-	fi
-	unset WAN_IP wan_ip
+	#ipv4 wan_ip
+	[ -z "${is_tproxy}" ] && nft "add rule $NFTABLE_NAME PSW_NAT ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
+	nft "add rule $NFTABLE_NAME PSW_MANGLE ip daddr @$NFTSET_WAN counter return comment \"WAN_IP_RETURN\""
 
 	ip rule add fwmark ${FWMARK} table 999 priority 999
 	ip route add local 0.0.0.0/0 dev lo table 999
@@ -1166,21 +1188,12 @@ add_firewall_rule() {
 		nft "add rule $NFTABLE_NAME mangle_prerouting meta nfproto {ipv6} counter jump PSW_MANGLE_V6"
 		nft "add rule $NFTABLE_NAME mangle_output meta nfproto {ipv6} counter jump PSW_OUTPUT_MANGLE_V6 comment \"PSW_OUTPUT_MANGLE\""
 
-		WAN6_IP=$(get_wan_ips ip6)
-		[ -n "${WAN6_IP}" ] && {
-			nft flush set $NFTABLE_NAME $NFTSET_WAN6
-			echo $WAN6_IP | insert_nftset $NFTSET_WAN6 "-1"
-			nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_WAN6 counter return comment \"WAN6_IP_RETURN\""
-			for wan6_ip in $WAN6_IP; do
-				echolog "  - [$?]加入WAN IPv6到nftset[$NFTSET_WAN6]：${wan6_ip}"
-			done
-		}
-		unset WAN6_IP wan6_ip
+		nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_WAN6 counter return comment \"WAN6_IP_RETURN\""
 
 		ip -6 rule add fwmark ${FWMARK} table 999 priority 999
 		ip -6 route add local ::/0 dev lo table 999
 	}
-	
+
 	[ "$TCP_UDP" = "1" ] && [ -z "$UDP_NODE" ] && UDP_NODE=$TCP_NODE
 
 	[ "$ENABLED_DEFAULT_ACL" == 1 ] && {
@@ -1466,20 +1479,10 @@ gen_include() {
 
 	local __nft=" "
 	__nft=$(cat <<- EOF
-		. $UTILS_PATH
+
 		[ -z "\$(nft list chain $NFTABLE_NAME mangle_prerouting | grep PSW_DIVERT)" ] && nft -f ${nft_chain_file}
-		WAN_IP=\$(get_wan_ips ip4)
-		[ ! -z "\${WAN_IP}" ] && {
-			nft flush set $NFTABLE_NAME $NFTSET_WAN
-			echo "\${WAN_IP}" | sh ${MY_PATH} insert_nftset $NFTSET_WAN "-1"
-		}
-		[ "$PROXY_IPV6" == "1" ] && {
-			WAN6_IP=\$(get_wan_ips ip6)
-			[ ! -z "\${WAN6_IP}" ] && {
-				nft flush set $NFTABLE_NAME $NFTSET_WAN6
-				echo "\${WAN6_IP}" | sh ${MY_PATH} insert_nftset $NFTSET_WAN6 "-1"
-			}
-		}
+
+		${MY_PATH} update_wan_sets
 	EOF
 	)
 
@@ -1526,6 +1529,9 @@ mwan3_start)
 	;;
 mwan3_stop)
 	mwan3_stop
+	;;
+update_wan_sets)
+	update_wan_sets "$@"
 	;;
 stop)
 	stop

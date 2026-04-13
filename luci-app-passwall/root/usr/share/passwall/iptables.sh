@@ -792,6 +792,38 @@ filter_direct_node_list() {
 	done
 }
 
+update_wan_sets() {
+	local log=$1
+
+	local WAN_IP=$(get_wan_ips ip4)
+	[ -n "$WAN_IP" ] && {
+		ipset -F "$IPSET_WAN"
+		for wan_ip in $WAN_IP; do
+			ipset -! add "$IPSET_WAN" "$wan_ip"
+		done
+		[ "$log" = "log" ] && {
+			local wan_ip
+			for wan_ip in $WAN_IP; do
+				echolog "  - [$?]加入WAN IPv4到ipset[$IPSET_WAN]：${wan_ip}"
+			done
+		}
+	}
+
+	local WAN6_IP=$(get_wan_ips ip6)
+	[ -n "$WAN6_IP" ] && {
+		ipset -F "$IPSET_WAN6"
+		for wan6_ip in $WAN6_IP; do
+			ipset -! add "$IPSET_WAN6" "$wan6_ip"
+		done
+		[ "$log" = "log" ] && {
+			local wan6_ip
+			for wan6_ip in $WAN6_IP; do
+				echolog "  - [$?]加入WAN IPv6到ipset[$IPSET_WAN6]：${wan6_ip}"
+			done
+		}
+	}
+}
+
 add_firewall_rule() {
 	echolog "开始加载 iptables 防火墙规则..."
 	ipset -! create $IPSET_LOCAL nethash maxelem 1048576
@@ -942,6 +974,8 @@ add_firewall_rule() {
 		EOF
 	}
 
+	update_wan_sets "log"
+
 	[ -n "$ISP_DNS" ] && {
 		#echolog "处理 ISP DNS 例外..."
 		for ispip in $ISP_DNS; do
@@ -975,13 +1009,8 @@ add_firewall_rule() {
 	$ipt_n -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_n -A PSW $(dst $IPSET_VPS) -j RETURN
 
-	WAN_IP=$(get_wan_ips ip4)
-	[ ! -z "${WAN_IP}" ] && {
-		for wan_ip in $WAN_IP; do
-			$ipt_n -A PSW $(comment "WAN_IP_RETURN") -d "${wan_ip}" -j RETURN
-		done
-	}
-	
+	$ipt_n -A PSW $(comment "WAN_IP_RETURN") $(dst $IPSET_WAN) -j RETURN
+
 	[ "$accept_icmp" = "1" ] && insert_rule_after "$ipt_n" "PREROUTING" "prerouting_rule" "-p icmp -j PSW"
 	[ -z "${is_tproxy}" ] && insert_rule_after "$ipt_n" "PREROUTING" "prerouting_rule" "-p tcp -j PSW"
 
@@ -1014,16 +1043,8 @@ add_firewall_rule() {
 	$ipt_m -A PSW $(dst $IPSET_LAN) -j RETURN
 	$ipt_m -A PSW $(dst $IPSET_VPS) -j RETURN
 	$ipt_m -A PSW -m conntrack --ctdir REPLY -j RETURN
-	
-	[ ! -z "${WAN_IP}" ] && {
-		ipset -F $IPSET_WAN
-		for wan_ip in $WAN_IP; do
-			ipset -! add $IPSET_WAN ${wan_ip}
-			echolog "  - [$?]加入WAN IPv4到ipset[$IPSET_WAN]：${wan_ip}"
-		done
-		$ipt_m -A PSW $(comment "WAN_IP_RETURN") $(dst $IPSET_WAN) -j RETURN
-	}
-	unset WAN_IP wan_ip
+
+	$ipt_m -A PSW $(comment "WAN_IP_RETURN") $(dst $IPSET_WAN) -j RETURN
 
 	insert_rule_before "$ipt_m" "PREROUTING" "mwan3" "-j PSW"
 	# Only TCP, UDP Invalid.
@@ -1093,17 +1114,8 @@ add_firewall_rule() {
 	$ip6t_m -A PSW $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW $(dst $IPSET_VPS6) -j RETURN
 	$ip6t_m -A PSW -m conntrack --ctdir REPLY -j RETURN
-	
-	WAN6_IP=$(get_wan_ips ip6)
-	[ ! -z "${WAN6_IP}" ] && {
-		ipset -F $IPSET_WAN6
-		for wan6_ip in $WAN6_IP; do
-			ipset -! add $IPSET_WAN6 ${wan6_ip}
-			echolog "  - [$?]加入WAN IPv6到ipset[$IPSET_WAN6]：${wan6_ip}"
-		done
-		$ip6t_m -A PSW $(comment "WAN6_IP_RETURN") $(dst $IPSET_WAN6) -j RETURN
-	}
-	unset WAN6_IP wan6_ip
+
+	$ip6t_m -A PSW $(comment "WAN6_IP_RETURN") $(dst $IPSET_WAN6) -j RETURN
 
 	insert_rule_before "$ip6t_m" "PREROUTING" "mwan3" "-j PSW"
 	# Only TCP, UDP Invalid.
@@ -1119,7 +1131,7 @@ add_firewall_rule() {
 
 	ip -6 rule add fwmark ${FWMARK} table 999 priority 999
 	ip -6 route add local ::/0 dev lo table 999
-	
+
 	[ "$TCP_UDP" = "1" ] && [ -z "$UDP_NODE" ] && UDP_NODE=$TCP_NODE
 
 	[ "$ENABLED_DEFAULT_ACL" == 1 ] && {
@@ -1412,7 +1424,9 @@ gen_include() {
 	local __ipt=""
 	[ -n "${ipt}" ] && {
 		__ipt=$(cat <<- EOF
-			. $UTILS_PATH
+
+			${MY_PATH} update_wan_sets
+
 			mangle_output_psw=\$(${ipt}-save -t mangle | grep "PSW" | grep "mangle\-OUTPUT\-PSW" | sed "s#-A OUTPUT ##g")
 			$ipt-save -c | grep -v "PSW" | $ipt-restore -c
 			$ipt-restore -n <<-EOT
@@ -1429,21 +1443,12 @@ gen_include() {
 
 			\$(${MY_PATH} insert_rule_before "$ipt_m" "PREROUTING" "mwan3" "-j PSW")
 			\$(${MY_PATH} insert_rule_before "$ipt_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT")
-
-			WAN_IP=\$(get_wan_ips ip4)
-			[ ! -z "\${WAN_IP}" ] && {
-				ipset -F $IPSET_WAN
-				for wan_ip in \$WAN_IP; do
-					ipset -! add $IPSET_WAN \${wan_ip}
-				done
-			}
 		EOF
 		)
 	}
 	local __ip6t=""
 	[ -n "${ip6t}" ] && {
 		__ip6t=$(cat <<- EOF
-			. $UTILS_PATH
 			mangle_output_psw=\$(${ip6t}-save -t mangle | grep "PSW" | grep "mangle\-OUTPUT\-PSW" | sed "s#-A OUTPUT ##g")
 			$ip6t-save -c | grep -v "PSW" | $ip6t-restore -c
 			$ip6t-restore -n <<-EOT
@@ -1459,20 +1464,12 @@ gen_include() {
 
 			\$(${MY_PATH} insert_rule_before "$ip6t_m" "PREROUTING" "mwan3" "-j PSW")
 			\$(${MY_PATH} insert_rule_before "$ip6t_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT")
-
-			WAN6_IP=\$(get_wan_ips ip6)
-			[ ! -z "\${WAN6_IP}" ] && {
-				ipset -F $IPSET_WAN6
-				for wan6_ip in \$WAN6_IP; do
-					ipset -! add $IPSET_WAN6 \${wan6_ip}
-				done
-			}
 		EOF
 		)
 	}
 	cat <<-EOF >> $FWI
 		${__ipt}
-		
+
 		${__ip6t}
 
 		return 0
@@ -1528,6 +1525,9 @@ get_ip6t_bin)
 	;;
 filter_direct_node_list)
 	filter_direct_node_list
+	;;
+update_wan_sets)
+	update_wan_sets "$@"
 	;;
 stop)
 	stop
