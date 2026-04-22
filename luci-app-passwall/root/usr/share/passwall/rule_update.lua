@@ -440,7 +440,7 @@ local function fetch_rule(rule_name, rule_type, url, exclude_domain, max_retries
 						line = line:gsub("full:", "")
 						if not (is_comment_line(line) or is_ipv4(line) or has_colon(line) or (exclude_domain and check_excluded_domain(line))) then
 							local match = extract_domain(line)
-							if match then
+							if match and not is_ipv4(match) then
 								rule_dataset[match] = true
 							end
 						end
@@ -451,7 +451,7 @@ local function fetch_rule(rule_name, rule_type, url, exclude_domain, max_retries
 							line = line:gsub("full:", "")
 							if not (is_comment_line(line) or is_ipv4(line) or has_colon(line) or (exclude_domain and check_excluded_domain(line))) then
 								local match = extract_domain(line)
-								if match then
+								if match and not is_ipv4(match) then
 									rule_dataset[match] = true
 								end
 							end
