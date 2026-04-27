@@ -1074,10 +1074,11 @@ add_firewall_rule() {
 	nft "flush chain $NFTABLE_NAME PSW_DNS"
 	if [ $(config_t_get global dns_redirect "1") = "0" ]; then
 		#Only hijack when dest address is local IP
-		nft "insert rule $NFTABLE_NAME dstnat ip daddr @${NFTSET_LOCAL} jump PSW_DNS"
-		nft "insert rule $NFTABLE_NAME dstnat ip6 daddr @${NFTSET_LOCAL6} jump PSW_DNS"
+		nft "insert rule $NFTABLE_NAME dstnat ip saddr @${NFTSET_LAN} ip daddr @${NFTSET_LOCAL} jump PSW_DNS"
+		nft "insert rule $NFTABLE_NAME dstnat ip6 saddr @${NFTSET_LAN6} ip6 daddr @${NFTSET_LOCAL6} jump PSW_DNS"
 	else
-		nft "insert rule $NFTABLE_NAME dstnat jump PSW_DNS"
+		nft "insert rule $NFTABLE_NAME dstnat ip saddr @${NFTSET_LAN} jump PSW_DNS"
+		nft "insert rule $NFTABLE_NAME dstnat ip6 saddr @${NFTSET_LAN6} jump PSW_DNS"
 	fi
 
 	# for ipv4 ipv6 tproxy mark
