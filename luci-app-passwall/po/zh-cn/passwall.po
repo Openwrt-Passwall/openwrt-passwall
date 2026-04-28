@@ -139,9 +139,6 @@ msgstr "%s 不能为空。"
 msgid "Filter Mode"
 msgstr "过滤模式"
 
-msgid "A/AAAA type"
-msgstr "A/AAAA 类型"
-
 msgid "TCP node must be '%s' type to use FakeDNS."
 msgstr "TCP 节点必须是 '%s' 类型才能使用 FakeDNS。"
 

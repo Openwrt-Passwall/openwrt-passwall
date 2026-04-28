@@ -1499,7 +1499,7 @@ function gen_config(var)
 		})
 	end
 
-	if (remote_dns_udp_server and remote_dns_udp_port) or (remote_dns_tcp_server and remote_dns_tcp_port) or #node_dns > 0 then
+	if (remote_dns_udp_server and remote_dns_udp_port) or (remote_dns_tcp_server and remote_dns_tcp_port) or remote_dns_doh_url or #node_dns > 0 then
 		if not routing then
 			routing = {
 				domainStrategy = "IPOnDemand",
@@ -1656,19 +1656,9 @@ function gen_config(var)
 			table.insert(outbounds, {
 				tag = "dns-out",
 				protocol = "dns",
-				proxySettings = dns_outbound_tag and {
-					tag = dns_outbound_tag
-				} or nil,
 				settings = {
-					address = remote_dns_udp_server or remote_dns_tcp_server,
-					port = tonumber(remote_dns_udp_port) or tonumber(remote_dns_tcp_port),
-					network = remote_dns_udp_server and "udp" or "tcp",
 					nonIPQuery = (api.compare_versions(xray_version, "<", "26.4.25")) and "reject" or nil, -- Todo is to remove it
-					rules = (api.compare_versions(xray_version, ">", "26.4.17")) and {
-						{
-							action = ((node and node.protocol == "_shunt") or remote_dns_fake or dns.clientIP) and "hijack" or "direct"
-						}
-					} or nil
+					rules = (api.compare_versions(xray_version, ">", "26.4.17")) and {{ action = "hijack" }} or nil
 				}
 			})
 

@@ -379,7 +379,7 @@ o = s:taboption("DNS", ListValue, "xray_dns_mode", translate("Remote DNS") .. " 
 o.default = "tcp"
 o:value("tcp", "TCP")
 o:value("udp", "UDP")
-o:value("tcp+doh", "TCP + DoH (" .. translate("A/AAAA type") .. ")")
+o:value("doh", "DoH")
 o:depends("dns_mode", "xray")
 o:depends("smartdns_dns_mode", "xray")
 o.cfgvalue = function(self, section)
@@ -438,7 +438,6 @@ o:depends({dns_mode = "tcp"})
 o:depends({dns_mode = "udp"})
 o:depends({xray_dns_mode = "udp"})
 o:depends({xray_dns_mode = "tcp"})
-o:depends({xray_dns_mode = "tcp+doh"})
 o:depends({singbox_dns_mode = "udp"})
 o:depends({singbox_dns_mode = "tcp"})
 
@@ -456,7 +455,7 @@ o:value("https://dns.adguard.com/dns-query,94.140.14.14", "94.140.14.14 (AdGuard
 o:value("https://doh.libredns.gr/dns-query,116.202.176.26", "116.202.176.26 (LibreDNS)")
 o:value("https://doh.libredns.gr/ads,116.202.176.26", "116.202.176.26 (LibreDNS-NoAds)")
 o.validate = doh_validate
-o:depends({xray_dns_mode = "tcp+doh"})
+o:depends({xray_dns_mode = "doh"})
 o:depends({singbox_dns_mode = "doh"})
 o:depends({singbox_dns_mode = "http3"})
 
