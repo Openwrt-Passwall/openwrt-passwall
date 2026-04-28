@@ -518,3 +518,33 @@ get_wan_ips() {
 	done
 	echo "$NET_ADDR"
 }
+
+get_local_ips() {
+	local family="$1"
+	local ALL_IPS WAN_IPS ip NET_ADDR
+	if [ "$family" = "ip6" ]; then
+		ALL_IPS=$(ip -o -6 addr show scope global | awk '{print $4}' | cut -d/ -f1)
+		WAN_IPS=$(get_wan_ips ip6)
+	else
+		ALL_IPS=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1)
+		WAN_IPS=$(get_wan_ips ip4)
+	fi
+	# 补充回环（scope global 不包含）
+	[ "$family" = "ip6" ] && ALL_IPS="$ALL_IPS ::1"
+	[ "$family" != "ip6" ] && ALL_IPS="$ALL_IPS 127.0.0.1"
+	for ip in $ALL_IPS; do
+		case "$ip" in
+			""|0.0.0.0|::) continue ;;
+		esac
+		case " $WAN_IPS " in
+			*" $ip "*) continue ;;
+		esac
+		case " $NET_ADDR " in
+			*" $ip "*) ;;
+			*) NET_ADDR="${NET_ADDR:+$NET_ADDR }$ip" ;;
+		esac
+	done
+	for ip in $NET_ADDR; do
+		echo "$ip"
+	done
+}
