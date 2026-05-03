@@ -1940,11 +1940,12 @@ local function update_node(manual)
 							end
 						end
 						if domain_strategy then
+							local ds = domain_strategy
 							if vvv == "sing-box" then
 								local map = { UseIPv4v6 = "prefer_ipv4", UseIPv6v4 = "prefer_ipv6", UseIPv4 = "ipv4_only", UseIPv6 = "ipv6_only" }
-								domain_strategy = map[domain_strategy] or ""
+								ds = map[ds] or ""
 							end
-							uci:set(appname, cfgid, "domain_strategy", domain_strategy)
+							uci:set(appname, cfgid, "domain_strategy", ds)
 						end
 					end
 					-- 订阅组链式代理

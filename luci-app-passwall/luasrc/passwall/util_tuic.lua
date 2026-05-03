@@ -12,7 +12,7 @@ function gen_config(var)
 	local node = uci:get_all("passwall", node_id)
 	local local_addr = var["local_addr"]
 	local local_port = var["local_port"]
-	local server_host = var["server_host"] or node.address
+	local server_host = var["server_host"] or (node.address or ""):lower()
 	local server_port = var["server_port"] or node.port
 	local loglevel = var["loglevel"] or "warn"
 

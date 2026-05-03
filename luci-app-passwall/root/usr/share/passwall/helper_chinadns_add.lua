@@ -173,6 +173,7 @@ if not is_file_nonzero(file_vpslist) then
 	local f_out = io.open(file_vpslist, "w")
 	local written_domains = {}
 	local function process_address(address)
+		address = (address or ""):lower()
 		if api.vps_domain_exclude(address) then return end
 		if datatypes.hostname(address) and not written_domains[address] then
 			f_out:write(address .. "\n")

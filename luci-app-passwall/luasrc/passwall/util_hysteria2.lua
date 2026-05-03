@@ -48,7 +48,7 @@ function gen_config(var)
 	local local_http_username = var["local_http_username"]
 	local local_http_password = var["local_http_password"]
 	local tcp_proxy_way = var["tcp_proxy_way"]
-	local server_host = var["server_host"] or node.address
+	local server_host = var["server_host"] or (node.address or ""):lower()
 	local server_port = var["server_port"] or node.port
 
 	if api.is_ipv6(server_host) then

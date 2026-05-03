@@ -509,7 +509,7 @@ o = s:option(ListValue, "xray_dns_mode", translate("Request protocol"))
 o.default = "tcp"
 o:value("tcp", "TCP")
 o:value("udp", "UDP")
-o:value("tcp+doh", "TCP + DoH (" .. translate("A/AAAA type") .. ")")
+o:value("doh", "DoH")
 o:depends("dns_mode", "xray")
 o.cfgvalue = function(self, section)
 	return m:get(section, "v2ray_dns_mode")
@@ -550,7 +550,6 @@ o:value("208.67.222.222", "208.67.222.222 (OpenDNS)")
 o:depends({dns_mode = "dns2socks"})
 o:depends({xray_dns_mode = "udp"})
 o:depends({xray_dns_mode = "tcp"})
-o:depends({xray_dns_mode = "tcp+doh"})
 o:depends({singbox_dns_mode = "udp"})
 o:depends({singbox_dns_mode = "tcp"})
 
@@ -589,7 +588,7 @@ o.validate = function(self, value, t)
 	end
 	return nil, translate("DoH request address") .. " " .. translate("Format must be:") .. " URL,IP"
 end
-o:depends({xray_dns_mode = "tcp+doh"})
+o:depends({xray_dns_mode = "doh"})
 o:depends({singbox_dns_mode = "doh"})
 o:depends({singbox_dns_mode = "http3"})
 
@@ -611,7 +610,7 @@ o.validate = function(self, value, t)
 		local _dns_mode = s.fields["dns_mode"]:formvalue(t)
 		local _tcp_node = s.fields["tcp_node"]:formvalue(t)
 		if _dns_mode and _tcp_node then
-			if (m:get(_tcp_node, "type") or ""):lower() ~= _dns_mode then
+			if (m:get(_tcp_node, "type") or ""):lower() ~= _dns_mode and not _tcp_node:find("Socks_") then
 				return nil, translatef("TCP node must be '%s' type to use FakeDNS.", _dns_mode)
 			end
 		end

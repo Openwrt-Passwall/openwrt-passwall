@@ -376,6 +376,7 @@ function add_rule(var)
 					setflag_6 .. "passwall_vps6"
 				}
 				local function process_address(address)
+					address = (address or ""):lower()
 					if api.vps_domain_exclude(address) then return end
 					if datatypes.hostname(address) then
 						set_domain_dns(address, fwd_dns)

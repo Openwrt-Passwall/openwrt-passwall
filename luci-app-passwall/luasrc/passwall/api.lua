@@ -945,6 +945,28 @@ function parseURL(url_str)
 	return res
 end
 
+function parseDoH(doh_str)
+	doh_str = trim(doh_str)
+	if doh_str == "" then return nil end
+
+	local url_part, ip_part
+	if doh_str:find(",", 1, true) then
+		url_part, ip_part = doh_str:match("^([^,]+),(.+)$")
+	else
+		url_part = doh_str
+	end
+
+	local res = parseURL(url_part)
+	if not res then return nil end
+
+	res.url = url_part
+	if ip_part and ip_part ~= "" and is_ip(ip_part) then
+		res.hostip = ip_part
+	end
+
+	return res
+end
+
 local default_file_tree = {
 	x86_64  = "amd64",
 	x86     = "386",
