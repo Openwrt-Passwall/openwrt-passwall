@@ -48,8 +48,8 @@ o.write = function(self, section, value)
 	sys.call("rm -rf /tmp/etc/passwall_tmp/dns_*")
 end
 o.remove = function(self, section, value)
-	fs.writefile(direct_host, "")
-	sys.call("rm -rf /tmp/etc/passwall_tmp/dns_*")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
+	-- does not mean the user cleared the content
 end
 o.validate = function(self, value)
 	local hosts= {}
@@ -77,7 +77,7 @@ o.write = function(self, section, value)
 	fs.writefile(direct_ip, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(direct_ip, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local ipmasks= {}
@@ -106,8 +106,7 @@ o.write = function(self, section, value)
 	sys.call("rm -rf /tmp/etc/passwall_tmp/dns_*")
 end
 o.remove = function(self, section, value)
-	fs.writefile(proxy_host, "")
-	sys.call("rm -rf /tmp/etc/passwall_tmp/dns_*")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local hosts= {}
@@ -135,7 +134,7 @@ o.write = function(self, section, value)
 	fs.writefile(proxy_ip, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(proxy_ip, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local ipmasks= {}
@@ -163,7 +162,7 @@ o.write = function(self, section, value)
 	fs.writefile(block_host, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(block_host, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local hosts= {}
@@ -191,7 +190,7 @@ o.write = function(self, section, value)
 	fs.writefile(block_ip, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(block_ip, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local ipmasks= {}
@@ -219,7 +218,7 @@ o.write = function(self, section, value)
 	fs.writefile(lanlist_ipv4, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(lanlist_ipv4, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local ipmasks= {}
@@ -247,7 +246,7 @@ o.write = function(self, section, value)
 	fs.writefile(lanlist_ipv6, value:gsub("\r\n", "\n"))
 end
 o.remove = function(self, section, value)
-	fs.writefile(lanlist_ipv6, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 o.validate = function(self, value)
 	local ipmasks= {}
@@ -275,7 +274,7 @@ o.write = function(self, section, value)
 	fs.writefile(hosts, clean_text(value))
 end
 o.remove = function(self, section, value)
-	fs.writefile(hosts, "")
+	-- no-op: field absent from POST due to JS-LuCI lazy tab loading
 end
 
 if fs.access(gfwlist_path) then

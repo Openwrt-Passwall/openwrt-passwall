@@ -1986,8 +1986,8 @@ get_config() {
 	CHN_LIST=$(config_t_get global chn_list direct)
 	TCP_PROXY_MODE=$(config_t_get global tcp_proxy_mode proxy)
 	UDP_PROXY_MODE=$(config_t_get global udp_proxy_mode proxy)
-	[ "${TCP_PROXY_MODE}" != "disable" ] && TCP_PROXY_MODE="proxy"
-	[ "${UDP_PROXY_MODE}" != "disable" ] && UDP_PROXY_MODE="proxy"
+	[ "${TCP_PROXY_MODE}" != "disable" ] && [ "${TCP_PROXY_MODE}" != "direct" ] && TCP_PROXY_MODE="proxy"
+	[ "${UDP_PROXY_MODE}" != "disable" ] && [ "${UDP_PROXY_MODE}" != "direct" ] && UDP_PROXY_MODE="proxy"
 	LOCALHOST_PROXY=$(config_t_get global localhost_proxy 1)
 	[ "${LOCALHOST_PROXY}" == 1 ] && {
 		LOCALHOST_TCP_PROXY_MODE=$TCP_PROXY_MODE
