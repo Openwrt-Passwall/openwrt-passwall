@@ -99,7 +99,9 @@ local function build_common(node)
 	elseif net == "http" then
 		local opts = node["http-opts"]
 		if opts then
-			o.transport.host = get_first(opts.host)
+			-- Clash http-opts carries the camouflage Host under headers.Host
+			-- (a list), like ws-opts; opts.host is not standard for http.
+			o.transport.host = get_first(opts.host) or (opts.headers and get_first(opts.headers.Host))
 			o.transport.path = get_first(opts.path)
 		end
 
