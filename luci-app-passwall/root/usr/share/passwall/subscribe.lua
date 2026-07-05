@@ -1428,8 +1428,8 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.tls_pinSHA256 = params.pcs or params.pinsha256
 		result.tls_CertByName = params.vcn
 		result.tls_allowInsecure = params.allowinsecure or params.insecure
-		result.hysteria2_up_mbps = params.upmbps or sub_hy_up_mbps
-		result.hysteria2_down_mbps = params.downmbps or sub_hy_down_mbps
+		result.hysteria2_up_mbps = params.upmbps or (sub_cfg and sub_hy_up_mbps or nil)
+		result.hysteria2_down_mbps = params.downmbps or (sub_cfg and sub_hy_down_mbps or nil)
 		result.hysteria2_hop = params.mport
 		if params["obfs-password"] or params["obfs_password"] then
 			result.hysteria2_obfs_type = params.obfs or "salamander"
