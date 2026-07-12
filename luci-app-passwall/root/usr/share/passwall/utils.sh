@@ -89,7 +89,7 @@ get_host_ip() {
 	[ -z "$count" ] && count=3
 	local isip=""
 	local ip=""
-	if [ "$1" == "ipv6" ]; then
+	if [ "$1" = "ipv6" ]; then
 		isip=$(echo $host | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}")
 		if [ -n "$isip" ]; then
 			ip=$(echo "$host" | tr -d '[]')
@@ -100,7 +100,7 @@ get_host_ip() {
 	fi
 	[ -z "$isip" ] && {
 		local t=4
-		[ "$1" == "ipv6" ] && t=6
+		[ "$1" = "ipv6" ] && t=6
 		local vpsrip=$(resolveip -$t -t $count $host | awk 'NR==1{print}')
 		ip=$vpsrip
 	}
@@ -113,7 +113,7 @@ get_node_host_ip() {
 	[ -n "$address" ] && {
 		local use_ipv6=$(config_n_get $1 use_ipv6)
 		local network_type="ipv4"
-		[ "$use_ipv6" == "1" ] && network_type="ipv6"
+		[ "$use_ipv6" = "1" ] && network_type="ipv6"
 		ip=$(get_host_ip $network_type $address)
 	}
 	echo $ip
@@ -220,7 +220,7 @@ get_first_dns() {
 		echo "${2}#${3}"
 		return 1
 	}
-	eval "hosts_foreach \"${__hosts_val}\" __first \"$@\""
+	hosts_foreach "${__hosts_val}" __first "$@"
 }
 
 get_last_dns() {
@@ -231,8 +231,8 @@ get_last_dns() {
 		__last="${2}#${3}"
 		__first=${__first:-${__last}}
 	}
-	eval "hosts_foreach \"${__hosts_val}\" __every \"$@\""
-	[ "${__first}" ==  "${__last}" ] || echo "${__last}"
+	hosts_foreach "${__hosts_val}" __first "$@"
+	[ "${__first}" =  "${__last}" ] || echo "${__last}"
 }
 
 normalize_dns() {
@@ -319,7 +319,7 @@ get_new_port() {
 			fi
 		fi
 	fi
-	[ "$port" -lt $min_port -o "$port" -gt $max_port ] && port=$default_start_port
+	[ "$port" -lt $min_port ] || [ "$port" -gt $max_port ] && port=$default_start_port
 	local start_port="$port"
 	while :; do
 		if [ "$(check_port_exists "$port" "$protocol")" = 0 ]; then
@@ -346,9 +346,11 @@ check_ver() {
 	local version1="$1"
 	local version2="$2"
 	local i v1 v1_1 v1_2 v1_3 v2 v2_1 v2_2 v2_3
-	IFS='.'; set -- $version1; v1_1=${1:-0}; v1_2=${2:-0}; v1_3=${3:-0}
-	IFS='.'; set -- $version2; v2_1=${1:-0}; v2_2=${2:-0}; v2_3=${3:-0}
-	IFS=
+	local old_ifs="$IFS"
+	IFS='.'
+	set -- $version1; v1_1=${1:-0}; v1_2=${2:-0}; v1_3=${3:-0}
+	set -- $version2; v2_1=${1:-0}; v2_2=${2:-0}; v2_3=${3:-0}
+	IFS="$old_ifs"
 	for i in 1 2 3; do
 		eval v1=\$v1_$i
 		eval v2=\$v2_$i
@@ -481,8 +483,10 @@ ln_run() {
 	if [ -z "$persist_log_path" ] && [ "$sys_log" != "1" ]; then
 		${file_func:-echolog " - ${ln_name}"} "$@" >${output} 2>&1 &
 	else
-		[ "${output: -1, -7}" == "TCP.log" ] && local protocol="TCP"
-		[ "${output: -1, -7}" == "UDP.log" ] && local protocol="UDP"
+		case "$output" in
+			*TCP.log) local protocol="TCP" ;;
+			*UDP.log) local protocol="UDP" ;;
+		esac
 		if [ -n "${persist_log_path}" ]; then
 			mkdir -p ${persist_log_path}
 			local log_file=${persist_log_path}/passwall_${protocol}_${ln_name}_$(date '+%F').log
@@ -490,7 +494,7 @@ ln_run() {
 			${file_func:-echolog " - ${ln_name}"} "$@" >> ${log_file} 2>&1 &
 			sys_log=0
 		fi
-		if [ "${sys_log}" == "1" ]; then
+		if [ "${sys_log}" = "1" ]; then
 			echolog "记录 ${ln_name}_${protocol} 到系统日志"
 			${file_func:-echolog " - ${ln_name}"} "$@" 2>&1 | logger -t PASSWALL_${protocol}_${ln_name} &
 		fi
