@@ -1673,18 +1673,29 @@ function cleanEmptyTables(t)
 	return next(t) and t or nil
 end
 
-function fetch_cert_sha256(host, port, sni, timeout)
+function fetch_cert_sha256(host, port, sni, timeout, http3)
 	if not host then return "" end
 	port = tonumber(port) or 443
 	sni = sni or host
 	timeout = tonumber(timeout) or 5
-	local cmd = string.format(
-		"timeout %d openssl s_client -connect %s:%d -servername %s -showcerts </dev/null 2>/dev/null " ..
-		"| awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==1{print} /END CERT/{if(c==1)exit}' " ..
-		"| openssl x509 -outform der 2>/dev/null " ..
-		"| sha256sum 2>/dev/null",
-		timeout, host, port, sni
-	)
+	local cmd
+	if http3 then
+		cmd = string.format(
+			"timeout %d curl --http3 -k -w '%%{certs}' -o /dev/null https://%s:%d 2>/dev/null " ..
+			"| awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==1{print} /END CERT/{if(c==1)exit}' " ..
+			"| openssl x509 -outform der 2>/dev/null " ..
+			"| sha256sum 2>/dev/null",
+			timeout, host, port
+		)
+	else
+		cmd = string.format(
+			"timeout %d openssl s_client -connect %s:%d -servername %s -showcerts </dev/null 2>/dev/null " ..
+			"| awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==1{print} /END CERT/{if(c==1)exit}' " ..
+			"| openssl x509 -outform der 2>/dev/null " ..
+			"| sha256sum 2>/dev/null",
+			timeout, host, port, sni
+		)
+	end
 	local out = trim(sys.exec(cmd))
 	local fp = out:match("^([0-9a-fA-F]+)")
 	if not fp or fp:lower():match("^e3b0c44298fc1c149afbf4c8996fb924") then

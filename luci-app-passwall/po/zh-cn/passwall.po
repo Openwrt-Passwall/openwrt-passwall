@@ -1820,8 +1820,14 @@ msgstr "TLS 用于验证 leaf 证书的 name。"
 msgid "Fetch Manually"
 msgstr "手动获取"
 
-msgid "Fetch Failed"
-msgstr "获取失败"
+msgid "Fetch Failed!"
+msgstr "获取失败！"
+
+msgid "Requires OpenSSL to retrieve the TLS certificate chain fingerprint."
+msgstr "获取 TLS 证书链指纹需要 OpenSSL 支持。"
+
+msgid "QUIC protocols such as HY2 also require curl with http3 support."
+msgstr "HY2 等 QUIC 协议还需要 curl 支持 http3。"
 
 msgid "TLS Certificate (PEM)"
 msgstr "TLS 证书（PEM）"

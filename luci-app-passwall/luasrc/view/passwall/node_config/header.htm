@@ -67,7 +67,10 @@ local api = self.api
 				return;
 			}
 			if (!res || res.code !== 1 || !res.data) {
-				alert(res && res.msg ? res.msg : "<%:Fetch Failed%> !");
+				alert(res && res.msg ? res.msg : "<%:Fetch Failed!%>\n" +
+					"<%:Requires OpenSSL to retrieve the TLS certificate chain fingerprint.%>\n" +
+					"<%:QUIC protocols such as HY2 also require curl with http3 support.%>"
+				);
 				return;
 			}
 			const inputs = document.querySelectorAll('input[id$=".xray_tls_pinSHA256"]');

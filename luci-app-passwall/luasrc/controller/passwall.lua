@@ -1075,10 +1075,20 @@ function fetch_certsha256()
 	local port = (id ~= "") and uci:get(appname, id, "port") or 0
 	local sni = (id ~= "") and uci:get(appname, id, "tls_serverName") or ""
 	sni = (sni ~= "") and sni or address
+	local protocol = uci:get(appname, id, "protocol")
+	local h3, timeout = false, 10
+	if protocol == "hysteria2" then
+		h3 = true
+		timeout = 60
+		if port == 0 then
+			local hop = uci:get(appname, id, "hysteria2_hop") or "0"
+			port = tonumber(hop:match("^%s*(%d+)"))
+		end
+	end
 	if address == "" or port == 0 then
 		http_write_json_error()
 		return
 	end
-	local data = api.fetch_cert_sha256(address, port, sni, 5)
+	local data = api.fetch_cert_sha256(address, port, sni, timeout, h3)
 	http_write_json(data ~= "" and { code = 1, data = data } or { code = 0 })
 end
