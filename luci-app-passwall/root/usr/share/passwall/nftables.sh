@@ -390,24 +390,24 @@ load_acl() {
 						[ "${use_global_config}" = "0" ] && {
 							black_set_name="psw_${sid}_black"
 							black6_set_name="psw_${sid}_black6"
-							gen_nftset $black_set_name ipv4_addr "2d" 0
-							gen_nftset $black6_set_name ipv6_addr "2d" 0
+							gen_nftset $black_set_name ipv4_addr "2d"
+							gen_nftset $black6_set_name ipv6_addr "2d"
 						}
 					}
 					[ "${use_gfw_list}" = "1" ] && {
 						[ "${use_global_config}" = "0" ] && {
 							gfw_set_name="psw_${sid}_gfw"
 							gfw6_set_name="psw_${sid}_gfw6"
-							gen_nftset $gfw_set_name ipv4_addr "2d" 0
-							gen_nftset $gfw6_set_name ipv6_addr "2d" 0
+							gen_nftset $gfw_set_name ipv4_addr "2d"
+							gen_nftset $gfw6_set_name ipv6_addr "2d"
 						}
 					}
 					[ "${use_shunt_tcp}" = "1" ] || [ "${use_shunt_udp}" = "1" ] && {
 						[ "${use_global_config}" = "0" ] && {
 							shunt_set_name="psw_${sid}_shunt"
 							shunt6_set_name="psw_${sid}_shunt6"
-							gen_nftset $shunt_set_name ipv4_addr "2d" 0
-							gen_nftset $shunt6_set_name ipv6_addr "2d" 0
+							gen_nftset $shunt_set_name ipv4_addr "2d"
+							gen_nftset $shunt6_set_name ipv6_addr "2d"
 						}
 					}
 					[ -n "${dns_redirect_port}" ] && dns_redirect=${dns_redirect_port}
@@ -900,37 +900,36 @@ add_firewall_rule() {
 	add_script_mwan3
 	mwan3_start
 	set_tproxy_sysctl
-	gen_nftset $NFTSET_WAN ipv4_addr 0 "-1"
-	gen_nftset $NFTSET_VPS ipv4_addr 0 "-1"
-	gen_nftset $NFTSET_GFW ipv4_addr "2d" 0
-	gen_nftset $NFTSET_LOCAL ipv4_addr 0 "-1"
-	gen_nftset $NFTSET_LAN ipv4_addr 0 "-1" $(gen_lanlist)
+	gen_nftset $NFTSET_WAN ipv4_addr 0 
+	gen_nftset $NFTSET_VPS ipv4_addr 0
+	gen_nftset $NFTSET_GFW ipv4_addr "2d"
+	gen_nftset $NFTSET_LOCAL ipv4_addr 0
+	gen_nftset $NFTSET_LAN ipv4_addr 0 $(gen_lanlist)
 	if [ -f $RULES_PATH/chnroute.nft ] && [ -s $RULES_PATH/chnroute.nft ] && [ $(awk 'END{print NR}' $RULES_PATH/chnroute.nft) -ge 8 ]; then
-		#echolog "使用缓存加载chnroute..."
 		nft -f $RULES_PATH/chnroute.nft
 	else
-		cat $RULES_PATH/chnroute | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN ipv4_addr "2d" 0 
+		cat $RULES_PATH/chnroute | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN ipv4_addr "2d"
 	fi
-	gen_nftset $NFTSET_BLACK ipv4_addr "2d" 0
-	gen_nftset $NFTSET_WHITE ipv4_addr "2d" 0
-	gen_nftset $NFTSET_BLOCK ipv4_addr "2d" 0
-	gen_nftset $NFTSET_SHUNT ipv4_addr "2d" 0
+	gen_nftset $NFTSET_BLACK ipv4_addr "2d"
+	gen_nftset $NFTSET_WHITE ipv4_addr "2d"
+	gen_nftset $NFTSET_BLOCK ipv4_addr "2d"
+	gen_nftset $NFTSET_SHUNT ipv4_addr "2d"
 
-	gen_nftset $NFTSET_WAN6 ipv6_addr 0 "-1"
-	gen_nftset $NFTSET_VPS6 ipv6_addr 0 "-1"
-	gen_nftset $NFTSET_GFW6 ipv6_addr "2d" 0
-	gen_nftset $NFTSET_LOCAL6 ipv6_addr 0 "-1"
-	gen_nftset $NFTSET_LAN6 ipv6_addr 0 "-1" $(gen_lanlist_6)
+	gen_nftset $NFTSET_WAN6 ipv6_addr 0 
+	gen_nftset $NFTSET_VPS6 ipv6_addr 0
+	gen_nftset $NFTSET_GFW6 ipv6_addr "2d"
+	gen_nftset $NFTSET_LOCAL6 ipv6_addr 0
+	gen_nftset $NFTSET_LAN6 ipv6_addr 0 $(gen_lanlist_6)
 	if [ -f $RULES_PATH/chnroute6.nft ] && [ -s $RULES_PATH/chnroute6.nft ] && [ $(awk 'END{print NR}' $RULES_PATH/chnroute6.nft) -ge 8 ]; then
 		#echolog "使用缓存加载chnroute6..."
 		nft -f $RULES_PATH/chnroute6.nft
 	else
-		cat $RULES_PATH/chnroute6 | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN6 ipv6_addr "2d" 0
+		cat $RULES_PATH/chnroute6 | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN6 ipv6_addr "2d"
 	fi
-	gen_nftset $NFTSET_BLACK6 ipv6_addr "2d" 0
-	gen_nftset $NFTSET_WHITE6 ipv6_addr "2d" 0
-	gen_nftset $NFTSET_BLOCK6 ipv6_addr "2d" 0
-	gen_nftset $NFTSET_SHUNT6 ipv6_addr "2d" 0
+	gen_nftset $NFTSET_BLACK6 ipv6_addr "2d"
+	gen_nftset $NFTSET_WHITE6 ipv6_addr "2d"
+	gen_nftset $NFTSET_BLOCK6 ipv6_addr "2d"
+	gen_nftset $NFTSET_SHUNT6 ipv6_addr "2d"
 
 	#导入规则列表、分流规则中的IP列表
 	local USE_SHUNT_NODE=0
