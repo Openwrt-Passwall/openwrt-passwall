@@ -26,6 +26,22 @@ NFTSET_BLACK6="psw_black6"
 NFTSET_WHITE6="psw_white6"
 NFTSET_BLOCK6="psw_block6"
 
+# IPv4 static sets
+#Keep the variable names consistent with those in `nft_rule_dual`\rule_update.lua
+NFTSET_CHN_STATIC="${NFTSET_CHN}_static"
+NFTSET_BLACK_STATIC="${NFTSET_BLACK}_static"
+NFTSET_WHITE_STATIC="${NFTSET_WHITE}_static"
+NFTSET_BLOCK_STATIC="${NFTSET_BLOCK}_static"
+NFTSET_SHUNT_STATIC="${NFTSET_SHUNT}_static"
+
+# IPv6 static sets
+#Keep the variable names consistent with those in `nft_rule_dual`\rule_update.lua
+NFTSET_CHN6_STATIC="${NFTSET_CHN6}_static"
+NFTSET_BLACK6_STATIC="${NFTSET_BLACK6}_static"
+NFTSET_WHITE6_STATIC="${NFTSET_WHITE6}_static"
+NFTSET_BLOCK6_STATIC="${NFTSET_BLOCK6}_static"
+NFTSET_SHUNT6_STATIC="${NFTSET_SHUNT6}_static"
+
 USE_SHUNT_TCP=0
 USE_SHUNT_UDP=0
 
@@ -303,11 +319,15 @@ load_acl() {
 				use_shunt_udp=${USE_SHUNT_UDP}
 				dns_redirect_port=${DNS_REDIRECT_PORT}
 				black_set_name=${NFTSET_BLACK}
+				black_set_name_static=${NFTSET_BLACK_STATIC}
 				black6_set_name=${NFTSET_BLACK6}
+				black6_set_name_static=${NFTSET_BLACK6_STATIC}
 				gfw_set_name=${NFTSET_GFW}
 				gfw6_set_name=${NFTSET_GFW6}
 				shunt_set_name=${NFTSET_SHUNT}
+				shunt_set_name_static=${NFTSET_SHUNT_STATIC}
 				shunt6_set_name=${NFTSET_SHUNT6}
+				shunt6_set_name_static=${NFTSET_SHUNT6_STATIC}
 				use_fakedns=${USE_FAKEDNS}
 			}
 
@@ -389,9 +409,13 @@ load_acl() {
 					[ "${use_proxy_list}" = "1" ] && {
 						[ "${use_global_config}" = "0" ] && {
 							black_set_name="psw_${sid}_black"
+							black_set_name_static="psw_${sid}_black_static"
 							black6_set_name="psw_${sid}_black6"
+							black6_set_name_static="psw_${sid}_black6_static"
 							gen_nftset $black_set_name ipv4_addr "2d"
+							gen_nftset $black_set_name_static ipv4_addr 0
 							gen_nftset $black6_set_name ipv6_addr "2d"
+							gen_nftset $black6_set_name_static ipv6_addr 0
 						}
 					}
 					[ "${use_gfw_list}" = "1" ] && {
@@ -405,9 +429,13 @@ load_acl() {
 					[ "${use_shunt_tcp}" = "1" ] || [ "${use_shunt_udp}" = "1" ] && {
 						[ "${use_global_config}" = "0" ] && {
 							shunt_set_name="psw_${sid}_shunt"
+							shunt_set_name_static="psw_${sid}_shunt_static"
 							shunt6_set_name="psw_${sid}_shunt6"
+							shunt6_set_name_static="psw_${sid}_shunt6_static"
 							gen_nftset $shunt_set_name ipv4_addr "2d"
+							gen_nftset $shunt_set_name_static ipv4_addr 0
 							gen_nftset $shunt6_set_name ipv6_addr "2d"
+							gen_nftset $shunt6_set_name_static ipv6_addr 0
 						}
 					}
 					[ -n "${dns_redirect_port}" ] && dns_redirect=${dns_redirect_port}
@@ -622,7 +650,7 @@ load_acl() {
 				[ "${USE_BLOCK_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_BLOCK6 counter reject comment \"默认\""
 				[ "${USE_DIRECT_LIST}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 ip6 daddr @$NFTSET_WHITE6 counter return comment \"默认\""
 			}
-			
+
 			[ "$TCP_PROXY_DROP_PORTS" != "disable" ] && {
 				[ "$PROXY_IPV6" = "1" ] && {
 					[ "${USE_FAKEDNS}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp $(factor $TCP_PROXY_DROP_PORTS "tcp dport") ip6 daddr $FAKE_IP_6 counter reject comment \"默认\""
@@ -641,7 +669,7 @@ load_acl() {
 				[ "${TCP_PROXY_MODE}" != "disable" ] && nft "add rule $NFTABLE_NAME $nft_prerouting_chain ip protocol tcp $(factor $TCP_PROXY_DROP_PORTS "tcp dport") counter reject comment \"默认\""
 				echolog "     - ${msg}屏蔽代理 TCP 端口[${TCP_PROXY_DROP_PORTS}]"
 			}
-			
+
 			[ "$UDP_PROXY_DROP_PORTS" != "disable" ] && {
 				[ "$PROXY_IPV6" = "1" ] && {
 					[ "${USE_FAKEDNS}" = "1" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp $(factor $UDP_PROXY_DROP_PORTS "udp dport") ip6 daddr $FAKE_IP_6 counter reject comment \"默认\""
@@ -905,31 +933,41 @@ add_firewall_rule() {
 	gen_nftset $NFTSET_GFW ipv4_addr "2d"
 	gen_nftset $NFTSET_LOCAL ipv4_addr 0
 	gen_nftset $NFTSET_LAN ipv4_addr 0 $(gen_lanlist)
+	gen_nftset $NFTSET_CHN ipv4_addr "2d"
 	if [ -f $RULES_PATH/chnroute.nft ] && [ -s $RULES_PATH/chnroute.nft ] && [ $(awk 'END{print NR}' $RULES_PATH/chnroute.nft) -ge 8 ]; then
 		nft -f $RULES_PATH/chnroute.nft
 	else
-		cat $RULES_PATH/chnroute | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN ipv4_addr "2d"
+		cat $RULES_PATH/chnroute | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN_STATIC ipv4_addr 0
 	fi
 	gen_nftset $NFTSET_BLACK ipv4_addr "2d"
+	gen_nftset $NFTSET_BLACK_STATIC ipv4_addr 0
 	gen_nftset $NFTSET_WHITE ipv4_addr "2d"
+	gen_nftset $NFTSET_WHITE_STATIC ipv4_addr 0
 	gen_nftset $NFTSET_BLOCK ipv4_addr "2d"
+	gen_nftset $NFTSET_BLOCK_STATIC ipv4_addr 0
 	gen_nftset $NFTSET_SHUNT ipv4_addr "2d"
+	gen_nftset $NFTSET_SHUNT_STATIC ipv4_addr 0
 
 	gen_nftset $NFTSET_WAN6 ipv6_addr 0 
 	gen_nftset $NFTSET_VPS6 ipv6_addr 0
 	gen_nftset $NFTSET_GFW6 ipv6_addr "2d"
 	gen_nftset $NFTSET_LOCAL6 ipv6_addr 0
 	gen_nftset $NFTSET_LAN6 ipv6_addr 0 $(gen_lanlist_6)
+	gen_nftset $NFTSET_CHN6 ipv6_addr "2d"
 	if [ -f $RULES_PATH/chnroute6.nft ] && [ -s $RULES_PATH/chnroute6.nft ] && [ $(awk 'END{print NR}' $RULES_PATH/chnroute6.nft) -ge 8 ]; then
 		#echolog "使用缓存加载chnroute6..."
 		nft -f $RULES_PATH/chnroute6.nft
 	else
-		cat $RULES_PATH/chnroute6 | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN6 ipv6_addr "2d"
+		cat $RULES_PATH/chnroute6 | tr -s '\n' | sed 's/#.*//' | gen_nftset $NFTSET_CHN6_STATIC ipv6_addr 0
 	fi
 	gen_nftset $NFTSET_BLACK6 ipv6_addr "2d"
+	gen_nftset $NFTSET_BLACK6_STATIC ipv6_addr 0
 	gen_nftset $NFTSET_WHITE6 ipv6_addr "2d"
+	gen_nftset $NFTSET_WHITE6_STATIC ipv6_addr 0
 	gen_nftset $NFTSET_BLOCK6 ipv6_addr "2d"
+	gen_nftset $NFTSET_BLOCK6_STATIC ipv6_addr 0
 	gen_nftset $NFTSET_SHUNT6 ipv6_addr "2d"
+	gen_nftset $NFTSET_SHUNT6_STATIC ipv6_addr 0
 
 	#导入规则列表、分流规则中的IP列表
 	local USE_SHUNT_NODE=0
@@ -960,13 +998,13 @@ add_firewall_rule() {
 
 	#直连列表
 	[ "$USE_DIRECT_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE
-		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6
+		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE_STATIC
+		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6_STATIC
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/direct_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE_STATIC
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6_STATIC
 				echolog "  - [$?]解析并加入[直连列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -974,13 +1012,13 @@ add_firewall_rule() {
 
 	#代理列表
 	[ "$USE_PROXY_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK
-		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6
+		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK_STATIC
+		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6_STATIC
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/proxy_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK_STATIC
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6_STATIC
 				echolog "  - [$?]解析并加入[代理列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -988,13 +1026,13 @@ add_firewall_rule() {
 
 	#屏蔽列表
 	[ "$USE_BLOCK_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK
-		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6
+		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK_STATIC
+		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6_STATIC
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/block_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK_STATIC
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6_STATIC
 				echolog "  - [$?]解析并加入[屏蔽列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -1005,16 +1043,16 @@ add_firewall_rule() {
 		local GEOIP_CODE=""
 		local shunt_ids=$(uci show $CONFIG | grep "=shunt_rules" | awk -F '.' '{print $2}' | awk -F '=' '{print $1}')
 		for shunt_id in $shunt_ids; do
-			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT
-			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6
+			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT_STATIC
+			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6_STATIC
 			[ "$USE_GEOVIEW" = "1" ] && {
 				local geoip_code=$(config_n_get $shunt_id ip_list | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 				[ -n "$geoip_code" ] && GEOIP_CODE="${GEOIP_CODE:+$GEOIP_CODE,}$geoip_code"
 			}
 		done
 		if [ -n "$GEOIP_CODE" ]; then
-			get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT
-			get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6
+			get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT_STATIC
+			get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6_STATIC
 			echolog "  - [$?]解析并加入[分流节点] GeoIP 到 NFTSET 完成"
 		fi
 	}
