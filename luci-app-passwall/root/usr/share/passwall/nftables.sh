@@ -164,16 +164,9 @@ gen_nft_tables() {
 
 insert_nftset() {
 	local nftset_name="${1}"; shift
-	local timeout_argument="${1}"; shift
-	local default_timeout="365d"
 	local suffix=""
 
 	if [ -n "$nftset_name" ] && { [ $# -gt 0 ] || [ ! -t 0 ]; }; then
-		case "$timeout_argument" in
-			"-1") suffix="" ;;
-			 "0") suffix=" timeout $default_timeout" ;;
-			   *) suffix=" timeout $timeout_argument" ;;
-		esac
 		{
 			if [ $# -gt 0 ] && [ $# -le 1000 ]; then
 				printf "%s\n" "$@"
@@ -208,19 +201,16 @@ gen_nftset() {
 	local ip_type="${1}"; shift
 	#  0 - don't set defalut timeout
 	local timeout_argument_set="${1}"; shift
-	#  0 - don't let element timeout(365 days) when set's timeout parameters be seted
-	# -1 - follow the set's timeout parameters
-	local timeout_argument_element="${1}"; shift
 	local gc_interval_time="1h"
 
 	if ! nft list set $NFTABLE_NAME $nftset_name >/dev/null 2>&1; then
 		if [ "$timeout_argument_set" = "0" ]; then
-			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval, timeout; auto-merge; }"
+			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval; auto-merge; }"
 		else
 			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval, timeout; timeout $timeout_argument_set; gc-interval $gc_interval_time; auto-merge; }"
 		fi
 	fi
-	[ $# -gt 0 ] || [ ! -t 0 ] && insert_nftset "$nftset_name" "$timeout_argument_element" "$@"
+	[ $# -gt 0 ] || [ ! -t 0 ] && insert_nftset "$nftset_name" "$@"
 }
 
 get_jump_nft() {
