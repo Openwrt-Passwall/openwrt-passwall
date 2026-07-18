@@ -763,29 +763,29 @@ load_acl() {
 filter_haproxy() {
 	for item in ${haproxy_items}; do
 		get_host_ip ipv4 $(echo $item | awk -F ":" '{print $1}') 1
-	done | insert_nftset $NFTSET_VPS "-1"
+	done | insert_nftset $NFTSET_VPS
 	echolog "  - [$?]加入负载均衡的节点到nftset[$NFTSET_VPS]直连完成"
 }
 
 filter_vps_addr() {
 	for server_host in "$@"; do
 		get_host_ip "ipv4" ${server_host}
-	done | insert_nftset $NFTSET_VPS "-1"
+	done | insert_nftset $NFTSET_VPS
 
 	for server_host in "$@"; do
 		get_host_ip "ipv6" ${server_host}
-	done | insert_nftset $NFTSET_VPS6 "-1"
+	done | insert_nftset $NFTSET_VPS6
 }
 
 filter_vpsip() {
 	local EXCLUDE_VPSIP="^(0\.0\.0\.0|127\.0\.0\.1|1\.1\.1\.1|1\.1\.1\.2|8\.8\.8\.8|8\.8\.4\.4|9\.9\.9\.9)$"
-	uci show $CONFIG | grep -E "(\.address=|\.download_address=)" | cut -d "'" -f 2 | grep -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -Ev "$EXCLUDE_VPSIP" | insert_nftset $NFTSET_VPS "-1"
+	uci show $CONFIG | grep -E "(\.address=|\.download_address=)" | cut -d "'" -f 2 | grep -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -Ev "$EXCLUDE_VPSIP" | insert_nftset $NFTSET_VPS
 	echolog "  - [$?]加入所有IPv4节点到nftset[$NFTSET_VPS]直连完成"
-	uci show $CONFIG | grep -E "(\.address=|\.download_address=)" | cut -d "'" -f 2 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_VPS6 "-1"
+	uci show $CONFIG | grep -E "(\.address=|\.download_address=)" | cut -d "'" -f 2 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_VPS6
 	echolog "  - [$?]加入所有IPv6节点到nftset[$NFTSET_VPS6]直连完成"
 	#订阅方式为直连时
-	get_subscribe_host | grep -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -Ev "$EXCLUDE_VPSIP" | insert_nftset $NFTSET_VPS "-1"
-	get_subscribe_host | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_VPS6 "-1"
+	get_subscribe_host | grep -E "([0-9]{1,3}[\.]){3}[0-9]{1,3}" | grep -Ev "$EXCLUDE_VPSIP" | insert_nftset $NFTSET_VPS
+	get_subscribe_host | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_VPS6
 }
 
 filter_server_port() {
@@ -862,7 +862,7 @@ update_wan_sets() {
 	local WAN_IP=$(get_wan_ips ip4)
 	[ -n "$WAN_IP" ] && {
 		nft flush set $NFTABLE_NAME $NFTSET_WAN
-		echo "$WAN_IP" | insert_nftset $NFTSET_WAN "-1"
+		echo "$WAN_IP" | insert_nftset $NFTSET_WAN
 		[ "$log" = "log" ] && {
 			local wan_ip
 			for wan_ip in $WAN_IP; do
@@ -874,7 +874,7 @@ update_wan_sets() {
 	local WAN6_IP=$(get_wan_ips ip6)
 	[ -n "${WAN6_IP}" ] && {
 		nft flush set $NFTABLE_NAME $NFTSET_WAN6
-		echo "$WAN6_IP" | insert_nftset $NFTSET_WAN6 "-1"
+		echo "$WAN6_IP" | insert_nftset $NFTSET_WAN6
 		[ "$log" = "log" ] && {
 			local wan6_ip
 			for wan6_ip in $WAN6_IP; do
@@ -960,13 +960,13 @@ add_firewall_rule() {
 
 	#直连列表
 	[ "$USE_DIRECT_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE "0"
-		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6 "0"
+		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE
+		cat $RULES_PATH/direct_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/direct_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE "0"
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6 "0"
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_WHITE
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_WHITE6
 				echolog "  - [$?]解析并加入[直连列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -974,13 +974,13 @@ add_firewall_rule() {
 
 	#代理列表
 	[ "$USE_PROXY_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK "0"
-		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6 "0"
+		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK
+		cat $RULES_PATH/proxy_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/proxy_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK "0"
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6 "0"
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLACK
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLACK6
 				echolog "  - [$?]解析并加入[代理列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -988,13 +988,13 @@ add_firewall_rule() {
 
 	#屏蔽列表
 	[ "$USE_BLOCK_LIST_ALL" = "1" ] && {
-		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK "0"
-		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6 "0"
+		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK
+		cat $RULES_PATH/block_ip | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6
 		[ "$USE_GEOVIEW" = "1" ] && {
 			local GEOIP_CODE=$(cat $RULES_PATH/block_ip | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 			if [ -n "$GEOIP_CODE" ]; then
-				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK "0"
-				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6 "0"
+				get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_BLOCK
+				get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_BLOCK6
 				echolog "  - [$?]解析并加入[屏蔽列表] GeoIP 到 NFTSET 完成"
 			fi
 		}
@@ -1005,22 +1005,22 @@ add_firewall_rule() {
 		local GEOIP_CODE=""
 		local shunt_ids=$(uci show $CONFIG | grep "=shunt_rules" | awk -F '.' '{print $2}' | awk -F '=' '{print $1}')
 		for shunt_id in $shunt_ids; do
-			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT "0"
-			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6 "0"
+			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT
+			config_n_get $shunt_id ip_list | sed 's/#.*//' | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6
 			[ "$USE_GEOVIEW" = "1" ] && {
 				local geoip_code=$(config_n_get $shunt_id ip_list | tr -s "\r\n" "\n" | sed -e "/^$/d" | grep -E "^geoip:" | grep -v "^geoip:private" | sed -E 's/^geoip:(.*)/\1/' | sed ':a;N;$!ba;s/\n/,/g')
 				[ -n "$geoip_code" ] && GEOIP_CODE="${GEOIP_CODE:+$GEOIP_CODE,}$geoip_code"
 			}
 		done
 		if [ -n "$GEOIP_CODE" ]; then
-			get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT "0"
-			get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6 "0"
+			get_geoip $GEOIP_CODE ipv4 | grep -E "(\.((2(5[0-5]|[0-4][0-9]))|[0-1]?[0-9]{1,2})){3}" | insert_nftset $NFTSET_SHUNT
+			get_geoip $GEOIP_CODE ipv6 | grep -E "([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4}" | insert_nftset $NFTSET_SHUNT6
 			echolog "  - [$?]解析并加入[分流节点] GeoIP 到 NFTSET 完成"
 		fi
 	}
 
-	get_local_ips ip4 | insert_nftset $NFTSET_LOCAL "-1"
-	get_local_ips ip6 | insert_nftset $NFTSET_LOCAL6 "-1"
+	get_local_ips ip4 | insert_nftset $NFTSET_LOCAL
+	get_local_ips ip6 | insert_nftset $NFTSET_LOCAL6
 
 	# 忽略特殊IP段
 	local lan_ifname lan_ip
@@ -1031,15 +1031,15 @@ add_firewall_rule() {
 		#echolog "本机IPv4网段互访直连：${lan_ip}"
 		#echolog "本机IPv6网段互访直连：${lan_ip6}"
 
-		[ -n "$lan_ip" ] && echo $lan_ip | insert_nftset $NFTSET_LAN "-1"
-		[ -n "$lan_ip6" ] && echo $lan_ip6 | insert_nftset $NFTSET_LAN6 "-1"
+		[ -n "$lan_ip" ] && echo $lan_ip | insert_nftset $NFTSET_LAN
+		[ -n "$lan_ip6" ] && echo $lan_ip6 | insert_nftset $NFTSET_LAN6
 	}
 
 	update_wan_sets "log"
 
 	[ -n "$ISP_DNS" ] && {
 		#echolog "处理 ISP DNS 例外..."
-		echo "$ISP_DNS" | insert_nftset $NFTSET_WHITE 0
+		echo "$ISP_DNS" | insert_nftset $NFTSET_WHITE
 		for ispip in $ISP_DNS; do
 			echolog "  - [$?]追加ISP IPv4 DNS到白名单：${ispip}"
 		done
@@ -1047,7 +1047,7 @@ add_firewall_rule() {
 
 	[ -n "$ISP_DNS6" ] && {
 		#echolog "处理 ISP IPv6 DNS 例外..."
-		echo $ISP_DNS6 | insert_nftset $NFTSET_WHITE6 0
+		echo $ISP_DNS6 | insert_nftset $NFTSET_WHITE6
 		for ispip6 in $ISP_DNS6; do
 			echolog "  - [$?]追加ISP IPv6 DNS到白名单：${ispip6}"
 		done
