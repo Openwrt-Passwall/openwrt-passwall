@@ -3,7 +3,13 @@
 START=99
 
 boot_func() {
-	sleep 90
+	config_load passwall_server
+	config_get start_delay global start_delay 90
+	case "$start_delay" in
+		''|*[!0-9]*) start_delay=90 ;;
+		*) [ "$start_delay" -le 600 ] 2>/dev/null || start_delay=90 ;;
+	esac
+	[ "$start_delay" -gt 0 ] && sleep "$start_delay"
 	restart
 }
 

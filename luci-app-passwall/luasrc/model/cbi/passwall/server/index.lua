@@ -13,6 +13,11 @@ t.addremove = false
 e = t:option(Flag, "enable", translate("Enable"))
 e.rmempty = false
 
+e = t:option(Value, "start_delay", translate("Delay Start"), translate("Units:seconds"))
+e.default = "90"
+e.datatype = "range(0,600)"
+e.rmempty = false
+
 local cfgname = "user"
 t = m:section(TypedSection, cfgname, translate("Users Manager"))
 t.anonymous = true
