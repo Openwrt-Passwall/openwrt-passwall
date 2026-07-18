@@ -56,6 +56,7 @@ end
 --gen cache for nftset from file
 local function gen_cache(set_name, ip_type, input_file, output_file)
 	local tmp_set_name = set_name .. "_tmp_" .. os.time()
+	local final_set_name = set_name .. "_static"
 	local f_in = io.open(input_file, "r")
 	if not f_in then return false end
 	local nft_pipe = io.popen("nft -f -", "w")
@@ -65,14 +66,14 @@ local function gen_cache(set_name, ip_type, input_file, output_file)
 	end
 	nft_pipe:write('#!/usr/sbin/nft -f\n')
 	nft_pipe:write(string.format('add table %s\n', nftable_name))
-	nft_pipe:write(string.format('add set %s %s { type %s; flags interval, timeout; timeout 2d; gc-interval 1h; auto-merge; }\n', nftable_name, tmp_set_name, ip_type))
+	nft_pipe:write(string.format('add set %s %s { type %s; flags interval; auto-merge; }\n', nftable_name, tmp_set_name, ip_type))
 	nft_pipe:write(string.format('add element %s %s { ', nftable_name, tmp_set_name))
 	local count = 0
 	local batch_size = 500
 	for line in f_in:lines() do
 		local ip = line:match("^%s*(.-)%s*$")
 		if ip and ip ~= "" then
-			nft_pipe:write(ip, "timeout 365d, ")
+			nft_pipe:write(ip, ", ")
 			count = count + 1
 			if count % batch_size == 0 then
 				nft_pipe:write("}\n")
@@ -88,7 +89,7 @@ local function gen_cache(set_name, ip_type, input_file, output_file)
 		os.execute(string.format('nft delete set %s %s 2>/dev/null', nftable_name, tmp_set_name))
 		return false
 	end
-	os.execute(string.format('nft list set %s %s | sed "s/%s/%s/g" > %s', nftable_name, tmp_set_name, tmp_set_name, set_name, output_file))
+	os.execute(string.format('nft list set %s %s | sed "s/%s/%s/g" > %s', nftable_name, tmp_set_name, tmp_set_name, final_set_name, output_file))
 	os.execute(string.format('nft delete set %s %s 2>/dev/null', nftable_name, tmp_set_name))
 end
 
