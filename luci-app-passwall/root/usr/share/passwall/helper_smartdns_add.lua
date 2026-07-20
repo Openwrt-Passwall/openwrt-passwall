@@ -11,7 +11,6 @@ local USE_DEFAULT_DNS = var["-USE_DEFAULT_DNS"]
 local REMOTE_DNS = var["-REMOTE_DNS"]
 local TUN_DNS = var["-TUN_DNS"]
 local DNS_MODE = var["-DNS_MODE"]
-local REMOTE_FAKEDNS = var["-REMOTE_FAKEDNS"]
 local TCP_NODE = var["-TCP_NODE"]
 local USE_DIRECT_LIST = var["-USE_DIRECT_LIST"]
 local USE_PROXY_LIST = var["-USE_PROXY_LIST"]
@@ -40,10 +39,6 @@ local config_lines = {}
 local tmp_lines = {}
 local USE_GEOVIEW = uci:get(appname, "@global_rules[0]", "enable_geoview")
 local IS_SHUNT_NODE = uci:get(appname, TCP_NODE, "protocol") == "_shunt"
-
-if IS_SHUNT_NODE then
-	REMOTE_FAKEDNS = uci:get(appname, TCP_NODE, "fakedns") or "0"
-end
 
 local function log(...)
 	if NO_LOGIC_LOG == "1" then
@@ -254,7 +249,6 @@ if DNS_MODE == "socks" then
 		end
 		table.insert(config_lines, server_param)
 	end
-	if not IS_SHUNT_NODE then REMOTE_FAKEDNS = "0" end
 else
 	local server_param = string.format("server %s -group %s -exclude-default-group", TUN_DNS:gsub("#", ":"), REMOTE_GROUP)
 	table.insert(config_lines, server_param)
@@ -460,12 +454,10 @@ if USE_PROXY_LIST == "1" and is_file_nonzero(file_proxy_host) then
 		"#4:" .. setflag .. "psw_black"
 	}
 	if NO_PROXY_IPV6 == "1" then
-		domain_rules_str = domain_rules_str .. " -address #6"
-		domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+		domain_rules_str = domain_rules_str .. " -address #6 " .. set_type .. " " .. table.concat(sets, ",")
 	else
-		domain_rules_str = domain_rules_str .. " -address -6"
 		table.insert(sets, "#6:" .. setflag .. "psw_black6")
-		domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " -d no " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+		domain_rules_str = domain_rules_str .. " -address -6 -d no " .. set_type .. " " .. table.concat(sets, ",")
 	end
 	table.insert(tmp_lines, domain_rules_str)
 	insert_array_after(config_lines, tmp_lines, "#--5")
@@ -485,12 +477,10 @@ if USE_GFW_LIST == "1" and is_file_nonzero(RULES_PATH .. "/gfwlist") then
 		"#4:" .. setflag .. "psw_gfw"
 	}
 	if NO_PROXY_IPV6 == "1" then
-		domain_rules_str = domain_rules_str .. " -address #6"
-		domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+		domain_rules_str = domain_rules_str .. " -address #6 " .. set_type .. " " .. table.concat(sets, ",")
 	else
-		domain_rules_str = domain_rules_str .. " -address -6"
 		table.insert(sets, "#6:" .. setflag .. "psw_gfw6")
-		domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " -d no " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+		domain_rules_str = domain_rules_str .. " -address -6 -d no " .. set_type .. " " .. table.concat(sets, ",")
 	end
 	table.insert(tmp_lines, domain_rules_str)
 	insert_array_after(config_lines, tmp_lines, "#--1")
@@ -526,12 +516,10 @@ if CHN_LIST ~= "0" and is_file_nonzero(RULES_PATH .. "/chnlist") then
 			"#4:" .. setflag .. "psw_chn"
 		}
 		if NO_PROXY_IPV6 == "1" then
-			domain_rules_str = domain_rules_str .. " -address #6"
-			domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+			domain_rules_str = domain_rules_str .. " -address #6 " .. set_type .. " " .. table.concat(sets, ",")
 		else
-			domain_rules_str = domain_rules_str .. " -address -6"
 			table.insert(sets, "#6:" .. setflag .. "psw_chn6")
-			domain_rules_str = REMOTE_FAKEDNS ~= "1" and (domain_rules_str .. " -d no " .. set_type .. " " .. table.concat(sets, ",")) or domain_rules_str
+			domain_rules_str = domain_rules_str .. " -address -6 -d no " .. set_type .. " " .. table.concat(sets, ",")
 		end
 		table.insert(tmp_lines, domain_rules_str)
 		insert_array_after(config_lines, tmp_lines, "#--2")
@@ -659,16 +647,10 @@ if IS_SHUNT_NODE then
 			"#4:" .. setflag .. "psw_shunt"
 		}
 		if NO_PROXY_IPV6 == "1" then
-			domain_rules_str = domain_rules_str .. " -address #6"
-			domain_rules_str = (not only_global and REMOTE_FAKEDNS == "1")
-					and domain_rules_str
-					or (domain_rules_str .. " " .. set_type .. " " .. table.concat(sets, ","))
+			domain_rules_str = domain_rules_str .. " -address #6 " .. set_type .. " " .. table.concat(sets, ",")
 		else
-			domain_rules_str = domain_rules_str .. " -address -6"
 			table.insert(sets, "#6:" .. setflag .. "psw_shunt6")
-			domain_rules_str = (not only_global and REMOTE_FAKEDNS == "1")
-					and domain_rules_str
-					or (domain_rules_str .. " -d no " .. set_type .. " " .. table.concat(sets, ","))
+			domain_rules_str = domain_rules_str .. " -address -6 -d no " .. set_type .. " " .. table.concat(sets, ",")
 		end
 		table.insert(tmp_lines, domain_rules_str)
 		insert_array_after(config_lines, tmp_lines, "#--3")

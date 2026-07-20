@@ -163,7 +163,6 @@ function add_rule(var)
 	local DEFAULT_DNS = var["-DEFAULT_DNS"]
 	local LOCAL_DNS = var["-LOCAL_DNS"]
 	local TUN_DNS = var["-TUN_DNS"]
-	local REMOTE_FAKEDNS = var["-REMOTE_FAKEDNS"]
 	local USE_DEFAULT_DNS = var["-USE_DEFAULT_DNS"]
 	local CHINADNS_DNS = var["-CHINADNS_DNS"]
 	local TCP_NODE = var["-TCP_NODE"]
@@ -182,10 +181,6 @@ function add_rule(var)
 	local CACHE_TEXT_FILE = CACHE_DNS_PATH .. ".txt"
 	local USE_CHINADNS_NG = "0"
 	local IS_SHUNT_NODE = uci:get(appname, TCP_NODE, "protocol") == "_shunt"
-
-	if IS_SHUNT_NODE then
-		REMOTE_FAKEDNS = uci:get(appname, TCP_NODE, "fakedns") or "0"
-	end
 
 	local list1 = {}
 	local excluded_domain = {}
@@ -309,7 +304,7 @@ function add_rule(var)
 	local cache_text = ""
 	local nodes_address_md5 = sys.exec("echo -n $(uci show passwall | grep '\\.address') | md5sum")
 	local new_rules = sys.exec("echo -n $(find /usr/share/passwall/rules -type f | xargs md5sum)")
-	local new_text = TMP_DNSMASQ_PATH .. DNSMASQ_CONF_FILE .. DEFAULT_DNS .. LOCAL_DNS .. TUN_DNS .. REMOTE_FAKEDNS .. USE_DEFAULT_DNS .. CHINADNS_DNS .. USE_DIRECT_LIST .. USE_PROXY_LIST .. USE_BLOCK_LIST .. USE_GFW_LIST .. CHN_LIST .. DEFAULT_PROXY_MODE .. NO_PROXY_IPV6 .. nodes_address_md5 .. new_rules .. NFTFLAG
+	local new_text = TMP_DNSMASQ_PATH .. DNSMASQ_CONF_FILE .. DEFAULT_DNS .. LOCAL_DNS .. TUN_DNS .. USE_DEFAULT_DNS .. CHINADNS_DNS .. USE_DIRECT_LIST .. USE_PROXY_LIST .. USE_BLOCK_LIST .. USE_GFW_LIST .. CHN_LIST .. DEFAULT_PROXY_MODE .. NO_PROXY_IPV6 .. nodes_address_md5 .. new_rules .. NFTFLAG
 	if fs.access(CACHE_TEXT_FILE) then
 		for line in io.lines(CACHE_TEXT_FILE) do
 			cache_text = line
@@ -443,9 +438,6 @@ function add_rule(var)
 					if NO_PROXY_IPV6 ~= "1" then
 						table.insert(sets, setflag_6 .. set6_name)
 					end
-					if REMOTE_FAKEDNS == "1" then
-						sets = {}
-					end
 					--始终使用远程DNS解析代理（黑名单）列表
 					for line in io.lines("/usr/share/passwall/rules/proxy_host") do
 						line = api.get_std_domain(line)
@@ -482,9 +474,6 @@ function add_rule(var)
 					}
 					if NO_PROXY_IPV6 ~= "1" then
 						table.insert(sets, setflag_6 .. set6_name)
-					end
-					if REMOTE_FAKEDNS == "1" then
-						sets = {}
 					end
 					for line in io.lines("/usr/share/passwall/rules/gfwlist") do
 						if line ~= "" and not line:find("#") and not check_excluded_domain(line) then
@@ -527,9 +516,6 @@ function add_rule(var)
 							sets = {
 								setflag_4 .. "psw_chn"
 							}
-						end
-						if REMOTE_FAKEDNS == "1" then
-							sets = {}
 						end
 					end
 					for line in io.lines("/usr/share/passwall/rules/chnlist") do
@@ -594,11 +580,6 @@ function add_rule(var)
 							table.insert(sets, setflag_6 .. set6_name)
 						else
 							no_ipv6 = true
-						end
-						if not only_global then
-							if REMOTE_FAKEDNS == "1" then
-								sets = {}
-							end
 						end
 					end
 
