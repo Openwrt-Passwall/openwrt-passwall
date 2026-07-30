@@ -221,11 +221,9 @@ if #hysteria2_type > 0 then
 
 	o = s:option(Value, "hysteria_up_mbps", "Hy/Hy2 " .. translate("Max upload Mbps"))
 	o.datatype = "uinteger"
-	o.default = "100"
 
 	o = s:option(Value, "hysteria_down_mbps", "Hy/Hy2 " .. translate("Max download Mbps"))
 	o.datatype = "uinteger"
-	o.default = "100"
 end
 
 o = s:option(Flag, "boot_update", translate("Update Once on Boot"), translate("Updates the subscription the first time PassWall runs automatically after each system boot."))
