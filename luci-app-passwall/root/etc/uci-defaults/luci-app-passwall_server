@@ -24,6 +24,15 @@ else
 fi
 uci commit firewall
 
+# Migrate server sections from the old `user` section type. New user entries
+# also use `user`, so only sections with a server `type` option are renamed.
+for sid in $(uci -q show passwall_server | sed -n 's/^passwall_server\.\([^.=]*\)=user$/\1/p'); do
+	if [ -n "$(uci -q get "passwall_server.${sid}.type")" ]; then
+		uci -q set "passwall_server.${sid}=server"
+	fi
+done
+uci -q commit passwall_server
+
 rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
 rm -rf /tmp/luci-modulecache/
 killall -HUP rpcd 2>/dev/null
