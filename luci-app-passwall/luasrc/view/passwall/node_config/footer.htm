@@ -1,10 +1,16 @@
+<%
+local map = self.map
+local api = map.api
+local sid = self.section
+local config = map.config
+-%>
 <script type="text/javascript">
 	//<![CDATA[
-	let node_id = "<%=self.section%>";
-	let node_config_url = '<%=self.api.url("node_config")%>/' + node_id;
+	let node_id = "<%=sid%>";
+	let node_config_url = '<%=api.url("node_config")%>/' + node_id;
 
 	document.addEventListener("DOMContentLoaded", function () {
-		waitForElement('select[name*="<%=self.config%>"][name*="type"]', function(el) {
+		waitForElement('select[name*="<%=config%>"][name*="type"]', function(el) {
 			let o_val = el.value;
 			el.addEventListener("change", () => {
 				el.blur();
@@ -18,16 +24,16 @@
 						}
 						*/
 						update_config(node_id, {
-							remarks: getOption("<%=self.config%>", "<%=self.section%>", "remarks").value,
-							group: getOption("<%=self.config%>", "<%=self.section%>", "group").value,
-							type: getOption("<%=self.config%>", "<%=self.section%>", "type").value,
+							remarks: getOption("<%=config%>", "<%=sid%>", "remarks").value,
+							group: getOption("<%=config%>", "<%=sid%>", "group").value,
+							type: getOption("<%=config%>", "<%=sid%>", "type").value,
 							//protocol: ''
 						}, node_config_url);
 					}
 				}
 			});
 		});
-		waitForElement('select[name*="<%=self.config%>"][name*="protocol"]', function(el) {
+		waitForElement('select[name*="<%=config%>"][name*="protocol"]', function(el) {
 			let o_val = el.value;
 			el.addEventListener("change", () => {
 				el.blur();
@@ -43,9 +49,9 @@
 						}
 						*/
 						update_config(node_id, {
-							remarks: getOption("<%=self.config%>", "<%=self.section%>", "remarks").value,
-							group: getOption("<%=self.config%>", "<%=self.section%>", "group").value,
-							protocol: getOption("<%=self.config%>", "<%=self.section%>", name).value,
+							remarks: getOption("<%=config%>", "<%=sid%>", "remarks").value,
+							group: getOption("<%=config%>", "<%=sid%>", "group").value,
+							protocol: getOption("<%=config%>", "<%=sid%>", name).value,
 						}, node_config_url);
 					} else {
 						window.location.href = node_config_url + "?select_proto=" + encodeURIComponent(el.value);

@@ -1,18 +1,18 @@
 #!/usr/bin/lua
 
 local api = require ("luci.passwall.api")
-local name = api.appname
-local uci = api.uci
+local appname = api.appname
 local sys = api.sys
 local jsonc = api.jsonc
 local fs = api.fs
+local uci, uci_get, uci_set, uci_del, uci_foreach, uci_save = api.uci, api.uci_get_c, api.uci_set_c, api.uci_del_c, api.uci_foreach_c, api.uci_save_c
 
 local arg1 = arg[1]
 local arg2 = arg[2]
 local arg3 = arg[3]
 
 local nftable_name = "inet passwall"
-local rule_path = "/usr/share/" .. name .. "/rules"
+local rule_path = "/usr/share/passwall/rules"
 local reboot = 0
 local gfwlist_update = "0"
 local chnroute_update = "0"
@@ -23,14 +23,14 @@ local geosite_update = "0"
 
 local excluded_domain = {"apple.com","sina.cn","sina.com.cn","baidu.com","byr.cn","jlike.com","weibo.com","zhongsou.com","youdao.com","sogou.com","so.com","soso.com","aliyun.com","taobao.com","jd.com","qq.com","bing.com"}
 
-local gfwlist_url = uci:get(name, "@global_rules[0]", "gfwlist_url") or {"https://fastly.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/gfw.txt"}
-local chnroute_url = uci:get(name, "@global_rules[0]", "chnroute_url") or {"https://ispip.clang.cn/all_cn.txt"}
-local chnroute6_url = uci:get(name, "@global_rules[0]", "chnroute6_url") or {"https://ispip.clang.cn/all_cn_ipv6.txt"}
-local chnlist_url = uci:get(name, "@global_rules[0]", "chnlist_url") or {"https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/accelerated-domains.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/apple.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/google.china.conf"}
-local geoip_url = uci:get(name, "@global_rules[0]", "geoip_url") or "https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat"
-local geosite_url = uci:get(name, "@global_rules[0]", "geosite_url") or "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
-local asset_location = uci:get(name, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
-local geo2rule = uci:get(name, "@global_rules[0]", "geo2rule") or "0"
+local gfwlist_url = uci_get("@global_rules[0]", "gfwlist_url") or {"https://fastly.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/gfw.txt"}
+local chnroute_url = uci_get("@global_rules[0]", "chnroute_url") or {"https://ispip.clang.cn/all_cn.txt"}
+local chnroute6_url = uci_get("@global_rules[0]", "chnroute6_url") or {"https://ispip.clang.cn/all_cn_ipv6.txt"}
+local chnlist_url = uci_get("@global_rules[0]", "chnlist_url") or {"https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/accelerated-domains.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/apple.china.conf","https://fastly.jsdelivr.net/gh/felixonmars/dnsmasq-china-list/google.china.conf"}
+local geoip_url = uci_get("@global_rules[0]", "geoip_url") or "https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat"
+local geosite_url = uci_get("@global_rules[0]", "geosite_url") or "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+local asset_location = uci_get("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
+local geo2rule = uci_get("@global_rules[0]", "geo2rule") or "0"
 local geoip_update_ok, geosite_update_ok = false, false
 asset_location = asset_location:match("/$") and asset_location or (asset_location .. "/")
 local backup_path = "/tmp/bak_v2ray/"
@@ -659,20 +659,20 @@ if arg2 then
 	end)
 	if rollback then arg2 = nil end
 else
-	gfwlist_update = uci:get(name, "@global_rules[0]", "gfwlist_update") or "1"
-	chnroute_update = uci:get(name, "@global_rules[0]", "chnroute_update") or "1"
-	chnroute6_update = uci:get(name, "@global_rules[0]", "chnroute6_update") or "1"
-	chnlist_update = uci:get(name, "@global_rules[0]", "chnlist_update") or "1"
-	geoip_update = uci:get(name, "@global_rules[0]", "geoip_update") or "1"
-	geosite_update = uci:get(name, "@global_rules[0]", "geosite_update") or "1"
+	gfwlist_update = uci_get("@global_rules[0]", "gfwlist_update") or "1"
+	chnroute_update = uci_get("@global_rules[0]", "chnroute_update") or "1"
+	chnroute6_update = uci_get("@global_rules[0]", "chnroute6_update") or "1"
+	chnlist_update = uci_get("@global_rules[0]", "chnlist_update") or "1"
+	geoip_update = uci_get("@global_rules[0]", "geoip_update") or "1"
+	geosite_update = uci_get("@global_rules[0]", "geosite_update") or "1"
 end
 if geo2rule ~= "1" and gfwlist_update == "0" and chnroute_update == "0" and chnroute6_update == "0" and chnlist_update == "0" and geoip_update == "0" and geosite_update == "0" then
 	os.exit(0)
 end
 
 local function check_instance(action)
-	local rule_lock = "/var/lock/" .. name .. "_rule_update.lock"
-	local sub_lock = "/var/lock/" .. name .. "_subscribe.lock"
+	local rule_lock = api.LOCK_PREFIX .. "_rule_update.lock"
+	local sub_lock = api.LOCK_PREFIX .. "_subscribe.lock"
 
 	if action == "start" then
 		math.randomseed(os.time() + math.floor(os.clock() * 1000))
@@ -777,25 +777,25 @@ else
 end
 
 if not rollback then
-	uci:set(name, "@global_rules[0]", "gfwlist_update", gfwlist_update)
-	uci:set(name, "@global_rules[0]", "chnroute_update", chnroute_update)
-	uci:set(name, "@global_rules[0]", "chnroute6_update", chnroute6_update)
-	uci:set(name, "@global_rules[0]", "chnlist_update", chnlist_update)
-	uci:set(name, "@global_rules[0]", "geoip_update", geoip_update)
-	uci:set(name, "@global_rules[0]", "geosite_update", geosite_update)
-	api.uci_save(uci, name, true)
+	uci_set("@global_rules[0]", "gfwlist_update", gfwlist_update)
+	uci_set("@global_rules[0]", "chnroute_update", chnroute_update)
+	uci_set("@global_rules[0]", "chnroute6_update", chnroute6_update)
+	uci_set("@global_rules[0]", "chnlist_update", chnlist_update)
+	uci_set("@global_rules[0]", "geoip_update", geoip_update)
+	uci_set("@global_rules[0]", "geosite_update", geosite_update)
+	uci_save(true)
 end
 
 if reboot == 1 then
 	if arg3 == "cron" then
-		if not fs.access("/var/lock/" .. name .. ".lock") then
-			sys.call("touch /tmp/lock/" .. name .. "_cron.lock")
+		if not fs.access(api.LOCK_PREFIX .. ".lock") then
+			luci.sys.call("touch %s_cron.lock" % api.LOCK_PREFIX)
 		end
 	end
 
 	log("重启服务，应用新的规则。")
-	uci:set(name, "@global[0]", "flush_set", "1")
-	api.uci_save(uci, name, true, true)
+	uci_set("@global[0]", "flush_set", "1")
+	uci_save(true, true)
 end
 log("规则更新完毕...\n")
 

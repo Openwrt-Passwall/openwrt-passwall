@@ -1,7 +1,8 @@
 <%
-local api = require "luci.passwall.api"
-local haproxy_enable = api.uci_get_type("global_haproxy", "balancing_enable", "0")
-local console_port = api.uci_get_type("global_haproxy", "console_port", "")
+local map = self.map
+local api = map.api
+local haproxy_enable = map:get("@global_haproxy[0]", "balancing_enable") or "0"
+local console_port = map:get("@global_haproxy[0]", "console_port") or ""
 -%>
 <p id="_status"></p>
 

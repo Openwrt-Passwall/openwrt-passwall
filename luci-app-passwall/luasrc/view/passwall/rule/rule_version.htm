@@ -1,5 +1,6 @@
 <%
-local api = require "luci.passwall.api"
+local map = self.map
+local api = map.api
 local fs = api.fs
 local has_old_geoip = fs.access("/tmp/bak_v2ray/geoip.dat")
 local has_old_geosite = fs.access("/tmp/bak_v2ray/geosite.dat")

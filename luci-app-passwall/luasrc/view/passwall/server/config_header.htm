@@ -1,7 +1,12 @@
+<%
+local map = self.map
+local api = map.api
+local section = self.section
+-%>
 <script type="text/javascript">
 	//<![CDATA[
 	function server_update_config(cfgid, data, redirect_url) {
-		XHR.get('<%=self.api.url("server_update_config")%>', {
+		XHR.get('<%=api.url("server_update_config")%>', {
 			id: cfgid,
 			data: JSON.stringify(data)
 		},

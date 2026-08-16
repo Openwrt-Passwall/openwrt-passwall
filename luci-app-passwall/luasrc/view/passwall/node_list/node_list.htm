@@ -1,7 +1,7 @@
 <%
-local api = self.api
-local appname = api.appname
 local map = self.map
+local api = map.api
+local appname = map.config
 local is_js_luci = api.is_js_luci()
 local section_tag = is_js_luci and "div" or "fieldset"
 -%>
@@ -415,8 +415,8 @@ table td, .table .td {
 
 <script type="text/javascript">
 	//<![CDATA[
-	let auto_detection_time = "<%=api.uci_get_type("global_other", "auto_detection_time", "0")%>"
-	let show_node_info = "<%=api.uci_get_type("global_other", "show_node_info", "0")%>"
+	let auto_detection_time = "<%=map:get("@global_other[0]", "auto_detection_time") or "0"%>"
+	let show_node_info = "<%=map:get("@global_other[0]", "show_node_info") or "0"%>"
 
 	var ajax = {
 		list: [],

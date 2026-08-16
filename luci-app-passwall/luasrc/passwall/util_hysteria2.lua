@@ -1,15 +1,13 @@
 module("luci.passwall.util_hysteria2", package.seeall)
 local api = require "luci.passwall.api"
-local uci = api.uci
 local jsonc = api.jsonc
 
 function gen_config_server(node)
-	local users = node.users or {}
 	local users = nil
 	if node.users and #node.users > 0 then
 		users = {}
 		for i, v in ipairs(node.users) do
-			local user = uci:get_all("passwall_server", v) or {}
+			local user = api.uci_get_s(v) or {}
 			if user[".type"] == "user" then
 				users[user.username] = user.password
 			end
@@ -74,7 +72,7 @@ function gen_config(var)
 		print("node 不能为空")
 		return
 	end
-	local node = uci:get_all("passwall", node_id)
+	local node = api.uci_get_c(node_id)
 	local local_tcp_redir_port = var["local_tcp_redir_port"]
 	local local_udp_redir_port = var["local_udp_redir_port"]
 	local local_socks_address = var["local_socks_address"] or "0.0.0.0"

@@ -1,5 +1,8 @@
 <%
-local api = self.api
+local map = self.map
+local api = map.api
+local config = map.config
+local sectiontype = self.sectiontype
 -%>
 <script type="text/javascript">
 	//<![CDATA[
@@ -19,7 +22,7 @@ local api = self.api
 		);
 	}
 	
-	var edit_btn = document.getElementById("cbi-<%=self.appname%>-<%=self.sectiontype%>").getElementsByClassName("cbi-button cbi-button-edit");
+	var edit_btn = document.getElementById("cbi-<%=config%>-<%=sectiontype%>").getElementsByClassName("cbi-button cbi-button-edit");
 	for (var i = 0; i < edit_btn.length; i++) {
 		try {
 			var onclick_str = edit_btn[i].getAttribute("onclick");

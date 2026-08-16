@@ -1,0 +1,31 @@
+#!/bin/sh
+
+if [ -e "/etc/config/ucitrack" ]; then
+    uci -q batch <<-EOF
+		delete ucitrack.@passwall_server[-1]
+		add ucitrack passwall_server
+		set ucitrack.@passwall_server[-1].init=passwall_server
+		commit ucitrack
+EOF
+fi
+
+uci -q batch <<-EOF
+	delete firewall.passwall_server
+	set firewall.passwall_server=include
+	set firewall.passwall_server.type='script'
+	set firewall.passwall_server.path='/var/etc/passwall_server.include'
+EOF
+
+if [ -x "/sbin/fw3" ]; then
+	uci -q set firewall.passwall_server.reload='1'
+else
+	uci -q delete firewall.passwall_server.reload
+	uci -q delete firewall.passwall_server.fw4_compatible
+fi
+uci commit firewall
+
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+killall -HUP rpcd 2>/dev/null
+
+exit 0

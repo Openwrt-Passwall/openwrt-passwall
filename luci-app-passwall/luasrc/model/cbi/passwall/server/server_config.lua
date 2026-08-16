@@ -1,35 +1,27 @@
 api = require "luci.passwall.api"
-appname = api.appname
-fs = api.fs
-
 api.set_default_cbi()
 
-m = Map("passwall_server", translate("Server Config"))
+m = Map(api.s_config)
 m.redirect = api.url("server")
-api.set_apply_on_parse(m)
 
 if not arg[1] or not m:get(arg[1]) then
 	luci.http.redirect(m.redirect)
 end
 
-local header = Template(appname .. "/server/config_header")
-header.api = api
-header.config = m.config
-header.section = arg[1]
-m:append(header)
+m:appendTemplate("/server/config_header", {section = arg[1]})
 
-m:append(Template(appname .. "/cbi/nodes_listvalue_com"))
+m:appendTemplate("/cbi/nodes_listvalue_com")
 
 user_list = {}
-m.uci:foreach(m.config, "user", function(s)
+m:foreach("user", function(s)
 	user_list[#user_list + 1] = s
 end)
 
-s = m:section(NamedSection, arg[1], "server", "")
+s = m:section(NamedSection, arg[1], "server", translate("Server Config"))
 s.addremove = false
 s.dynamic = false
 
-local types_dir = "/usr/lib/lua/luci/model/cbi/" .. appname .. "/server/type/"
+local types_dir = "/usr/lib/lua/luci/model/cbi/" .. api.appname .. "/server/type/"
 s.val = m:get(arg[1]) or {}
 
 o = s:option(Flag, "enable", translate("Enable"))
@@ -43,7 +35,7 @@ o.rmempty = false
 o = s:option(ListValue, "type", translate("Type"))
 
 local type_table = {}
-for filename in fs.dir(types_dir) do
+for filename in api.fs.dir(types_dir) do
 	table.insert(type_table, filename)
 end
 table.sort(type_table, function(a, b)
@@ -57,10 +49,6 @@ for index, value in ipairs(type_table) do
 	setfenv(p_func, getfenv(1))(m, s)
 end
 
-local footer = Template(appname .. "/server/config_footer")
-footer.api = api
-footer.config = m.config
-footer.section = arg[1]
-m:append(footer)
+m:appendTemplate("/server/config_footer", {section = arg[1]})
 
 return api.return_map(m)

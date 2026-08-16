@@ -1,6 +1,7 @@
 <%
-local api = self.api
-local appname = api.appname
+local map = self.map
+local api = map.api
+local appname = map.config
 local is_js_luci = api.is_js_luci()
 local section_tag = is_js_luci and "div" or "fieldset"
 local title_tag = is_js_luci and "h3" or "legend"

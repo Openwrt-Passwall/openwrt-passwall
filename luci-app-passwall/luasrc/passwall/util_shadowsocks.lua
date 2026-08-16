@@ -1,12 +1,11 @@
 module("luci.passwall.util_shadowsocks", package.seeall)
 local api = require "luci.passwall.api"
-local uci = api.uci
 local jsonc = api.jsonc
 
 function gen_config_server(node)
 	local user = nil
 	if node.user then
-		user = uci:get_all("passwall_server", node.user)
+		user = api.uci_get_s(node.user)
 	end
 	local config = {}
 	config.server_port = tonumber(node.port)
@@ -40,7 +39,7 @@ function gen_config(var)
 		print("node 不能为空")
 		return
 	end
-	local node = uci:get_all("passwall", node_id)
+	local node = api.uci_get_c(node_id)
 	local server_host = var["server_host"] or (node.address or ""):lower()
 	local server_port = var["server_port"] or node.port
 	local local_addr = var["local_addr"]

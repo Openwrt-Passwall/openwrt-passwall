@@ -1,5 +1,4 @@
 local api = require "luci.passwall.api"
-local appname = api.appname
 
 local var = api.get_args(arg)
 local FLAG = var["-FLAG"]
@@ -25,20 +24,19 @@ local SUBNET = var["-SUBNET"]
 local LISTEN_PORT = var["-LISTEN_PORT"]
 local LOCAL_PORT = var["-LOCAL_PORT"]
 
-local uci = api.uci
 local sys = api.sys
 local fs = api.fs
 local datatypes = api.datatypes
 
-local TMP_PATH = "/tmp/etc/" .. appname
+local TMP_PATH = api.TMP_PATH
 local TMP_ACL_PATH = TMP_PATH .. "/acl"
-local RULES_PATH = "/usr/share/" .. appname .. "/rules"
+local RULES_PATH = "/usr/share/passwall/rules"
 local FLAG_PATH = TMP_ACL_PATH .. "/" .. FLAG
 local TMP_CONF_FILE = FLAG_PATH .. "/smartdns.conf"
 local config_lines = {}
 local tmp_lines = {}
-local USE_GEOVIEW = uci:get(appname, "@global_rules[0]", "enable_geoview")
-local IS_SHUNT_NODE = uci:get(appname, TCP_NODE, "protocol") == "_shunt"
+local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
+local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
 
 if not api.is_finded("geoview") then
 	USE_GEOVIEW = "0"
@@ -98,7 +96,7 @@ local function insert_array_after(array1, array2, target) --将array2插入到ar
 end
 
 local function get_geosite(list_arg, out_path)
-	local geosite_path = uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
+	local geosite_path = api.uci_get_c("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
 	geosite_path = geosite_path:match("^(.*)/") .. "/geosite.dat"
 	if not is_file_nonzero(geosite_path) then return 1 end
 	local bin = api.finded_com("geoview")
@@ -139,7 +137,7 @@ else
 				local soa = custom_config["force-qtype-SOA"]
 				return ((soa and soa:match("(^|%s)28(%s|$)"))
 					or custom_config["force-AAAA-SOA"] == "yes"
-					or uci:get("smartdns", "@smartdns[0]", "force_aaaa_soa") == "1")
+					or api.uci_get("smartdns", "@smartdns[0]", "force_aaaa_soa") == "1")
 					and "#6" or "-6"
 			end
 		}
@@ -163,7 +161,7 @@ else
 		if opt.get_value then
 			val = opt.get_value(custom_config)
 		else
-			val = custom_config[opt.config_key] or uci:get("smartdns", "@smartdns[0]", opt.key) or opt.default
+			val = custom_config[opt.config_key] or api.uci_get("smartdns", "@smartdns[0]", opt.key) or opt.default
 		end
 		if val == "yes" then val = "1" elseif val == "no" then val = "0" end
 		if opt.yes_no then
@@ -187,7 +185,7 @@ if not REMOTE_GROUP or REMOTE_GROUP == "nil" then
 	sys.call('sed -i "/passwall/d" /etc/smartdns/custom.conf >/dev/null 2>&1')
 end
 
-local force_https_soa = uci:get(appname, "@global[0]", "force_https_soa") or 0
+local force_https_soa = api.uci_get_c("@global[0]", "force_https_soa") or 0
 local proxy_server_name = "passwall-proxy-server"
 config_lines = {
 	tonumber(LISTEN_PORT) ~= 0 and "bind [::]:" .. LISTEN_PORT .. "@lo" or "",
@@ -342,7 +340,7 @@ if not is_file_nonzero(file_vpslist) then
 			written_domains[address] = true
 		end
 	end
-	uci:foreach(appname, "nodes", function(t)
+	api.uci_foreach_c("nodes", function(t)
 		process_address(t.address)
 		process_address(t.download_address)
 		local dns, _ = api.get_domain_port_from_url(t.domain_resolver_dns or t.domain_resolver_dns_https or "")
@@ -350,7 +348,7 @@ if not is_file_nonzero(file_vpslist) then
 			process_address(dns)
 		end
 	end)
-	uci:foreach(appname, "subscribe_list", function(t)  --订阅链接
+	api.uci_foreach_c("subscribe_list", function(t)  --订阅链接
 		local url, _ = api.get_domain_port_from_url(t.url or "")
 		if url and url ~= "" then
 			process_address(url)
@@ -555,9 +553,9 @@ if IS_SHUNT_NODE then
 	local file_shunt_host = FLAG_PATH .. "/shunt_proxy_host"
 	local geosite_white_arg, geosite_shunt_arg = "", ""
 
-	local t = uci:get_all(appname, TCP_NODE)
+	local t = api.uci_get_c(TCP_NODE)
 	local default_node_id = t["default_node"] or "_direct"
-	uci:foreach(appname, "shunt_rules", function(s)
+	api.uci_foreach_c("shunt_rules", function(s)
 		local _node_id = t[s[".name"]]
 		if _node_id and _node_id ~= "_blackhole" and t["shunt_group"] == s.group then
 			if _node_id == "_default" then
@@ -694,5 +692,5 @@ if DEFAULT_DNS_GROUP then
 end
 
 fs.symlink(TMP_CONF_FILE, SMARTDNS_CONF)
-sys.call(string.format('echo "conf-file %s" >> /etc/smartdns/custom.conf', string.gsub(SMARTDNS_CONF, appname, appname .. "*")))
+sys.call(string.format('echo "conf-file %s" >> /etc/smartdns/custom.conf', string.gsub(SMARTDNS_CONF, "passwall", "passwall*")))
 log("  - SmartDNS已作为Dnsmasq上游，如果你自行配置了错误的DNS流程，将会导致域名(直连/代理域名)分流失效！！！")

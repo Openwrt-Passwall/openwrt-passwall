@@ -1,22 +1,17 @@
 local api = require "luci.passwall.api"
-local appname = "passwall"
-local sys = api.sys
 
 api.set_default_cbi()
 
-m = Map(appname)
-api.set_apply_on_parse(m)
+m = Map()
 
-s = m:section(TypedSection, "global", translate("ACLs"), "<font color='red'>" .. translate("ACLs is a tools which used to designate specific IP proxy mode.") .. "</font>")
-s.anonymous = true
+s = m:section(NamedSection, "@global[0]", "global", translate("ACLs"), "<font color='red'>" .. translate("ACLs is a tools which used to designate specific IP proxy mode.") .. "</font>")
 
 o = s:option(Flag, "acl_enable", translate("Main switch"))
 o.rmempty = false
 o.default = false
 
 -- [[ ACLs Settings ]]--
-local cfgname = "acl_rule"
-s = m:section(TypedSection, cfgname)
+s = m:section(TypedSection, "acl_rule")
 s.template = "cbi/tblsection"
 s.sortable = true
 s.anonymous = true
@@ -28,7 +23,7 @@ function s.create(e, t)
 	luci.http.redirect(e.extedit:format(uid))
 end
 function s.remove(e, t)
-	sys.call("rm -rf /tmp/etc/passwall_tmp/dns_" .. t .. "*")
+	api.sys.call("rm -rf /tmp/etc/passwall_tmp/dns_" .. t .. "*")
 	TypedSection.remove(e, t)
 end
 
@@ -42,7 +37,7 @@ o = s:option(Value, "remarks", translate("Remarks"))
 o.rmempty = true
 
 local mac_t = {}
-sys.net.mac_hints(function(e, t)
+api.sys.net.mac_hints(function(e, t)
 	mac_t[e] = {
 		ip = t,
 		mac = e
@@ -85,41 +80,6 @@ i.cfgvalue = function(t, n)
 	return translate("No Proxy")
 end
 
---[[
----- TCP No Redir Ports
-o = s:option(Value, "tcp_no_redir_ports", translate("TCP No Redir Ports"))
-o.default = "default"
-o:value("disable", translate("No patterns are used"))
-o:value("default", translate("Default"))
-o:value("1:65535", translate("All"))
-
----- UDP No Redir Ports
-o = s:option(Value, "udp_no_redir_ports", translate("UDP No Redir Ports"))
-o.default = "default"
-o:value("disable", translate("No patterns are used"))
-o:value("default", translate("Default"))
-o:value("1:65535", translate("All"))
-
----- TCP Redir Ports
-o = s:option(Value, "tcp_redir_ports", translate("TCP Redir Ports"))
-o.default = "default"
-o:value("default", translate("Default"))
-o:value("1:65535", translate("All"))
-o:value("80,443", "80,443")
-o:value("80:65535", "80 " .. translate("or more"))
-o:value("1:443", "443 " .. translate("or less"))
-
----- UDP Redir Ports
-o = s:option(Value, "udp_redir_ports", translate("UDP Redir Ports"))
-o.default = "default"
-o:value("default", translate("Default"))
-o:value("1:65535", translate("All"))
-o:value("53", "53")
-]]--
-
-local sortable = Template(appname .. "/cbi/sortable")
-sortable.api = api
-sortable.target_cfgname = cfgname
-m:append(sortable)
+m:appendTemplate("/cbi/sortable", {sectiontype = s.sectiontype})
 
 return api.return_map(m)

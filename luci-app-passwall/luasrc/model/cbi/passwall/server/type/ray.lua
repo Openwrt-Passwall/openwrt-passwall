@@ -441,7 +441,7 @@ o:value("", translate("Close"))
 o:value("_socks", translate("Custom Socks"))
 o:value("_http", translate("Custom HTTP"))
 o:value("_iface", translate("Custom Interface"))
-o.template = api.appname .. "/cbi/nodes_listvalue"
+o.template = m:template_path("/cbi/nodes_listvalue")
 o.group = {"","","",""}
 for k, v in pairs(nodes_table) do
 	o:value(v.id, v.remarks)

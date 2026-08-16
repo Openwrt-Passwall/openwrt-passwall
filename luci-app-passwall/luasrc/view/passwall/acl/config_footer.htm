@@ -1,6 +1,7 @@
 <%
-local api = self.api
-local cfgid = self.cfgid
+local map = self.map
+local api = map.api
+local sid = self.section
 -%>
 <script type="text/javascript">
 	//<![CDATA[
@@ -20,8 +21,8 @@ local cfgid = self.cfgid
 			return;
 		}
 		let to_url = '<%=api.url("node_config")%>/' + node_select_value;
-		if (node_select_value.indexOf("Socks_") === 0) {
-			to_url = '<%=api.url("socks_config")%>/' + node_select_value.substring("Socks_".length);
+		if (node_select_value.indexOf("socks_") === 0) {
+			to_url = '<%=api.url("socks_config")%>/' + node_select_value;
 		}
 		location.href = to_url;
 	}
@@ -50,7 +51,7 @@ local cfgid = self.cfgid
 
 				const m = cbid.match(/\.(tcp|udp)_node$/);
 				if (m && (m[1] === "tcp" || m[1] === "udp")) {
-					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log") .. "?name=" .. cfgid%>&proto=' + m[1] + '\', \'_blank\')"><%:Log%></a>';
+					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log") .. "?name=" .. sid%>&proto=' + m[1] + '\', \'_blank\')"><%:Log%></a>';
 				}
 
 				html = '<div class="node-actions" style="display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; margin-left:4px;">' + html + '</div>'
@@ -112,7 +113,7 @@ local cfgid = self.cfgid
 			logLink.href = "#";
 			logLink.className = "dns-log-link";
 			logLink.style.marginLeft = "10px";
-			logLink.setAttribute("onclick", "window.open('" + '<%=api.url("get_chinadns_log") .. "?flag=" .. cfgid%>' + "', '_blank')");
+			logLink.setAttribute("onclick", "window.open('" + '<%=api.url("get_chinadns_log") .. "?flag=" .. sid%>' + "', '_blank')");
 			select.insertAdjacentElement("afterend", logLink);
 		};
 	})();

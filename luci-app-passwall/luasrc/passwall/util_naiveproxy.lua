@@ -1,6 +1,5 @@
 module("luci.passwall.util_naiveproxy", package.seeall)
 local api = require "luci.passwall.api"
-local uci = api.uci
 local jsonc = api.jsonc
 
 function gen_config(var)
@@ -9,7 +8,7 @@ function gen_config(var)
 		print("node 不能为空")
 		return
 	end
-	local node = uci:get_all("passwall", node_id)
+	local node = api.uci_get_c(node_id)
 	local run_type = var["run_type"]
 	local local_addr = var["local_addr"]
 	local local_port = var["local_port"]

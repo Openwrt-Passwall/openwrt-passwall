@@ -1,5 +1,4 @@
 local api = require "luci.passwall.api"
-local appname = api.appname
 
 local var = api.get_args(arg)
 local FLAG = var["-FLAG"]
@@ -20,19 +19,18 @@ local NFTFLAG = var["-NFTFLAG"]
 local FILTER_HTTPS = var["-FILTER_HTTPS"]
 local LOG_FILE = var["-LOG_FILE"]
 
-local uci = api.uci
 local sys = api.sys
 local fs = api.fs
 local datatypes = api.datatypes
 
-local TMP_PATH = "/tmp/etc/" .. appname
+local TMP_PATH = api.TMP_PATH
 local TMP_ACL_PATH = TMP_PATH .. "/acl"
-local RULES_PATH = "/usr/share/" .. appname .. "/rules"
+local RULES_PATH = "/usr/share/passwall/rules"
 local FLAG_PATH = TMP_ACL_PATH .. "/" .. FLAG
 local config_lines = {}
 local tmp_lines = {}
-local USE_GEOVIEW = uci:get(appname, "@global_rules[0]", "enable_geoview")
-local IS_SHUNT_NODE = uci:get(appname, TCP_NODE, "protocol") == "_shunt"
+local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
+local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
 
 if not api.is_finded("geoview") then
 	USE_GEOVIEW = "0"
@@ -92,7 +90,7 @@ local function insert_array_after(array1, array2, target) --将array2插入到ar
 end
 
 local function get_geosite(list_arg, out_path)
-	local geosite_path = uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
+	local geosite_path = api.uci_get_c("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
 	geosite_path = geosite_path:match("^(.*)/") .. "/geosite.dat"
 	if not is_file_nonzero(geosite_path) then return 1 end
 	local bin = api.finded_com("geoview")
@@ -183,7 +181,7 @@ if not is_file_nonzero(file_vpslist) then
 			written_domains[address] = true
 		end
 	end
-	uci:foreach(appname, "nodes", function(t)
+	api.uci_foreach_c("nodes", function(t)
 		process_address(t.address)
 		process_address(t.download_address)
 		local dns, _ = api.get_domain_port_from_url(t.domain_resolver_dns or t.domain_resolver_dns_https or "")
@@ -191,7 +189,7 @@ if not is_file_nonzero(file_vpslist) then
 			process_address(dns)
 		end
 	end)
-	uci:foreach(appname, "subscribe_list", function(t)  --订阅链接
+	api.uci_foreach_c("subscribe_list", function(t)  --订阅链接
 		local url, _ = api.get_domain_port_from_url(t.url or "")
 		if url and url ~= "" then
 			process_address(url)
@@ -387,9 +385,9 @@ if IS_SHUNT_NODE then
 	local file_shunt_host = FLAG_PATH .. "/shunt_proxy_host"
 	local geosite_white_arg, geosite_shunt_arg = "", ""
 
-	local t = uci:get_all(appname, TCP_NODE)
+	local t = api.uci_get_c(TCP_NODE)
 	local default_node_id = t["default_node"] or "_direct"
-	uci:foreach(appname, "shunt_rules", function(s)
+	api.uci_foreach_c("shunt_rules", function(s)
 		local _node_id = t[s[".name"]]
 		if _node_id and _node_id ~= "_blackhole" and t["shunt_group"] == s.group then
 			if _node_id == "_default" then

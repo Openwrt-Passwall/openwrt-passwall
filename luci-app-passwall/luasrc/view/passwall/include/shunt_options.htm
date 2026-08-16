@@ -1,3 +1,10 @@
+<%
+local map = self.map
+local api = map.api
+local config = map.config
+local id = self.id
+local s_cfgid = self.s_cfgid
+-%>
 <style>
 .hidden {
 	display: none !important;
@@ -54,15 +61,15 @@
 		}
 	}
 	document.addEventListener("DOMContentLoaded", function () {
-		waitForElement('select[name*="<%=self.config%>"][name*="shunt_group"]', function(el) {
+		waitForElement('select[name*="<%=config%>"][name*="shunt_group"]', function(el) {
 			let o_val = el.value;
 			el.addEventListener("change", () => {
 				el.blur();
 				if (o_val != el.value) {
 					let save = true;
 					if (save) {
-						update_config("<%=self.id%>", {
-							shunt_group: getOption("<%=self.config%>", "<%=self.s_cfgid%>", "shunt_group").value,
+						update_config("<%=id%>", {
+							shunt_group: getOption("<%=config%>", "<%=s_cfgid%>", "shunt_group").value,
 						}, get_current_url());
 					}
 				}

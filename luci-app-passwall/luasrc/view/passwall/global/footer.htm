@@ -1,6 +1,8 @@
 <%
-local api = self.api
-local appname = api.appname
+local map = self.map
+local api = map.api
+local appname = map.config
+local sid = "@global[0]"
 -%>
 <style>
  #cbi-<%=appname%>-socks .td.cbi-value-field > div { 
@@ -35,15 +37,17 @@ local appname = api.appname
 </style>
 <script type="text/javascript">
 	//<![CDATA[
+	let global_id = "<%=sid%>";
 	const shunt_list = JSON.parse('<%=self.shunt_list%>');
 
-	function to_edit_node(btn) {
+	function to_edit_node(btn, stype) {
 		if (!btn) return;
-		const idReg = /^cbid\..*\..*node$/;
+		if (!stype) return;
 		let hidden_select = null;
-		const container = btn.closest('#cbi-<%=appname%>-global') || btn.closest('#cbi-<%=appname%>-socks');
-		if (!container) return null;
-		const selects = container.querySelectorAll('select[id^="cbid."][id*="."][id$="node"]');
+		const stype_dom = document.getElementById("cbi-<%=appname%>-" + stype);
+		if (!stype_dom) return;
+		const selects = stype_dom.querySelectorAll('select[id^="cbid."][id*="."][id$="node"]');
+		const idReg = /^cbid\..*\..*node$/;
 		for (const sel of selects) {
 			if ( idReg.test(sel.id) && getComputedStyle(sel).display === "none" && (sel.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING)) {
 				hidden_select = sel;
@@ -94,8 +98,7 @@ local appname = api.appname
 			);
 		}
 
-		let global_id = null;
-		const global = document.getElementById("cbi-<%=appname%>-global");
+		const global = document.getElementById("cbi-<%=appname%>-" + global_id);
 		if (global) {
 			// 分流规则节点提前加入 “编辑” 占位符，以保证节点列表左对齐
 			document.querySelectorAll('.td[data-widget="nodes_listvalue"][data-name="_node"] > div').forEach(container => {
@@ -109,10 +112,7 @@ local appname = api.appname
 
 			await delay(100);
 
-			const node = global.getElementsByClassName("cbi-section-node")[0];
-			const node_id = node.getAttribute("id");
-			global_id = node_id;
-			const all_node = node.querySelectorAll("[id]");
+			const all_node = global.querySelectorAll("[id]");
 			const reg1 = /^cbid\..*node\.main$/;
 			//const reg1 = /^cbid\..*\.(tcp_node|udp_node)\.main$/;
 
@@ -129,7 +129,7 @@ local appname = api.appname
 					continue;
 				}
 
-				let html = '<a href="#" onclick="return to_edit_node(this);"><%:Edit%></a>';
+				let html = '<a href="#" onclick="return to_edit_node(this, global_id);"><%:Edit%></a>';
 
 				const m = cbid.match(/\.(tcp|udp)_node$/);
 				if (m && (m[1] === "tcp" || m[1] === "udp")) {
@@ -149,7 +149,7 @@ local appname = api.appname
 
 		const socks = document.getElementById("cbi-<%=appname%>-socks");
 		if (socks) {
-			const socks_enabled_dom = document.getElementById(global_id + "-socks_enabled");
+			const socks_enabled_dom = document.getElementById("cbi-<%=appname%>-" + global_id + "-socks_enabled");
 			const descr = socks.getElementsByClassName("cbi-section-descr")[0];
 			descr.replaceWith(socks_enabled_dom);
 			const rows = socks.getElementsByClassName("cbi-section-table-row");
@@ -164,7 +164,7 @@ local appname = api.appname
 					const node_select = document.getElementById(dom_id);
 					if (!node_select) continue;
 
-					let html = '<a href="#" onclick="return to_edit_node(this);"><%:Edit%></a>';
+					let html = '<a href="#" onclick="return to_edit_node(this, \'socks\');"><%:Edit%></a>';
 					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_socks_log")%>?name=' + id.replace("cbi-<%=appname%>-", "") + '\', \'_blank\')"><%:Log%></a>';
 
 					node_select.insertAdjacentHTML("afterend",
@@ -249,7 +249,7 @@ local appname = api.appname
 	})();
 
 	document.addEventListener("DOMContentLoaded", () => setTimeout(() => {
-		const hiddenSelect = document.getElementById("cbid.<%=appname%>.<%=self.global_cfgid%>.tcp_node");
+		const hiddenSelect = document.getElementById("cbid.<%=appname%>.<%=sid%>.tcp_node");
 		let o_val = hiddenSelect.value
 		const o_hasItem = shunt_list.find(element => element.id == o_val);
 		hiddenSelect.addEventListener("change", function(el){
@@ -257,7 +257,7 @@ local appname = api.appname
 			const new_hasItem = shunt_list.find(element => element.id == new_val);
 			if (new_hasItem) {
 				XHR.get('<%=api.url("update_config")%>', {
-					id: "<%=self.global_cfgid%>",
+					id: "<%=sid%>",
 					data: JSON.stringify({
 						tcp_node: new_val
 					})
@@ -272,8 +272,8 @@ local appname = api.appname
 				});
 			} else {
 				try {
-					document.getElementById("tab.<%=appname%>.<%=self.global_cfgid%>.Shunt").classList.add('shunt-tab-hidden');
-					document.getElementById("tab.<%=appname%>.<%=self.global_cfgid%>.Shunt").style.display = "none";
+					document.getElementById("tab.<%=appname%>.<%=sid%>.Shunt").classList.add('shunt-tab-hidden');
+					document.getElementById("tab.<%=appname%>.<%=sid%>.Shunt").style.display = "none";
 				} catch (error) {}
 				try {
 					document.querySelector('li[data-tab*="Shunt"]').classList.add('shunt-tab-hidden');
@@ -281,7 +281,7 @@ local appname = api.appname
 				} catch (error) {}
 			}
 		});
-		let shunt_taboption = document.getElementById("container.<%=appname%>.<%=self.global_cfgid%>.Shunt");
+		let shunt_taboption = document.getElementById("container.<%=appname%>.<%=sid%>.Shunt");
 		if (shunt_taboption) {
 			let shunt_option_list = document.getElementById("cbi-<%=appname%>-shunt_option_list");
 			if (shunt_option_list) {

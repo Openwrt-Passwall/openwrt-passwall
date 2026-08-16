@@ -1,19 +1,17 @@
 local api = require "luci.passwall.api"
-local appname = "passwall"
-local datatypes = api.datatypes
-
 api.set_default_cbi()
 
-m = Map(appname, "Sing-Box/Xray " .. translate("Shunt Rule"))
+local datatypes = api.datatypes
+
+m = Map()
 m.redirect = api.url("rule")
-api.set_apply_on_parse(m)
 
 if not arg[1] or not m:get(arg[1]) then
 	luci.http.redirect(m.redirect)
 end
 
-m.on_before_save = function(self)
-	m:set("@global[0]", "flush_set", "1")
+function m.on_before_save(self)
+	self:set("@global[0]", "flush_set", "1")
 end
 
 -- Add inline CSS to map description
@@ -46,7 +44,7 @@ end
 
 local remarks_lookup = {}
 local groups = {}
-m.uci:foreach(appname, "shunt_rules", function(s)
+m:foreach("shunt_rules", function(s)
 	if s[".name"] ~= arg[1] then
 		if s.remarks then
 			remarks_lookup[s.remarks] = s[".name"]
@@ -57,7 +55,7 @@ m.uci:foreach(appname, "shunt_rules", function(s)
 	end
 end)
 
-s = m:section(NamedSection, arg[1], "shunt_rules", "")
+s = m:section(NamedSection, arg[1], "shunt_rules", "Sing-Box/Xray " .. translate("Shunt Rule"))
 s.addremove = false
 s.dynamic = false
 

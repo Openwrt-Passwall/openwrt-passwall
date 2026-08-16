@@ -1,11 +1,15 @@
+<%
+local map = self.map
+local api = map.api
+-%>
 <!-- map header -->
-<script src="<%=resource%>/view/<%=self.api.appname%>/cbi.js"></script>
-<script src="<%=resource%>/view/<%=self.api.appname%>/func.js"></script>
+<script src="<%=resource%>/view/<%=api.appname%>/cbi.js"></script>
+<script src="<%=resource%>/view/<%=api.appname%>/func.js"></script>
 
 <script type="text/javascript">
 	//<![CDATA[
 	function update_config(cfgid, data, redirect_url) {
-		XHR.get('<%=self.api.url("update_config")%>', {
+		XHR.get('<%=api.url("update_config")%>', {
 			id: cfgid,
 			data: JSON.stringify(data)
 		},

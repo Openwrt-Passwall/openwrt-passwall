@@ -1,13 +1,16 @@
 <%
-local api = self.api
+local map = self.map
+local api = map.api
+local config = map.config
+local section = self.section
 -%>
 <script type="text/javascript">
 	//<![CDATA[
-	let node_id = "<%=self.section%>";
+	let node_id = "<%=section%>";
 	let node_config_url = '<%=api.url("server_config")%>/' + node_id;
 
 	document.addEventListener("DOMContentLoaded", function () {
-		waitForElement('select[name*="<%=self.config%>"][name*="type"]', function(el) {
+		waitForElement('select[name*="<%=config%>"][name*="type"]', function(el) {
 			let o_val = el.value;
 			el.addEventListener("change", () => {
 				el.blur();
@@ -16,9 +19,9 @@ local api = self.api
 					if (save) {
 						//document.getElementsByClassName('cbi-button-save')[0].click();
 						server_update_config(node_id, {
-							enable: getOption("<%=self.config%>", node_id, "enable").value,
-							remarks: getOption("<%=self.config%>", node_id, "remarks").value,
-							type: getOption("<%=self.config%>", node_id, "type").value,
+							enable: getOption("<%=config%>", node_id, "enable").value,
+							remarks: getOption("<%=config%>", node_id, "remarks").value,
+							type: getOption("<%=config%>", node_id, "type").value,
 							protocol: ''
 						}, node_config_url);
 					}

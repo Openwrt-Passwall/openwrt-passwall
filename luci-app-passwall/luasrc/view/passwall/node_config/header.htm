@@ -1,3 +1,8 @@
+<%
+local map = self.map
+local api = map.api
+local sid = self.section
+-%>
 <script type="text/javascript">
 	//<![CDATA[
 	function fetchCertSha256(el) {
@@ -5,7 +10,7 @@
 		el.setAttribute("data-loading", "1");
 		el.style.pointerEvents = "none";
 		el.style.color = "red";
-		XHR.get('<%=self.api.url("fetch_certsha256")%>', { id: "<%=self.section%>" }, function(x, res) {
+		XHR.get('<%=api.url("fetch_certsha256")%>', { id: "<%=sid%>" }, function(x, res) {
 			el.setAttribute("data-loading", "0");
 			el.style.pointerEvents = "";
 			el.style.color = "";

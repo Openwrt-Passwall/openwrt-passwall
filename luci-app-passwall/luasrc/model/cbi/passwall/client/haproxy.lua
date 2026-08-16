@@ -1,7 +1,6 @@
 local api = require "luci.passwall.api"
-local appname = api.appname
 local datatypes = api.datatypes
-local net = require "luci.model.network".init()
+api.set_default_cbi()
 
 local nodes_table = {}
 for k, e in ipairs(api.get_valid_nodes()) do
@@ -15,18 +14,14 @@ for k, e in ipairs(api.get_valid_nodes()) do
 	end
 end
 
-api.set_default_cbi()
+m = Map(api.c_config, "HAPROXY " .. translate("Load Balancing"))
 
-m = Map(appname, "HAPROXY " .. translate("Load Balancing"))
-api.set_apply_on_parse(m)
-
-m:append(Template(appname .. "/cbi/nodes_value_com"))
+m:appendTemplate("/cbi/nodes_value_com")
 
 -- [[ Haproxy Settings ]]--
-s = m:section(TypedSection, "global_haproxy", translate("Basic Settings"))
-s.anonymous = true
+s = m:section(NamedSection, "@global_haproxy[0]", "global_haproxy", translate("Basic Settings"))
 
-s:append(Template(appname .. "/haproxy/status"))
+s:appendTemplate("/haproxy/status")
 
 ---- Balancing Enable
 o = s:option(Flag, "balancing_enable", translate("Enable Load Balancing"))
@@ -69,9 +64,9 @@ o:depends("balancing_enable", true)
 
 ---- Health Check Type
 o = s:option(ListValue, "health_check_type", translate("Health Check Type"))
-o.default = "passwall_logic"
+o.default = "script_logic"
 o:value("tcp", "TCP")
-o:value("passwall_logic", translate("URL Test") .. string.format("(passwall %s)", translate("Inner implement")))
+o:value("script_logic", translate("URL Test") .. string.format("(passwall %s)", translate("Inner implement")))
 o:depends("balancing_enable", true)
 
 ---- Passwall Inner implement Probe URL
@@ -85,7 +80,7 @@ o:value("https://connectivitycheck.platform.hicloud.com/generate_204", "HiCloud 
 o:value("https://wifi.vivo.com.cn/generate_204", "VIVO (CN)")
 o.default = o.keylist[3]
 o.description = translate("The URL used to detect the connection status.")
-o:depends("health_check_type", "passwall_logic")
+o:depends("health_check_type", "script_logic")
 
 ---- Health Check Inter
 o = s:option(Value, "health_check_inter", translate("Health Check Inter"))
@@ -100,11 +95,10 @@ o.rawhtml = true
 o.cfgvalue = function(t, n)
 	return string.format('<span style="color: red">%s</span>', translate("When the URL test is used, the load balancing node will be converted into a Socks node. when node list set customizing, must be a Socks node, otherwise the health check will be invalid."))
 end
-o:depends("health_check_type", "passwall_logic")
+o:depends("health_check_type", "script_logic")
 
 -- [[ Balancing Settings ]]--
-local cfgname = "haproxy_config"
-s = m:section(TypedSection, cfgname, translate("Node List"))
+s = m:section(TypedSection, "haproxy_config", translate("Node List"))
 s.description = "<font color='red'>" ..
 		translate("Add a node, Export Of Multi WAN Only support Multi Wan. Load specific gravity range 1-256. Multiple primary servers can be load balanced, standby will only be enabled when the primary server is offline! Multiple groups can be set, Haproxy port same one for each group.") .. "<br>" ..
 		translate("Note that the node configuration parameters for load balancing must be consistent when use TCP health check type, otherwise it cannot be used normally!") .. "</font>"
@@ -133,7 +127,7 @@ o.rmempty = false
 
 ---- Node Address
 o = s:option(Value, "lbss", translate("Node Address"))
-o.template = appname .. "/cbi/nodes_value"
+o.template = m:template_path("/cbi/nodes_value")
 o.group = {}
 for k, v in pairs(nodes_table) do
 	o:value(v.id, v.remarks)
@@ -181,11 +175,8 @@ o:value(0, translate("Primary"))
 o:value(1, translate("Standby"))
 o.rmempty = false
 
-local sortable = Template(appname .. "/cbi/sortable")
-sortable.api = api
-sortable.target_cfgname = cfgname
-m:append(sortable)
+m:appendTemplate("/cbi/sortable", {sectiontype = s.sectiontype})
 
-m:append(Template(appname .. "/haproxy/js"))
+m:appendTemplate("/haproxy/js")
 
 return api.return_map(m)

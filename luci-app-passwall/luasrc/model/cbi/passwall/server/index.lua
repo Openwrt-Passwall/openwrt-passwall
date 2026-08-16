@@ -1,12 +1,9 @@
 local api = require "luci.passwall.api"
-local appname = api.appname
-
 api.set_default_cbi()
 
-m = Map("passwall_server", translate("Server-Side"))
-api.set_apply_on_parse(m)
+m = Map(api.s_config)
 
-t = m:section(NamedSection, "global", "global")
+t = m:section(NamedSection, "global", "global", translate("Server-Side"))
 t.anonymous = true
 t.addremove = false
 
@@ -94,17 +91,9 @@ e = s_server:option(Flag, "log", translate("Log"))
 e.default = "1"
 e.rmempty = false
 
-local sortable = Template(appname .. "/cbi/sortable")
-sortable.api = api
-sortable.appname = m.config
-sortable.target_cfgname = s_server.sectiontype
-m:append(sortable)
+m:appendTemplate("/cbi/sortable", {sectiontype = s_server.sectiontype})
 
-local server_list_status = Template(appname .. "/server/server_list_status")
-server_list_status.api = api
-server_list_status.appname = m.config
-server_list_status.sectiontype = s_server.sectiontype
-m:append(server_list_status)
+m:appendTemplate("/server/server_list_status", {sectiontype = s_server.sectiontype})
 
 s_user = m:section(TypedSection, "user", translate("Users Manager"))
 s_user.anonymous = true
@@ -120,7 +109,7 @@ end
 s_user.remove = function(self, section)
 	local o = m:get(section) or {}
 	if o[".type"] == self.sectiontype then
-		m.uci:foreach(m.config, "server", function(o)
+		m:foreach("server", function(o)
 			if o.user and section == o.user then
 				m:set(o[".name"], "user", "")
 			end
@@ -150,12 +139,8 @@ e.width = "25%"
 e = s_user:option(DummyValue, "uuid", "UUID")
 e.width = "25%"
 
-local sortable = Template(appname .. "/cbi/sortable")
-sortable.api = api
-sortable.appname = m.config
-sortable.target_cfgname = s_user.sectiontype
-m:append(sortable)
+m:appendTemplate("/cbi/sortable", {sectiontype = s_user.sectiontype})
 
-m:append(Template(appname .. "/server/log"))
+m:appendTemplate("/server/log")
 
 return api.return_map(m)

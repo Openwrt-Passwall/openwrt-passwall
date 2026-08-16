@@ -1,6 +1,4 @@
 local api = require "luci.passwall.api"
-local appname = "passwall"
-local uci = api.uci
 local sys = api.sys
 local fs = api.fs
 local datatypes = api.datatypes
@@ -22,38 +20,38 @@ local function tinsert(table_name, val)
 end
 
 local function backup_servers()
-	local DNSMASQ_DNS = uci:get("dhcp", "@dnsmasq[0]", "server")
+	local DNSMASQ_DNS = api.uci_get("dhcp", "@dnsmasq[0]", "server")
 	if DNSMASQ_DNS and #DNSMASQ_DNS > 0 then
-		uci:set(appname, "@global[0]", "dnsmasq_servers", DNSMASQ_DNS)
-		api.uci_save(uci, appname, true)
+		api.uci_set_c("@global[0]", "dnsmasq_servers", DNSMASQ_DNS)
+		api.uci_save_c(true)
 	end
 end
 
 local function restore_servers()
 	local dns_table = {}
-	local DNSMASQ_DNS = uci:get("dhcp", "@dnsmasq[0]", "server")
+	local DNSMASQ_DNS = api.uci_get("dhcp", "@dnsmasq[0]", "server")
 	if DNSMASQ_DNS and #DNSMASQ_DNS > 0 then
 		for k, v in ipairs(DNSMASQ_DNS) do
 			tinsert(dns_table, v)
 		end
 	end
-	local OLD_SERVER = uci:get(appname, "@global[0]", "dnsmasq_servers")
+	local OLD_SERVER = api.uci_get(api.c_config, "@global[0]", "dnsmasq_servers")
 	if OLD_SERVER and #OLD_SERVER > 0 then
 		for k, v in ipairs(OLD_SERVER) do
 			tinsert(dns_table, v)
 		end
-		uci:delete(appname, "@global[0]", "dnsmasq_servers")
-		api.uci_save(uci, appname, true)
+		api.uci_del_c("@global[0]", "dnsmasq_servers")
+		api.uci_save_c(true)
 	end
 	if dns_table and #dns_table > 0 then
-		uci:set_list("dhcp", "@dnsmasq[0]", "server", dns_table)
-		api.uci_save(uci, "dhcp", true)
+		api.uci_set("dhcp", "@dnsmasq[0]", "server", dns_table)
+		api.uci_save(nil, "dhcp", true)
 	end
 end
 
 function stretch()
-	local dnsmasq_server = uci:get("dhcp", "@dnsmasq[0]", "server")
-	local dnsmasq_noresolv = uci:get("dhcp", "@dnsmasq[0]", "noresolv")
+	local dnsmasq_server = api.uci_get("dhcp", "@dnsmasq[0]", "server")
+	local dnsmasq_noresolv = api.uci_get("dhcp", "@dnsmasq[0]", "noresolv")
 	local _flag
 	if dnsmasq_server and #dnsmasq_server > 0 then
 		for k, v in ipairs(dnsmasq_server) do
@@ -63,7 +61,7 @@ function stretch()
 		end
 	end
 	if not _flag and dnsmasq_noresolv == "1" then
-		uci:delete("dhcp", "@dnsmasq[0]", "noresolv")
+		api.uci_del("dhcp", "@dnsmasq[0]", "noresolv")
 		local RESOLVFILE = "/tmp/resolv.conf.d/resolv.conf.auto"
 		local file = io.open(RESOLVFILE, "r")
 		if not file then
@@ -75,8 +73,8 @@ function stretch()
 				RESOLVFILE = "/tmp/resolv.conf.auto"
 			end
 		end
-		uci:set("dhcp", "@dnsmasq[0]", "resolvfile", RESOLVFILE)
-		api.uci_save(uci, "dhcp", true)
+		api.uci_set("dhcp", "@dnsmasq[0]", "resolvfile", RESOLVFILE)
+		api.uci_save(nil, "dhcp", true)
 	end
 end
 
@@ -95,15 +93,15 @@ function logic_restart(var)
 		backup_servers()
 		--sys.call("sed -i '/list server/d' /etc/config/dhcp >/dev/null 2>&1")
 		local dns_table = {}
-		local dnsmasq_server = uci:get("dhcp", "@dnsmasq[0]", "server")
+		local dnsmasq_server = api.uci_get("dhcp", "@dnsmasq[0]", "server")
 		if dnsmasq_server and #dnsmasq_server > 0 then
 			for k, v in ipairs(dnsmasq_server) do
 				if v:find("/") then
 					tinsert(dns_table, v)
 				end
 			end
-			uci:set_list("dhcp", "@dnsmasq[0]", "server", dns_table)
-			api.uci_save(uci, "dhcp", true)
+			api.uci_set("dhcp", "@dnsmasq[0]", "server", dns_table)
+			api.uci_save(nil, "dhcp", true)
 		end
 		sys.call("/etc/init.d/dnsmasq restart >/dev/null 2>&1")
 		restore_servers()
@@ -180,8 +178,8 @@ function add_rule(var)
 	local CACHE_DNS_PATH = CACHE_PATH .. "/" .. CACHE_FLAG
 	local CACHE_TEXT_FILE = CACHE_DNS_PATH .. ".txt"
 	local USE_CHINADNS_NG = "0"
-	local IS_SHUNT_NODE = uci:get(appname, TCP_NODE, "protocol") == "_shunt"
-	local USE_GEOVIEW = uci:get(appname, "@global_rules[0]", "enable_geoview")
+	local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
+	local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
 
 	local list1 = {}
 	local excluded_domain = {}
@@ -307,7 +305,7 @@ function add_rule(var)
 	end
 
 	local function foreach_geosite(list_arg, callback)
-		local geosite_path = uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
+		local geosite_path = api.uci_get_c("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"
 		geosite_path = geosite_path:match("^(.*)/") .. "/geosite.dat"
 		if not fs.access(geosite_path) then return end
 		local bin = api.finded_com("geoview")
@@ -412,7 +410,7 @@ function add_rule(var)
 						set_domain_ipset(address, table.concat(sets, ","))
 					end
 				end
-				uci:foreach(appname, "nodes", function(t)
+				api.uci_foreach_c("nodes", function(t)
 					process_address(t.address)
 					process_address(t.download_address)
 					local dns, _ = api.get_domain_port_from_url(t.domain_resolver_dns or t.domain_resolver_dns_https or "")
@@ -420,7 +418,7 @@ function add_rule(var)
 						process_address(dns)
 					end
 				end)
-				uci:foreach(appname, "subscribe_list", function(t)  --订阅链接
+				api.uci_foreach_c("subscribe_list", function(t)  --订阅链接
 					local url, _ = api.get_domain_port_from_url(t.url or "")
 					if url and url ~= "" then
 						process_address(url)
@@ -615,9 +613,9 @@ function add_rule(var)
 
 		--分流规则
 		if IS_SHUNT_NODE and USE_CHINADNS_NG == "0" then
-			local t = uci:get_all(appname, TCP_NODE)
+			local t = api.uci_get_c(TCP_NODE)
 			local default_node_id = t["default_node"] or "_direct"
-			uci:foreach(appname, "shunt_rules", function(s)
+			api.uci_foreach_c("shunt_rules", function(s)
 				local _node_id = t[s[".name"]]
 				if _node_id and _node_id ~= "_blackhole" and t["shunt_group"] == s.group then
 					if _node_id == "_default" then
@@ -763,7 +761,7 @@ function add_rule(var)
 			--Copy dnsmasq instance
 			conf_lines = copy_instance({["-LISTEN_PORT"] = LISTEN_PORT, ["-TMP_DNSMASQ_PATH"] = TMP_DNSMASQ_PATH, ["-return"] = "1"})
 			--dhcp.leases to hosts
-			local hosts = "/tmp/etc/" .. appname .. "_tmp/dhcp-hosts"
+			local hosts = api.CACHE_PATH .. "/dhcp-hosts"
 			sys.call("touch " .. hosts)
 			tinsert(conf_lines, "addn-hosts=" .. hosts)
 		else

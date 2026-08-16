@@ -1,10 +1,9 @@
 module("luci.passwall.util_sing-box", package.seeall)
 local api = require "luci.passwall.api"
-local uci = api.uci
 local sys = api.sys
 local jsonc = api.jsonc
-local appname = "passwall"
 local fs = api.fs
+local CACHE_PATH = api.CACHE_PATH
 local ech_domain = {}
 
 local local_version = api.get_app_version("sing-box"):match("[^v]+")
@@ -23,7 +22,7 @@ local GEO_VAR = {
 	IP_PATH = nil,
 	SITE_TAGS = {},
 	IP_TAGS = {},
-	TO_SRS_PATH = "/tmp/etc/" .. appname .."_tmp/singbox_srss/"
+	TO_SRS_PATH = CACHE_PATH .."/singbox_srss/"
 }
 
 function check_geoview()
@@ -34,7 +33,7 @@ function check_geoview()
 	if GEO_VAR.OK == 0 then
 		api.log("！！！注意：缺少 Geoview 组件或版本过低，Sing-Box 分流无法启用！")
 	else
-		GEO_VAR.DIR = GEO_VAR.DIR or (uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"):match("^(.*)/")
+		GEO_VAR.DIR = GEO_VAR.DIR or (api.uci_get_c("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"):match("^(.*)/")
 		GEO_VAR.SITE_PATH = GEO_VAR.SITE_PATH or (GEO_VAR.DIR .. "/geosite.dat")
 		GEO_VAR.IP_PATH = GEO_VAR.IP_PATH or (GEO_VAR.DIR .. "/geoip.dat")
 		if not fs.access(GEO_VAR.TO_SRS_PATH) then
@@ -120,8 +119,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 				config_file = string.format("%s_%s_%s_%s.json", flag, tag, node_id, new_port)
 			end
 			if run_socks_instance then
-				sys.call(string.format('/usr/share/%s/app.sh run_socks "%s"> /dev/null',
-					appname,
+				sys.call(string.format('/usr/share/passwall/app.sh run_socks "%s"> /dev/null',
 					string.format("flag=%s node=%s bind=%s socks_port=%s config_file=%s relay_port=%s",
 						new_port, --flag
 						node_id, --node
@@ -771,7 +769,7 @@ function gen_config_server(node)
 	if node.users and #node.users > 0 then
 		users = {}
 		for i, v in ipairs(node.users) do
-			local user = uci:get_all("passwall_server", v) or {}
+			local user = api.uci_get_s(v) or {}
 			if user[".type"] == "user" then
 				local u = {}
 				if node.protocol == "mixed" or node.protocol == "socks" or node.protocol == "http" or node.protocol == "naive" then
@@ -1008,7 +1006,7 @@ function gen_config_server(node)
 			}
 			sys.call(string.format("mkdir -p %s && touch %s/%s", api.TMP_IFACE_PATH, api.TMP_IFACE_PATH, node.outbound_node_iface))
 		else
-			local outbound_node_t = uci:get_all("passwall", node.outbound_node)
+			local outbound_node_t = api.uci_get_c(node.outbound_node)
 			if node.outbound_node == "_socks" or node.outbound_node == "_http" then
 				outbound_node_t = {
 					type = node.type,
@@ -1104,7 +1102,7 @@ function gen_config(var)
 	local rule_set_table = {}
 	local COMMON = {}
 
-	local singbox_settings = uci:get_all(appname, "@global_singbox[0]") or {}
+	local singbox_settings = api.uci_get_c("@global_singbox[0]") or {}
 
 	local route = {
 		rules = {}
@@ -1166,7 +1164,7 @@ function gen_config(var)
 	end
 
 	if node_id then
-		local node = uci:get_all(appname, node_id)
+		local node = api.uci_get_c(node_id)
 		if node then
 			if server_host and server_port then
 				node.address = server_host
@@ -1256,7 +1254,7 @@ function gen_config(var)
 
 		function get_node_by_id(node_id)
 			if not node_id or node_id == "" or node_id == "nil" then return nil end
-			local section = uci:get_all(appname, node_id) or {}
+			local section = api.uci_get_c(node_id) or {}
 			if section[".type"] == "socks" then
 				local result = {
 					[".name"] = node_id,
@@ -1533,7 +1531,7 @@ function gen_config(var)
 
 			--shunt rule
 			local function foreach_shunt_rule(callback)
-				uci:foreach(appname, "shunt_rules", callback)
+				api.uci_foreach_c("shunt_rules", callback)
 
 				if use_gfw_list ~= "1" or chn_list ~= "0" then return end
 
@@ -1559,7 +1557,7 @@ function gen_config(var)
 
 				local bin = api.finded_com("geoview")
 				if bin then
-					local geo_file = (uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"):match("^(.*)/") .. "/geosite.dat"
+					local geo_file = (api.uci_get_c("@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"):match("^(.*)/") .. "/geosite.dat"
 					if luci.sys.call('"' .. bin .. '" -type geosite -input "' .. geo_file .. '" | grep -q "^GFW$"') == 0 then
 						domain_list = (domain_list == "") and "geosite:gfw" or domain_list .. "\ngeosite:gfw"
 					end
@@ -1975,7 +1973,7 @@ function gen_config(var)
 			end
 		end
 		dns.final = default_dns_flag
-		dns.strategy = default_dns_flag == "remote" and remote_strategy or direct_strategy
+		dns.strategy = "prefer_ipv6"
 
 		--按分流顺序DNS
 		if dns_domain_rules and #dns_domain_rules > 0 then

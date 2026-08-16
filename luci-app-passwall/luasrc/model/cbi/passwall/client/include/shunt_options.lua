@@ -9,7 +9,7 @@ local current_node_id = data.node_id
 local node_list = data.node_list or api.get_node_list()
 
 local groups = {}
-m.uci:foreach(appname, "shunt_rules", function(s)
+m:foreach("shunt_rules", function(s)
 	if s.group and s.group ~= "" then
 		groups[s.group] = true
 	end
@@ -109,7 +109,7 @@ end
 local shunt_group_val = m:get(current_node_id, "shunt_group") or ""
 shunt_group_val = shunt_group_val:lower()
 local shunt_rules = {}
-m.uci:foreach(appname, "shunt_rules", function(e)
+m:foreach("shunt_rules", function(e)
 	local group = e.group or ""
 	group = group:lower()
 	if group == shunt_group_val then
@@ -132,7 +132,7 @@ table.insert(shunt_rules, {
 })
 
 s2 = m:section(Table, shunt_rules, " ")
-s2.config = appname
+s2.config = m.config
 s2.sectiontype = "shunt_option_list"
 
 o = s2:option(DummyValue, "remarks", translate("Rule"))
@@ -146,7 +146,7 @@ o.cfgvalue = function(self, section)
 end
 
 _node = s2:option(Value, "_node", translate("Node"))
-_node.template = appname .. "/cbi/nodes_listvalue"
+_node.template = m:template_path("/cbi/nodes_listvalue")
 _node.group = {"","","",""}
 _node:value("", translate("Close (Not use)"))
 _node:value("_default", translate("Use default node"))
@@ -178,7 +178,7 @@ end
 proxy_tag_node = s2:option(ListValue, "_proxy_tag", string.format('<a style="color:red" title="%s">%s</a>',
 	translate("Set the node to be used as a pre-proxy.") .. "\n" .. translate("Each rule has a separate switch that controls whether this rule uses the pre-proxy or not."),
 	translate("Preproxy")))
-proxy_tag_node.template = appname .. "/cbi/nodes_listvalue"
+proxy_tag_node.template = m:template_path("/cbi/nodes_listvalue")
 proxy_tag_node.group = {""}
 proxy_tag_node:value("", translate("Close (Not use)"))
 proxy_tag_node.cfgvalue = function(self, section)
@@ -203,10 +203,4 @@ for k1, v1 in pairs(node_list) do
 	end
 end
 
-local footer = Template(appname .. "/include/shunt_options")
-footer.api = api
-footer.config = m.config
-footer.id = current_node_id
-footer.s_cfgid = s_cfgid or current_node_id
-footer.normal_list = api.jsonc.stringify(node_list.normal_list)
-m:append(footer)
+m:appendTemplate("/include/shunt_options", {id = current_node_id, s_cfgid = s_cfgid or current_node_id, normal_list = api.jsonc.stringify(node_list.normal_list)})
