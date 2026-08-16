@@ -33,15 +33,6 @@ uci commit firewall
 
 chmod +x /usr/share/passwall/*.sh
 
-# Migrate server sections from the old `user` section type. New user entries
-# also use `user`, so only sections with a server `type` option are renamed.
-for sid in $(uci -q show passwall_server | sed -n 's/^passwall_server\.\([^.=]*\)=user$/\1/p'); do
-	if [ -n "$(uci -q get "passwall_server.${sid}.type")" ]; then
-		uci -q set "passwall_server.${sid}=server"
-	fi
-done
-uci -q commit passwall_server
-
 [ "$(uci -q get passwall.@global_xray[0].sniffing)" == "1" ] && [ "$(uci -q get passwall.@global_xray[0].route_only)" != "1" ] && uci -q set passwall.@global_xray[0].sniffing_override_dest=1
 uci -q delete passwall.@global_xray[0].sniffing
 uci -q delete passwall.@global_xray[0].route_only
