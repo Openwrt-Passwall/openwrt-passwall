@@ -519,13 +519,18 @@ o.validate = function(self, value, t)
 		local _dns_mode = s.fields["dns_mode"]:formvalue(t)
 		local _tcp_node = s.fields["tcp_node"]:formvalue(t)
 		if _dns_mode and _tcp_node then
-			if (m:get(_tcp_node, "type") or ""):lower() ~= _dns_mode and not _tcp_node:find("Socks_") then
+			if (m:get(_tcp_node, "type") or ""):lower() ~= _dns_mode and not _tcp_node:find("socks_") then
 				return nil, translatef("TCP node must be '%s' type to use FakeDNS.", _dns_mode)
 			end
 		end
 	end
 	return value
 end
+
+o = s:option(Value, "remote_rewrite_ttl", translate("Remote DNS") .. " TTL")
+o.datatype = "min(1)"
+o.default = "30"
+o:depends({dns_mode = "sing-box"})
 
 o = s:option(ListValue, "chinadns_ng_default_tag", translate("Default DNS"))
 o.default = "none"
@@ -588,6 +593,7 @@ for k, v in pairs(nodes_table) do
 
 			s.fields["singbox_dns_mode"]:depends({ _tcp_node_bool = "1", tcp_node = v.id })
 			s.fields["_node_sel_shunt"]:depends({ tcp_node = v.id })
+			s.fields["remote_rewrite_ttl"]:depends({ _tcp_node_bool = "1", tcp_node = v.id })
 		end
 	else
 		tcp:value(v.id, v["remark"])

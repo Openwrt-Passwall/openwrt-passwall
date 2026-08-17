@@ -92,7 +92,7 @@ o.write = function(self, section, value)
 	if old ~= value then
 		m:foreach("nodes", function(e)
 			if e["group"] and e["group"]:lower() == old:lower() then
-				self:set(e[".name"], "group", value)
+				self.map:set(e[".name"], "group", value)
 			end
 			if e["protocol"] and (e["protocol"] == "_balancing" or e["protocol"] == "_urltest") and e["node_group"] then
 				local gs = ""
@@ -104,7 +104,7 @@ o.write = function(self, section, value)
 					end
 				end
 				gs = api.trim(gs)
-				self:set(e[".name"], "node_group", gs)
+				self.map:set(e[".name"], "node_group", gs)
 			end
 		end)
 	end

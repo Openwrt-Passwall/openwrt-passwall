@@ -53,6 +53,9 @@ if singbox_tags:find("with_quic") then
 	o:value("hysteria2", "Hysteria2")
 end
 o:value("anytls", "AnyTLS")
+if singbox_tags:find("with_wireguard") then
+	o:value("wireguard", "WireGuard")
+end
 o:value("direct", "Direct")
 o:depends({ [_n("custom")] = false })
 
@@ -76,6 +79,7 @@ o:depends({ [_n("protocol")] = "hysteria" })
 o:depends({ [_n("protocol")] = "tuic" })
 o:depends({ [_n("protocol")] = "hysteria2" })
 o:depends({ [_n("protocol")] = "anytls" })
+o:depends({ [_n("protocol")] = "wireguard" })
 
 if singbox_tags:find("with_quic") then
 	o = s:option(Value, _n("hysteria_obfs"), translate("Obfs Password"))
@@ -399,6 +403,32 @@ o:depends({ [_n("tcpbrutal")] = true })
 o = s:option(Value, _n("tcpbrutal_down_mbps"), translate("Max download Mbps"))
 o.default = "50"
 o:depends({ [_n("tcpbrutal")] = true })
+
+if singbox_tags:find("with_wireguard") then
+	o = s:option(Flag, _n("wireguard_system_interface"), translate("System interface"))
+	o.default = 0
+	o:depends({ [_n("protocol")] = "wireguard" })
+
+	o = s:option(Value, _n("wireguard_mtu"), "MTU")
+	o.default = "1408"
+	o:depends({ [_n("protocol")] = "wireguard" })
+
+	o = s:option(DynamicList, _n("wireguard_local_address"), translate("Local Address"))
+	o:depends({ [_n("protocol")] = "wireguard" })
+
+	o = s:option(Value, _n("wireguard_private_key"), translate("Private Key"))
+	o.datatype = "base64"
+	o:depends({ [_n("protocol")] = "wireguard" })
+
+	o = s:option(Value, _n("wireguard_public_key"), translate("Public Key"))
+	o.datatype = "base64"
+	o:depends({ [_n("protocol")] = "wireguard" })
+
+	o = s:option(DummyValue, _n("gen_wireguard_key"))
+	o.prefix = option_prefix
+	o.template = m:template_path("/server/server_wireguard")
+	o:depends({ [_n("protocol")] = "wireguard" })
+end
 
 o = s:option(Flag, _n("bind_local"), translate("Bind Local"), translate("When selected, it can only be accessed localhost."))
 o.default = "0"

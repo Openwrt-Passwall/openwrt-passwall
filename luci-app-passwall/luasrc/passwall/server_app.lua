@@ -7,7 +7,7 @@ local uci = api.uci
 local jsonc = api.jsonc
 
 local CONFIG = api.s_config
-local CONFIG_PATH = "/tmp/etc/" .. CONFIG
+local CONFIG_PATH = api.S_TMP_PATH
 local NFT_INCLUDE_FILE = CONFIG_PATH .. "/" .. CONFIG .. ".nft"
 local LOG_APP_FILE = "/tmp/log/" .. CONFIG .. ".log"
 local TMP_BIN_PATH = CONFIG_PATH .. "/bin"
@@ -53,7 +53,7 @@ local function ln_run(s, d, command, output)
 end
 
 local function gen_include()
-	cmd(string.format("echo '#!/bin/sh' > /tmp/etc/%s.include", CONFIG))
+	cmd(string.format("echo '#!/bin/sh' > %s.include", CONFIG_PATH))
 	local function extract_rules(n, a)
 		local _ipt = ipt_bin
 		if n == "6" then
@@ -64,7 +64,7 @@ local function gen_include()
 		result = result .. "COMMIT"
 		return result
 	end
-	local f, err = io.open("/tmp/etc/" .. CONFIG .. ".include", "a")
+	local f, err = io.open(CONFIG_PATH .. ".include", "a")
 	if f and err == nil then
 		if nft_flag == "0" then
 			f:write(ipt_bin .. '-save -c | grep -v "PSW-SERVER" | ' .. ipt_bin .. '-restore -c' .. "\n")
@@ -248,7 +248,7 @@ local function stop()
 		cmd("nft flush chain inet fw4 PSW-SERVER 2>/dev/null")
 		cmd("nft delete chain inet fw4 PSW-SERVER 2>/dev/null")
 	end
-	cmd(string.format("rm -rf %s %s /tmp/etc/%s.include", CONFIG_PATH, LOG_APP_FILE, CONFIG))
+	cmd(string.format("rm -rf %s %s %s", CONFIG_PATH, LOG_APP_FILE, CONFIG_PATH .. ".include"))
 end
 
 if action then

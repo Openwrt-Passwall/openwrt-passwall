@@ -1448,8 +1448,17 @@ msgstr "私钥"
 msgid "Pre shared key"
 msgstr "额外的对称加密密钥"
 
+msgid "Allowed IPs"
+msgstr "允许的 IP"
+
+msgid "Generate key"
+msgstr "生成密钥"
+
 msgid "Local Address"
 msgstr "本地地址"
+
+msgid "System interface"
+msgstr "系统接口"
 
 msgid "Decimal numbers separated by \",\" or Base64-encoded strings."
 msgstr "用“,”隔开的十进制数字或 Base64 编码字符串。"

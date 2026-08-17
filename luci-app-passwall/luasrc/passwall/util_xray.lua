@@ -515,6 +515,12 @@ function gen_config_server(node)
 					u.email = user.username
 					u.auth = user.password
 				end
+				if node.protocol == "wireguard" then
+					u.publicKey = user.wireguard_public_key
+					u.preSharedKey = user.wireguard_pre_shared_key
+					u.keepAlive = 0
+					u.allowedIPs = user.allowed_ips
+				end
 				users[#users + 1] = u
 			end
 		end
@@ -566,6 +572,14 @@ function gen_config_server(node)
 			network = node.d_protocol,
 			address = node.d_address,
 			port = tonumber(node.d_port)
+		}
+	elseif node.protocol == "wireguard" then
+		settings = {
+			secretKey = node.wireguard_private_key,
+			--address = node.wireguard_local_address,
+			--noKernelTun = node.wireguard_system_interface ~= "1" and true or false,
+			mtu = tonumber(node.wireguard_mtu or 1420),
+			peers = users
 		}
 	end
 

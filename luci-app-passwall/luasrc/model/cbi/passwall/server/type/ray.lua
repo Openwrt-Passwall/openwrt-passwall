@@ -40,7 +40,8 @@ o:value("vmess", "Vmess")
 o:value("vless", "VLESS")
 o:value("shadowsocks", "Shadowsocks")
 o:value("trojan", "Trojan")
-o:value("hysteria2", translate("Hysteria2"))
+o:value("hysteria2", "Hysteria2")
+o:value("wireguard", "WireGuard")
 o:value("dokodemo-door", "dokodemo-door")
 o:depends({ [_n("custom")] = false })
 
@@ -60,6 +61,7 @@ o:depends({ [_n("protocol")] = "vmess" })
 o:depends({ [_n("protocol")] = "vless" })
 o:depends({ [_n("protocol")] = "trojan" })
 o:depends({ [_n("protocol")] = "hysteria2" })
+o:depends({ [_n("protocol")] = "wireguard" })
 
 o = s:option(ListValue, _n("d_protocol"), translate("Destination protocol"))
 o:value("tcp", "TCP")
@@ -363,7 +365,6 @@ o:depends({ [_n("custom")] = false, [_n("protocol")] = "vmess" })
 o:depends({ [_n("custom")] = false, [_n("protocol")] = "vless" })
 o:depends({ [_n("custom")] = false, [_n("protocol")] = "trojan" })
 o:depends({ [_n("custom")] = false, [_n("protocol")] = "shadowsocks" })
-o:depends({ [_n("custom")] = false, [_n("protocol")] = "wireguard" })
 o:depends({ [_n("custom")] = false, [_n("protocol")] = "hysteria2", [_n("hysteria2_realms")] = false })
 
 o = s:option(TextValue, _n("finalmask"), "FinalMask JSON")
@@ -416,6 +417,36 @@ o:depends({ [_n("fallback")] = true })
 
 o = s:option(DynamicList, _n("fallback_list"), "Fallback", translate("format: dest,path,xver"))
 o:depends({ [_n("fallback")] = true })
+
+-- Not supported at present
+--[[
+o = s:option(Flag, _n("wireguard_system_interface"), translate("System interface"))
+o.default = 0
+o:depends({ [_n("protocol")] = "wireguard" })
+]]--
+
+o = s:option(Value, _n("wireguard_mtu"), "MTU")
+o.default = "1420"
+o:depends({ [_n("protocol")] = "wireguard" })
+
+-- Not supported at present
+--[[
+o = s:option(DynamicList, _n("wireguard_local_address"), translate("Local Address"))
+o:depends({ [_n("protocol")] = "wireguard" })
+]]--
+
+o = s:option(Value, _n("wireguard_private_key"), translate("Private Key"))
+o.datatype = "base64"
+o:depends({ [_n("protocol")] = "wireguard" })
+
+o = s:option(Value, _n("wireguard_public_key"), translate("Public Key"))
+o.datatype = "base64"
+o:depends({ [_n("protocol")] = "wireguard" })
+
+o = s:option(DummyValue, _n("gen_wireguard_key"))
+o.prefix = option_prefix
+o.template = m:template_path("/server/server_wireguard")
+o:depends({ [_n("protocol")] = "wireguard" })
 
 o = s:option(Flag, _n("bind_local"), translate("Bind Local"), translate("When selected, it can only be accessed localhost."))
 o.default = "0"

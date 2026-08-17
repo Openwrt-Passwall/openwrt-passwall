@@ -122,6 +122,7 @@ function index()
 	entry({"admin", "services", appname, "geo_view"}, call("geo_view")).leaf = true
 
 	entry({"admin", "services", appname, "fetch_certsha256"}, call("fetch_certsha256")).leaf = true
+	entry({"admin", "services", appname, "gen_wireguard_key"}, call("gen_wireguard_key")).leaf = true
 end
 
 local function http_write_json(content)
@@ -245,7 +246,7 @@ function gen_client_config()
 end
 
 function get_now_use_node()
-	local path = "/tmp/etc/passwall/acl/default"
+	local path = api.TMP_PATH .. "/acl/default"
 	local e = {}
 	local tcp_node = api.get_cache_var("ACL_GLOBAL_TCP_node")
 	if tcp_node then
@@ -261,7 +262,7 @@ end
 function get_redir_log()
 	local name = http.formvalue("name")
 	local proto = http.formvalue("proto"):upper()
-	local path = "/tmp/etc/passwall/acl/" .. name
+	local path = api.TMP_PATH .. "/acl/" .. name
 
 	local function alert(msg)
 		http.write(string.format("<script>alert('%s');window.close();</script>", i18n.translate(msg)))
@@ -278,14 +279,14 @@ function get_redir_log()
 		local acl_udp = uci_get(name, "udp_node") or "nil"
 		local global_enabled = uci_get("@global[0]", "enabled") == "1"
 		if proto == "TCP" and acl_tcp == global_tcp and global_enabled then
-			path = "/tmp/etc/passwall/acl/default"
+			path = api.TMP_PATH .. "/acl/default"
 			if uci_get("@global[0]", "log_tcp") ~= "1" then
 				alert("The access control node is the same as the global node. Please enable global logging.")
 				return
 			end
 		end
 		if proto == "UDP" and acl_udp == global_udp and global_enabled then
-			path = "/tmp/etc/passwall/acl/default"
+			path = api.TMP_PATH .. "/acl/default"
 			if uci_get("@global[0]", "log_udp") ~= "1" then
 				alert("The access control node is the same as the global node. Please enable global logging.")
 				return
@@ -307,7 +308,7 @@ end
 
 function get_socks_log()
 	local name = http.formvalue("name")
-	local path = "/tmp/etc/passwall/" .. name .. ".log"
+	local path = api.TMP_PATH .. "/" .. name .. ".log"
 	if fs.access(path) then
 		local content = luci.sys.exec("cat ".. path)
 		content = content:gsub("\n", "<br />")
@@ -319,12 +320,12 @@ end
 
 function get_chinadns_log()
 	local flag = http.formvalue("flag")
-	local path = "/tmp/etc/passwall/acl/" .. flag .. "/chinadns_ng.log"
+	local path = api.TMP_PATH .. "/acl/" .. flag .. "/chinadns_ng.log"
 	if flag ~= "default" then
 		local global_tcp = uci_get("@global[0]", "tcp_node") or "nil"
 		local acl_tcp = uci_get(flag, "tcp_node") or "nil"
 		if acl_tcp == global_tcp and uci_get("@global[0]", "enabled") == "1" then
-			path = "/tmp/etc/passwall/acl/default/chinadns_ng.log"
+			path = api.TMP_PATH .. "/acl/default/chinadns_ng.log"
 			if uci_get("@global[0]", "log_chinadns_ng") ~= "1" then
 				http.write(string.format("<script>alert('%s');window.close();</script>", i18n.translate("The access control node is the same as the global node. Please enable global logging.")))
 				return
@@ -355,31 +356,31 @@ function index_status()
 	local dns_shunt = uci_get("@global[0]", "dns_shunt") or "dnsmasq"
 	if dns_shunt == "smartdns" then
 		local port = api.get_cache_var("SMARTDNS_LOCAL_PORT") or 0
-		e.dns_mode_status = (port ~= 0) and luci.sys.call(string.format("netstat -apn | grep ':%s ' >/dev/null", port)) == 0 or false
+		e.dns_mode_status = (port ~= 0) and luci.sys.call("netstat -apn | grep ':%s ' >/dev/null" % port) == 0 or false
 	elseif dns_shunt == "chinadns-ng" then
-		e.dns_mode_status = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '/tmp/etc/passwall/bin/' | grep 'default' | grep 'chinadns_ng' >/dev/null") == 0
+		e.dns_mode_status = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'chinadns_ng' >/dev/null" % api.TMP_PATH) == 0
 	else
 		e.dns_mode_status = luci.sys.call("netstat -apn | grep ':15353 ' >/dev/null") == 0
 	end
 
 	e.haproxy_status = "-1"
 	if api.is_finded("haproxy") then
-		e.haproxy_status = (luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null", appname)) == 0) and "0" or "1"
+		e.haproxy_status = (luci.sys.call("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0) and "0" or "1"
 	end
 
-	e["tcp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '/tmp/etc/passwall/bin/' | grep 'default' | grep 'TCP' >/dev/null") == 0
+	e["tcp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'TCP' >/dev/null" % api.TMP_PATH) == 0
 
 	if (uci_get("@global[0]", "udp_node") or "nil") == "tcp" then
 		e["udp_node_status"] = e["tcp_node_status"]
 	else
-		e["udp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '/tmp/etc/passwall/bin/' | grep 'default' | grep 'UDP' >/dev/null") == 0
+		e["udp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'UDP' >/dev/null" % api.TMP_PATH) == 0
 	end
 	http_write_json(e)
 end
 
 function haproxy_status()
 	local e = {}
-	e["status"] = luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null", appname)) == 0
+	e["status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0
 	http_write_json(e)
 end
 
@@ -792,8 +793,9 @@ end
 
 function server_log()
 	local id = http.formvalue("id")
-	if fs.access("/tmp/etc/passwall_server/" .. id .. ".log") then
-		local content = luci.sys.exec("cat /tmp/etc/passwall_server/" .. id .. ".log")
+	local f_file = api.S_TMP_PATH .. "/" .. id .. ".log"
+	if nixio.fs.access(f_file) then
+		local content = luci.sys.exec("cat " .. f_file)
 		content = content:gsub("\n", "<br />")
 		http.write(content)
 	else
@@ -1189,5 +1191,14 @@ function delete_select_shunt_rules()
 		http.redirect(api.url("rule"))
 	else
 		uci_save(true, true)
+	end
+end
+
+function gen_wireguard_key()
+	local key = api.gen_wireguard_key()
+	if key then
+		http_write_json_ok(key)
+	else
+		http_write_json_error()
 	end
 end
