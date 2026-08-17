@@ -37,6 +37,8 @@ chmod +x /usr/share/passwall/*.sh
 uci -q delete passwall.@global_xray[0].sniffing
 uci -q delete passwall.@global_xray[0].route_only
 
+[ "$(uci -q get passwall.@global_haproxy[0].health_check_type)" = "passwall_logic" ] && uci -q set passwall.@global_haproxy[0].health_check_type='script_logic'
+
 for sid in $(uci show passwall | grep "=socks" | awk -F '.' '{print $2}' | awk -F '=' '{print $1}'); do
 	if [ -z "$(echo ${sid} | grep '^socks_')" ]; then
 		new_id="socks_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 5)"
