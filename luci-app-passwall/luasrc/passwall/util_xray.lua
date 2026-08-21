@@ -869,8 +869,7 @@ function gen_config(var)
 	local server_host = var["server_host"]
 	local server_port = var["server_port"]
 	local tcp_proxy_way = var["tcp_proxy_way"] or "redirect"
-	local tcp_redir_port = var["tcp_redir_port"]
-	local udp_redir_port = var["udp_redir_port"]
+	local redir_port = var["redir_port"]
 	local local_socks_address = var["local_socks_address"] or "0.0.0.0"
 	local local_socks_port = var["local_socks_port"]
 	local local_socks_username = var["local_socks_username"]
@@ -1068,7 +1067,7 @@ function gen_config(var)
 				blc_nodes = _node.balancing_node
 			end
 
-			api.log("  - 加载 Xray 负载均衡 节点【" .. (_node.remarks or "") .. "】，子节点数量：" .. #(blc_nodes or {}))
+			-- api.log("  - 加载 Xray 负载均衡 节点【" .. (_node.remarks or "") .. "】，子节点数量：" .. #(blc_nodes or {}))
 
 			local valid_nodes = {}
 			for i = 1, #(blc_nodes or {}) do
@@ -1448,11 +1447,9 @@ function gen_config(var)
 					if e["inbound"] and e["inbound"] ~= "" then
 						inbound_tag = {}
 						if e["inbound"]:find("tproxy") then
-							if tcp_redir_port then
-								table.insert(inbound_tag, "tcp_redir")
-							end
-							if udp_redir_port then
-								table.insert(inbound_tag, "udp_redir")
+							if redir_port then
+								table.insert(inboundTag, "tcp_redir")
+								table.insert(inboundTag, "udp_redir")
 							end
 						end
 						if e["inbound"]:find("socks") then
@@ -1585,13 +1582,14 @@ function gen_config(var)
 			end
 		end
 
-		if tcp_redir_port or udp_redir_port then
+		if redir_port then
 			local inbound = {
+				port = tonumber(redir_port),
 				protocol = "tunnel",
 				settings = {allowedNetwork = "tcp,udp", followRedirect = true},
 				streamSettings = {sockopt = {tproxy = "tproxy"}},
 				sniffing = {
-					enabled = (xray_settings.sniffing_override_dest == "1") or (node and node.protocol == "_shunt") or false
+					enabled = xray_settings.sniffing_override_dest == "1" or node.protocol == "_shunt"
 				}
 			}
 			if inbound.sniffing.enabled == true then
@@ -1611,22 +1609,16 @@ function gen_config(var)
 				end
 			end
 
-			if tcp_redir_port then
-				local tcp_inbound = api.clone(inbound)
-				tcp_inbound.tag = "tcp_redir"
-				tcp_inbound.settings.allowedNetwork = "tcp"
-				tcp_inbound.port = tonumber(tcp_redir_port)
-				tcp_inbound.streamSettings.sockopt.tproxy = tcp_proxy_way
-				table.insert(inbounds, tcp_inbound)
-			end
+			local tcp_inbound = api.clone(inbound)
+			tcp_inbound.tag = "tcp_redir"
+			tcp_inbound.settings.allowedNetwork = "tcp"
+			tcp_inbound.streamSettings.sockopt.tproxy = tcp_proxy_way
+			table.insert(inbounds, tcp_inbound)
 
-			if udp_redir_port then
-				local udp_inbound = api.clone(inbound)
-				udp_inbound.tag = "udp_redir"
-				udp_inbound.settings.allowedNetwork = "udp"
-				udp_inbound.port = tonumber(udp_redir_port)
-				table.insert(inbounds, udp_inbound)
-			end
+			local udp_inbound = api.clone(inbound)
+			udp_inbound.tag = "udp_redir"
+			udp_inbound.settings.allowedNetwork = "udp"
+			table.insert(inbounds, udp_inbound)
 		end
 	end
 

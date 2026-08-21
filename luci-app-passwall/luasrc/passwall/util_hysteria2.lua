@@ -73,8 +73,7 @@ function gen_config(var)
 		return
 	end
 	local node = api.uci_get_c(node_id)
-	local local_tcp_redir_port = var["local_tcp_redir_port"]
-	local local_udp_redir_port = var["local_udp_redir_port"]
+	local local_redir_port = var["local_redir_port"]
 	local local_socks_address = var["local_socks_address"] or "0.0.0.0"
 	local local_socks_port = var["local_socks_port"]
 	local local_socks_username = var["local_socks_username"]
@@ -170,14 +169,14 @@ function gen_config(var)
 			username = (local_http_username and local_http_password) and local_http_username or nil,
 			password = (local_http_username and local_http_password) and local_http_password or nil,
 		} or nil,
-		tcpRedirect = ("redirect" == tcp_proxy_way and local_tcp_redir_port) and {
-			listen = "0.0.0.0:" .. local_tcp_redir_port
+		tcpRedirect = ("redirect" == tcp_proxy_way and local_redir_port) and {
+			listen = "0.0.0.0:" .. local_redir_port
 		} or nil,
-		tcpTProxy = ("tproxy" == tcp_proxy_way and local_tcp_redir_port) and {
-			listen = "0.0.0.0:" .. local_tcp_redir_port
+		tcpTProxy = ("tproxy" == tcp_proxy_way and local_redir_port) and {
+			listen = "0.0.0.0:" .. local_redir_port
 		} or nil,
-		udpTProxy = (local_udp_redir_port) and {
-			listen = "0.0.0.0:" .. local_udp_redir_port
+		udpTProxy = (local_redir_port) and {
+			listen = "0.0.0.0:" .. local_redir_port
 		} or nil
 	}
 

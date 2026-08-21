@@ -14,7 +14,7 @@ local NO_IPV6_TRUST = var["-NO_IPV6_TRUST"]
 local DEFAULT_MODE = var["-DEFAULT_MODE"]
 local DEFAULT_TAG = var["-DEFAULT_TAG"]
 local NO_LOGIC_LOG = var["-NO_LOGIC_LOG"]
-local TCP_NODE = var["-TCP_NODE"]
+local NODE = var["-NODE"]
 local NFTFLAG = var["-NFTFLAG"]
 local FILTER_HTTPS = var["-FILTER_HTTPS"]
 local LOG_FILE = var["-LOG_FILE"]
@@ -30,7 +30,7 @@ local FLAG_PATH = TMP_ACL_PATH .. "/" .. FLAG
 local config_lines = {}
 local tmp_lines = {}
 local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
-local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
+local IS_SHUNT_NODE = api.uci_get_c(NODE, "protocol") == "_shunt"
 
 if not api.is_finded("geoview") then
 	USE_GEOVIEW = "0"
@@ -385,7 +385,7 @@ if IS_SHUNT_NODE then
 	local file_shunt_host = FLAG_PATH .. "/shunt_proxy_host"
 	local geosite_white_arg, geosite_shunt_arg = "", ""
 
-	local t = api.uci_get_c(TCP_NODE)
+	local t = api.uci_get_c(NODE)
 	local default_node_id = t["default_node"] or "_direct"
 	api.uci_foreach_c("shunt_rules", function(s)
 		local _node_id = t[s[".name"]]

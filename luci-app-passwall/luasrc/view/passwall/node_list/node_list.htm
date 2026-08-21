@@ -4,6 +4,23 @@ local api = map.api
 local appname = map.config
 local is_js_luci = api.is_js_luci()
 local section_tag = is_js_luci and "div" or "fieldset"
+
+local default_node_type = ""
+local shunt_rule_list = {}
+local node = map:get("@global[0]", "node")
+if node then
+	local node_type = map:get(node, "type")
+	local node_protocol = map:get(node, "protocol")
+	if (node_type == "Xray" or node_type == "sing-box") and node_protocol == "_shunt" then
+		default_node_type = node_protocol
+		local node_shunt_group = map:get(node, "shunt_group")
+		map:foreach("shunt_rules", function(e)
+			if e[".name"] and e.remarks and e.group == node_shunt_group then
+				shunt_rule_list[#shunt_rule_list + 1] = e
+			end
+		end)
+	end
+end
 -%>
 <script src="<%=resource%>/view/<%=appname%>/Sortable.min.js?v=1.15.7"></script>
 
@@ -22,12 +39,13 @@ table td, .table .td {
 	display: none;
 	width: 30rem;
 	position: fixed;
-	top:50%;
-	padding-top: 30px;
+	top:45%;
 	z-index: 99;
 	text-align: center;
 	background: white;
-	box-shadow: darkgrey 10px 10px 30px 5px;
+    box-shadow: darkgrey 10px 10px 30px 5px;
+	text-align: center;
+	padding: 0.5em;
 }
 
 ._now_use_bg {
@@ -669,30 +687,14 @@ table td, .table .td {
 	function get_now_use_node() {
 		XHR.get('<%=api.url("get_now_use_node")%>', null,
 			function(x, result) {
-				var id = result["TCP"];
+				var id = result["global"];
 				if (id) {
 					var dom = document.getElementById("cbi-<%=appname%>-" + id);
 					if (dom) {
-						dom.title = '<%=api.i18n.translatef("Currently using %s node", "TCP")%>';
+						dom.title = "<%:Currently using node%>";
 						dom.classList.add("_now_use_bg");
-						//var v = "<a style='color: red'>当前TCP节点：</a>" + document.getElementById("cbid.<%=appname%>." + id + ".remarks").value;
+						//var v = "<a style='color: red'><%:Using...%>：</a>" + document.getElementById("cbid.<%=appname%>." + id + ".remarks").value;
 						//document.getElementById("cbi-<%=appname%>-" + id + "-remarks").innerHTML = v;
-						var dom_remarks = dom.querySelector("td.pw-remark");
-						if (dom_remarks) {
-							dom_remarks.style.color = 'red';
-						}
-					}
-				}
-				id = result["UDP"];
-				if (id) {
-					var dom = document.getElementById("cbi-<%=appname%>-" + id);
-					if (dom) {
-						if (result["TCP"] == result["UDP"]) {
-							dom.title = '<%=api.i18n.translatef("Currently using %s node", "TCP/UDP")%>';
-						} else {
-							dom.title = '<%=api.i18n.translatef("Currently using %s node", "UDP")%>';
-						}
-						dom.classList.add("_now_use_bg");
 						var dom_remarks = dom.querySelector("td.pw-remark");
 						if (dom_remarks) {
 							dom_remarks.style.color = 'red';
@@ -1223,10 +1225,10 @@ table td, .table .td {
 			document.getElementById("set_node_div").style.display="none";
 			document.getElementById("set_node_name").textContent = "";
 		},
-		set(protocol) {
-			if (confirm('<%:Are you sure set to%> ' + protocol.toUpperCase() + ' <%:the server?%>') == true){
+		set(type, config) {
+			if (confirm('<%:Are you sure set this node?%>') == true){
 				ajax.abortAll();
-				window.location.href = '<%=api.url("set_node")%>?protocol=' + protocol + '&section=' + this.section;
+				window.location.href = '<%=api.url("set_node")%>?type=' + type + '&config=' + config + '&section=' + this.section;
 			}
 		}
 	}
@@ -1617,14 +1619,22 @@ table td, .table .td {
 </div>
 
 <div style="display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;">
-	<div id="set_node_div" style="text-align: center;">
-		<div class="cbi-value" style="display: flex; justify-content: center; align-items: center; margin: 8px 0;">
+	<div id="set_node_div">
+		<div class="cbi-value" style="display: flex; justify-content: center; align-items: center; margin: 1em 0; height: 2em;">
 			<font color=#666><%:You choose node is:%></font><a style="color: red" id="set_node_name"></a>
+			<div style="position:absolute; right:0.5em; top: 0.5em;"><input class="btn cbi-button" type="button" onclick="set_node_div.close()" value="X" /></div>
 		</div>
-		<div class="cbi-value" style="display: flex; justify-content: center; gap: 8px; margin: 8px 0;">
-			<input class="btn cbi-button cbi-button-edit" type="button" onclick="set_node_div.set('tcp')" value="TCP" />
-			<input class="btn cbi-button cbi-button-edit" type="button" onclick="set_node_div.set('udp')" value="UDP" />
-			<input class="btn cbi-button cbi-button-remove" type="button" onclick="set_node_div.close()" value="<%:Close%>" />
+		<div class="cbi-value" style="justify-content: center; gap: 8px; margin: 1em 0;">
+			<%- if default_node_type == "_shunt" then
+				for i, v in ipairs(shunt_rule_list) do
+			-%>
+				<input class="btn cbi-button" type="button" onclick="set_node_div.set('<%=node%>', '<%=v[".name"]%>')" value="<%=v.remarks%>" />
+			<%-
+				end
+			-%>
+			<% else %>
+				<input class="btn cbi-button" type="button" onclick="set_node_div.set('@global[0]', 'node')" value="<%:Node%>" />
+			<% end %>
 		</div>
 	</div>
 </div>

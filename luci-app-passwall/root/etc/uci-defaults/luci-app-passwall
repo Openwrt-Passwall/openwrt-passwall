@@ -61,6 +61,31 @@ for sid in $(uci show passwall | grep "@subscribe_list" | cut -d '.' -sf 2 | cut
 	unset sid new_id
 done
 
+migrate_option() {
+	local section="$1"
+	local old="$2"
+	local new="$3"
+	local prefix="passwall.${section}"
+	if uci -q show "${prefix}.${new}" >/dev/null; then
+		uci -q delete "${prefix}.${old}"
+	elif uci -q show "${prefix}.${old}" >/dev/null; then
+		uci -q set "${prefix}.${new}=$(uci -q get "${prefix}.${old}")"
+		uci -q delete "${prefix}.${old}"
+	fi
+}
+
+migrate_option "@global[0]" tcp_node node
+uci -q delete "passwall.@global[0].udp_node"
+migrate_option "@global[0]" tcp_node_socks_port node_socks_port
+migrate_option "@global[0]" tcp_node_socks_bind_local node_socks_bind_local
+migrate_option "@global[0]" log_tcp log_node
+uci -q delete "passwall.@global[0].log_udp"
+
+for sid in $(uci show passwall | grep "=acl_rule" | cut -d '.' -sf 2 | cut -d '=' -sf 1); do
+	migrate_option "${sid}" tcp_node node
+	uci -q delete "passwall.${sid}.udp_node"
+done
+
 uci -q commit passwall
 
 sed -i "s#add_from#group#g" /etc/config/passwall 2>/dev/null

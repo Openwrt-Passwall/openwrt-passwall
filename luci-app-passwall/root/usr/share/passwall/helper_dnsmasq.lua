@@ -163,7 +163,7 @@ function add_rule(var)
 	local TUN_DNS = var["-TUN_DNS"]
 	local USE_DEFAULT_DNS = var["-USE_DEFAULT_DNS"]
 	local CHINADNS_DNS = var["-CHINADNS_DNS"]
-	local TCP_NODE = var["-TCP_NODE"]
+	local NODE = var["-NODE"]
 	local USE_DIRECT_LIST = var["-USE_DIRECT_LIST"]
 	local USE_PROXY_LIST = var["-USE_PROXY_LIST"]
 	local USE_BLOCK_LIST = var["-USE_BLOCK_LIST"]
@@ -178,7 +178,7 @@ function add_rule(var)
 	local CACHE_DNS_PATH = CACHE_PATH .. "/" .. CACHE_FLAG
 	local CACHE_TEXT_FILE = CACHE_DNS_PATH .. ".txt"
 	local USE_CHINADNS_NG = "0"
-	local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
+	local IS_SHUNT_NODE = api.uci_get_c(NODE, "protocol") == "_shunt"
 	local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
 
 	local list1 = {}
@@ -613,7 +613,7 @@ function add_rule(var)
 
 		--分流规则
 		if IS_SHUNT_NODE and USE_CHINADNS_NG == "0" then
-			local t = api.uci_get_c(TCP_NODE)
+			local t = api.uci_get_c(NODE)
 			local default_node_id = t["default_node"] or "_direct"
 			api.uci_foreach_c("shunt_rules", function(s)
 				local _node_id = t[s[".name"]]

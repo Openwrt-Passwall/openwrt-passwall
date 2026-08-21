@@ -486,20 +486,16 @@ ln_run() {
 	if [ -z "$persist_log_path" ] && [ "$sys_log" != "1" ]; then
 		${file_func:-echolog " - ${ln_name}"} "$@" >${output} 2>&1 &
 	else
-		case "$output" in
-			*TCP.log) local protocol="TCP" ;;
-			*UDP.log) local protocol="UDP" ;;
-		esac
 		if [ -n "${persist_log_path}" ]; then
 			mkdir -p ${persist_log_path}
-			local log_file=${persist_log_path}/passwall_${protocol}_${ln_name}_$(date '+%F').log
+			local log_file=${persist_log_path}/passwall_global_${ln_name}_$(date '+%F').log
 			echolog "记录到持久性日志文件：${log_file}"
 			${file_func:-echolog " - ${ln_name}"} "$@" >> ${log_file} 2>&1 &
 			sys_log=0
 		fi
 		if [ "${sys_log}" = "1" ]; then
-			echolog "记录 ${ln_name}_${protocol} 到系统日志"
-			${file_func:-echolog " - ${ln_name}"} "$@" 2>&1 | logger -t PASSWALL_${protocol}_${ln_name} &
+			echolog "记录 ${ln_name}_global 到系统日志"
+			${file_func:-echolog " - ${ln_name}"} "$@" 2>&1 | logger -t PASSWALL_global_${ln_name} &
 		fi
 	fi
 	[ "$NO_REC_PROCESS" = "1" ] && return

@@ -2,7 +2,7 @@
 config global
 	option enabled '0'
 	option socks_enabled '0'
-	option tcp_node_socks_port '1070'
+	option node_socks_port '1070'
 	option filter_proxy_ipv6 '1'
 	option dns_shunt 'chinadns-ng'
 	option dns_mode 'tcp'
@@ -21,8 +21,7 @@ config global
 	option localhost_proxy '1'
 	option client_proxy '1'
 	option acl_enable '0'
-	option log_tcp '0'
-	option log_udp '0'
+	option log_node '0'
 	option loglevel 'error'
 	option log_chinadns_ng '0'
 

@@ -33,7 +33,7 @@ local sid = self.section
 			if (!node) return false;
 			let changed = false;
 			const all_node = node.querySelectorAll("[id]");
-			const reg1 = /^cbid\..*\.(tcp_node|udp_node)\.main$/;
+			const reg1 = /^cbid\..*node\.main$/;
 
 			for (const el of all_node) {
 				if (!reg1.test(el.id)) continue;
@@ -43,15 +43,15 @@ local sid = self.section
 				const cbid = el.id.replace(/\.main$/, "");
 				const hidden_select = document.getElementById(cbid);
 				const node_select_value = hidden_select?.options[0]?.value;
-				if (!node_select_value || node_select_value.indexOf("tcp") === 0) {
+				if (!node_select_value) {
 					continue;
 				}
 
 				let html = '<a href="#" onclick="return to_edit_node(this);"><%:Edit%></a>';
 
-				const m = cbid.match(/\.(tcp|udp)_node$/);
-				if (m && (m[1] === "tcp" || m[1] === "udp")) {
-					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log") .. "?name=" .. sid%>&proto=' + m[1] + '\', \'_blank\')"><%:Log%></a>';
+				const m = cbid.match(/\.node$/);
+				if (m) {
+					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log") .. "?id=" .. sid%>' + '\', \'_blank\')"><%:Log%></a>';
 				}
 
 				html = '<div class="node-actions" style="display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; margin-left:4px;">' + html + '</div>'

@@ -99,7 +99,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 					</div>
 				</div>
 				<div class="pure-u-2-3">
-					<h4 id="status_tcp_node">TCP<br /><span class="red"><%:NOT RUNNING%></span></h4>
+					<h4 id="status_tcp">TCP<br /><span class="red"><%:NOT RUNNING%></span></h4>
 				</div>
 			</div>
 		</div>
@@ -111,7 +111,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 					</div>
 				</div>
 				<div class="pure-u-2-3">
-					<h4 id="status_udp_node">UDP<br /><span class="red"><%:NOT RUNNING%></span></h4>
+					<h4 id="status_udp">UDP<br /><span class="red"><%:NOT RUNNING%></span></h4>
 				</div>
 			</div>
 		</div>
@@ -201,26 +201,26 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				var status_haproxy = document.getElementById('status_haproxy');
 				if (data) {
 					if (true) {
-						var status_tcp_node = document.getElementById('status_tcp_node');
-						if (status_tcp_node) {
+						var status_tcp = document.getElementById('status_tcp');
+						if (status_tcp) {
 							var text = 'TCP<br />';
-							if (data["tcp_node_status"])
+							if (data["tcp_status"])
 								text += '<span class="green"><%:RUNNING%></span>';
 							else
 								text += '<span class="red"><%:NOT RUNNING%></span>';
-							status_tcp_node.innerHTML = text;
+							status_tcp.innerHTML = text;
 						}
 					}
 
 					if (true) {
-						var status_udp_node = document.getElementById('status_udp_node');
-						if (status_udp_node) {
+						var status_udp = document.getElementById('status_udp');
+						if (status_udp) {
 							var text = 'UDP<br />';
-							if (data["udp_node_status"])
+							if (data["udp_status"])
 								text += '<span class="green"><%:RUNNING%></span>';
 							else
 								text += '<span class="red"><%:NOT RUNNING%></span>';
-							status_udp_node.innerHTML = text;
+							status_udp.innerHTML = text;
 						}
 					}
 

@@ -119,11 +119,8 @@ o:value("1", "Nftables")
 
 ---- Check the transparent proxy component
 local handle = io.popen("lsmod")
-local mods = ""
-if handle then
-	mods = handle:read("*a") or ""
-	handle:close()
-end
+local mods = handle and handle:read("*a") or ""
+if handle then handle:close() end
 
 if (mods:find("REDIRECT") and mods:find("TPROXY")) or (mods:find("nft_redir") and mods:find("nft_tproxy")) then
 	o = s:option(ListValue, "tcp_proxy_way", translate("TCP Proxy Way"))

@@ -136,15 +136,13 @@ end
 -- 获取各项动态配置的当前服务器，可以用 get 和 set， get必须要获取到节点表
 local CONFIG = {}
 do
-	local function import_config(protocol)
-		local name = string.upper(protocol)
+	if true then
 		local szType = "@global[0]"
-		local option = protocol .. "_node"
-		
+		local option = "node"
 		local node_id = uci_get(szType, option)
 		CONFIG[#CONFIG + 1] = {
 			log = true,
-			remarks = name .. "节点",
+			remarks = "全局节点",
 			currentNode = (function(id)
 				local section = id and uci_get(id) or nil
 				if not section then return nil end
@@ -159,8 +157,6 @@ do
 			end
 		}
 	end
-	import_config("tcp")
-	import_config("udp")
 
 	if true then
 		local i = 0
@@ -255,30 +251,27 @@ do
 
 	if true then
 		local i = 0
-		local options = {"tcp", "udp"}
 		uci_foreach("acl_rule", function(t)
 			i = i + 1
-			for index, value in ipairs(options) do
-				local option = value .. "_node"
-				local node_id = t[option]
-				CONFIG[#CONFIG + 1] = {
-					log = true,
-					id = t[".name"],
-					remarks = "访问控制列表[" .. i .. "]",
-					currentNode = (function(id)
-						local section = id and uci_get(id) or nil
-						if not section then return nil end
-						if section[".type"] == "socks" then
-							return { Socks = id }
-						end
-						return section
-					end)(node_id),
-					set = function(o, server)
-						uci_set(t[".name"], option, server)
-						o.newNodeId = server
+			local option = "node"
+			local node_id = t[option]
+			CONFIG[#CONFIG + 1] = {
+				log = true,
+				id = t[".name"],
+				remarks = "访问控制列表[" .. i .. "]",
+				currentNode = (function(id)
+					local section = id and uci_get(id) or nil
+					if not section then return nil end
+					if section[".type"] == "socks" then
+						return { Socks = id }
 					end
-				}
-			end
+					return section
+				end)(node_id),
+				set = function(o, server)
+					uci_set(t[".name"], option, server)
+					o.newNodeId = server
+				end
+			}
 		end)
 	end
 

@@ -131,9 +131,9 @@ local sid = "@global[0]"
 
 				let html = '<a href="#" onclick="return to_edit_node(this, global_id);"><%:Edit%></a>';
 
-				const m = cbid.match(/\.(tcp|udp)_node$/);
-				if (m && (m[1] === "tcp" || m[1] === "udp")) {
-					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log")%>?name=default&proto=' + m[1] + '\', \'_blank\')"><%:Log%></a>';
+				const m = cbid.match(/\.node$/);
+				if (m) {
+					html += '<a href="#" onclick="window.open(\'' + '<%=api.url("get_redir_log")%>?id=default' + '\', \'_blank\')"><%:Log%></a>';
 				}
 
 				html = '<div class="node-actions" style="display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; margin-left:4px;">' + html + '</div>'
@@ -249,7 +249,7 @@ local sid = "@global[0]"
 	})();
 
 	document.addEventListener("DOMContentLoaded", () => setTimeout(() => {
-		const hiddenSelect = document.getElementById("cbid.<%=appname%>.<%=sid%>.tcp_node");
+		const hiddenSelect = document.getElementById("cbid.<%=appname%>.<%=sid%>.node");
 		let o_val = hiddenSelect.value
 		const o_hasItem = shunt_list.find(element => element.id == o_val);
 		hiddenSelect.addEventListener("change", function(el){
@@ -259,7 +259,7 @@ local sid = "@global[0]"
 				XHR.get('<%=api.url("update_config")%>', {
 					id: "<%=sid%>",
 					data: JSON.stringify({
-						tcp_node: new_val
+						node: new_val
 					})
 				},
 				function(x, data) {

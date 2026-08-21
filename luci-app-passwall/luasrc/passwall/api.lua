@@ -258,7 +258,7 @@ end
 
 function curl_proxy(url, file, args)
 	--使用代理
-	local socks_server = get_cache_var("GLOBAL_TCP_SOCKS_server")
+	local socks_server = get_cache_var("GLOBAL_SOCKS_server")
 	if socks_server and socks_server ~= "" then
 		if not args then args = {} end
 		local tmp_args = clone(args)

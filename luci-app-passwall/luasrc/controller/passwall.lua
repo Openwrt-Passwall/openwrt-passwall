@@ -248,57 +248,39 @@ end
 function get_now_use_node()
 	local path = api.TMP_PATH .. "/acl/default"
 	local e = {}
-	local tcp_node = api.get_cache_var("ACL_GLOBAL_TCP_node")
-	if tcp_node then
-		e["TCP"] = tcp_node
-	end
-	local udp_node = api.get_cache_var("ACL_GLOBAL_UDP_node")
-	if udp_node then
-		e["UDP"] = udp_node
+	local node = api.get_cache_var("ACL_GLOBAL_node")
+	if node then
+		e["global"] = node
 	end
 	http_write_json(e)
 end
 
 function get_redir_log()
-	local name = http.formvalue("name")
-	local proto = http.formvalue("proto"):upper()
-	local path = api.TMP_PATH .. "/acl/" .. name
+	local id = http.formvalue("id")
+	local path = api.TMP_PATH .. "/acl/" .. id
 
 	local function alert(msg)
 		http.write(string.format("<script>alert('%s');window.close();</script>", i18n.translate(msg)))
 	end
 
-	if name == "default" then
-		if proto == "UDP" and (uci_get("@global[0]", "udp_node") or "nil") == "tcp" and not fs.access(path .. "/" .. proto .. ".log") then
-			proto = "TCP"
-		end
-	else
-		local global_tcp = uci_get("@global[0]", "tcp_node") or "nil"
-		local global_udp = uci_get("@global[0]", "udp_node") or "nil"
-		local acl_tcp = uci_get(name, "tcp_node") or "nil"
-		local acl_udp = uci_get(name, "udp_node") or "nil"
+	local name = "global"
+	if id and id ~= "default" then
+		local global_node = uci_get("@global[0]", "node") or "nil"
+		local acl_node = uci_get(id, "node") or "nil"
 		local global_enabled = uci_get("@global[0]", "enabled") == "1"
-		if proto == "TCP" and acl_tcp == global_tcp and global_enabled then
+		if acl_node == global_node and global_enabled then
 			path = api.TMP_PATH .. "/acl/default"
-			if uci_get("@global[0]", "log_tcp") ~= "1" then
+			if uci_get("@global[0]", "log_node") ~= "1" then
 				alert("The access control node is the same as the global node. Please enable global logging.")
 				return
 			end
-		end
-		if proto == "UDP" and acl_udp == global_udp and global_enabled then
-			path = api.TMP_PATH .. "/acl/default"
-			if uci_get("@global[0]", "log_udp") ~= "1" then
-				alert("The access control node is the same as the global node. Please enable global logging.")
-				return
-			end
-		end
-		if proto == "UDP" and acl_udp == "tcp" and not fs.access(path .. "/" .. proto .. ".log") then
-			proto = "TCP"
+		else
+			name = "node"
 		end
 	end
 
-	if fs.access(path .. "/" .. proto .. ".log") then
-		local content = luci.sys.exec("tail -n 19999 ".. path .. "/" .. proto .. ".log")
+	if fs.access(path .. "/" .. name .. ".log") then
+		local content = luci.sys.exec("tail -n 5000 ".. path .. "/" .. name .. ".log")
 		content = content:gsub("\n", "<br />")
 		http.write(content)
 	else
@@ -310,7 +292,7 @@ function get_socks_log()
 	local name = http.formvalue("name")
 	local path = api.TMP_PATH .. "/" .. name .. ".log"
 	if fs.access(path) then
-		local content = luci.sys.exec("cat ".. path)
+		local content = luci.sys.exec("tail -n 5000 ".. path)
 		content = content:gsub("\n", "<br />")
 		http.write(content)
 	else
@@ -322,9 +304,9 @@ function get_chinadns_log()
 	local flag = http.formvalue("flag")
 	local path = api.TMP_PATH .. "/acl/" .. flag .. "/chinadns_ng.log"
 	if flag ~= "default" then
-		local global_tcp = uci_get("@global[0]", "tcp_node") or "nil"
-		local acl_tcp = uci_get(flag, "tcp_node") or "nil"
-		if acl_tcp == global_tcp and uci_get("@global[0]", "enabled") == "1" then
+		local global_node = uci_get("@global[0]", "node") or "nil"
+		local acl_node = uci_get(flag, "node") or "nil"
+		if acl_node == global_node and uci_get("@global[0]", "enabled") == "1" then
 			path = api.TMP_PATH .. "/acl/default/chinadns_ng.log"
 			if uci_get("@global[0]", "log_chinadns_ng") ~= "1" then
 				http.write(string.format("<script>alert('%s');window.close();</script>", i18n.translate("The access control node is the same as the global node. Please enable global logging.")))
@@ -332,7 +314,6 @@ function get_chinadns_log()
 			end
 		end
 	end
-
 	if fs.access(path) then
 		local content = luci.sys.exec("tail -n 5000 ".. path)
 		content = content:gsub("\n", "<br />")
@@ -365,22 +346,29 @@ function index_status()
 
 	e.haproxy_status = "-1"
 	if api.is_finded("haproxy") then
-		e.haproxy_status = (luci.sys.call("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0) and "0" or "1"
+		e.haproxy_status = (luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0) and "0" or "1"
 	end
 
-	e["tcp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'TCP' >/dev/null" % api.TMP_PATH) == 0
-
-	if (uci_get("@global[0]", "udp_node") or "nil") == "tcp" then
-		e["udp_node_status"] = e["tcp_node_status"]
-	else
-		e["udp_node_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'UDP' >/dev/null" % api.TMP_PATH) == 0
+	if api.get_cache_var("ENABLED_DEFAULT_ACL") == "1" then
+		local has_tproxy = api.get_cache_var("HAS_TPROXY")
+		if not has_tproxy then
+			local handle = io.popen("lsmod")
+			local mods = handle and handle:read("*a") or ""
+			if handle then handle:close() end
+			has_tproxy = (mods:find("TPROXY") or mods:find("nft_tproxy")) and "1" or "0"
+			api.set_cache_var("HAS_TPROXY", has_tproxy)
+		end
+		e["tcp_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep 'default' | grep 'global' >/dev/null" % api.TMP_PATH) == 0
+		if has_tproxy == "1" then
+			e["udp_status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v -E 'grep|naive' | grep '%s/bin/' | grep 'default' | grep 'global' >/dev/null" % api.TMP_PATH) == 0
+		end
 	end
 	http_write_json(e)
 end
 
 function haproxy_status()
 	local e = {}
-	e["status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0
+	e["status"] = luci.sys.call("/bin/busybox top -bn1 | grep -v 'grep' | grep '%s/bin/' | grep haproxy >/dev/null" % appname) == 0
 	http_write_json(e)
 end
 
@@ -408,7 +396,7 @@ function connect_status()
 	local gfw_list = uci_get("@global[0]", "use_gfw_list") or "1"
 	local proxy_mode = uci_get("@global[0]", "tcp_proxy_mode") or "proxy"
 	local localhost_proxy = uci_get("@global[0]", "localhost_proxy") or "1"
-	local socks_server = (localhost_proxy == "0") and api.get_cache_var("GLOBAL_TCP_SOCKS_server") or ""
+	local socks_server = (localhost_proxy == "0") and api.get_cache_var("GLOBAL_SOCKS_server") or ""
 	url = "-w %{http_code}:%{time_pretransfer} " .. url
 	if socks_server and socks_server ~= "" then
 		if (chn_list == "proxy" and gfw_list == "0" and proxy_mode ~= "proxy" and aliyun ~= nil) or (chn_list == "0" and gfw_list == "0" and proxy_mode == "proxy") then
@@ -515,23 +503,24 @@ function add_node()
 end
 
 function set_node()
-	local protocol = http.formvalue("protocol")
+	local type = http.formvalue("type")
+	local config = http.formvalue("config")
 	local section = http.formvalue("section")
-	uci_set("@global[0]", protocol .. "_node", section)
-	if protocol == "tcp" then
+	if type == "@global[0]" then
 		local node_protocol = uci_get(section, "protocol")
 		if node_protocol == "_shunt" then
-			local type = uci_get(section, "type")
-			local dns_shunt = uci_get("@global[0]", "dns_shunt")
+			local node_type = uci_get(section, "type")
+			local dns_shunt = uci_get(type, "dns_shunt")
 			local dns_key = (dns_shunt == "smartdns") and "smartdns_dns_mode" or "dns_mode"
-			local dns_mode = uci_get("@global[0]", dns_key)
-			local new_dns_mode = (type == "Xray") and "xray" or "sing-box"
+			local dns_mode = uci_get(type, dns_key)
+			local new_dns_mode = (node_type == "Xray") and "xray" or "sing-box"
 			if dns_mode ~= new_dns_mode then
-				uci_set("@global[0]", dns_key, new_dns_mode)
-				uci_set("@global[0]", "v2ray_dns_mode", "tcp")
+				uci_set(type, dns_key, new_dns_mode)
+				uci_set(type, "v2ray_dns_mode", "tcp")
 			end
 		end
 	end
+	uci_set(type, config, section)
 	uci_save(true, true)
 	http.redirect(api.url("log"))
 end
@@ -555,8 +544,7 @@ function clear_all_nodes()
 	uci_set('@global[0]', "enabled", "0")
 	uci_set('@global[0]', "socks_enabled", "0")
 	uci_set('@global_haproxy[0]', "balancing_enable", "0")
-	uci_del('@global[0]', "tcp_node")
-	uci_del('@global[0]', "udp_node")
+	uci_del('@global[0]', "node")
 	uci_foreach("socks", function(t)
 		uci_del(t[".name"])
 		uci_set(t[".name"], "autoswitch_backup_node", {})
@@ -565,8 +553,7 @@ function clear_all_nodes()
 		uci_del(t[".name"])
 	end)
 	uci_foreach("acl_rule", function(t)
-		uci_del(t[".name"], "tcp_node")
-		uci_del(t[".name"], "udp_node")
+		uci_del(t[".name"], "node")
 	end)
 	uci_foreach("nodes", function(node)
 		uci_del(node['.name'])
@@ -587,11 +574,8 @@ function delete_select_nodes()
 	local ids_t = {}
 	string.gsub(ids, '[^' .. "," .. ']+', function(w)
 		ids_t[#ids_t + 1] = w
-		if (uci_get("@global[0]", "tcp_node") or "") == w then
-			uci_del('@global[0]', "tcp_node")
-		end
-		if (uci_get("@global[0]", "udp_node") or "") == w then
-			uci_del('@global[0]', "udp_node")
+		if (uci_get("@global[0]", "node") or "") == w then
+			uci_del('@global[0]', "node")
 		end
 		uci_foreach("socks", function(t)
 			local changed = false
@@ -620,11 +604,8 @@ function delete_select_nodes()
 			end
 		end)
 		uci_foreach("acl_rule", function(t)
-			if t["tcp_node"] == w then
-				uci_del(t[".name"], "tcp_node")
-			end
-			if t["udp_node"] == w then
-				uci_del(t[".name"], "udp_node")
+			if t["node"] == w then
+				uci_del(t[".name"], "node")
 			end
 		end)
 		uci_foreach("nodes", function(t)

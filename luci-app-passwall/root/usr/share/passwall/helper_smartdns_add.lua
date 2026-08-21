@@ -10,7 +10,7 @@ local USE_DEFAULT_DNS = var["-USE_DEFAULT_DNS"]
 local REMOTE_DNS = var["-REMOTE_DNS"]
 local TUN_DNS = var["-TUN_DNS"]
 local DNS_MODE = var["-DNS_MODE"]
-local TCP_NODE = var["-TCP_NODE"]
+local NODE = var["-NODE"]
 local USE_DIRECT_LIST = var["-USE_DIRECT_LIST"]
 local USE_PROXY_LIST = var["-USE_PROXY_LIST"]
 local USE_BLOCK_LIST = var["-USE_BLOCK_LIST"]
@@ -36,7 +36,7 @@ local TMP_CONF_FILE = FLAG_PATH .. "/smartdns.conf"
 local config_lines = {}
 local tmp_lines = {}
 local USE_GEOVIEW = api.uci_get_c("@global_rules[0]", "enable_geoview")
-local IS_SHUNT_NODE = api.uci_get_c(TCP_NODE, "protocol") == "_shunt"
+local IS_SHUNT_NODE = api.uci_get_c(NODE, "protocol") == "_shunt"
 
 if not api.is_finded("geoview") then
 	USE_GEOVIEW = "0"
@@ -553,7 +553,7 @@ if IS_SHUNT_NODE then
 	local file_shunt_host = FLAG_PATH .. "/shunt_proxy_host"
 	local geosite_white_arg, geosite_shunt_arg = "", ""
 
-	local t = api.uci_get_c(TCP_NODE)
+	local t = api.uci_get_c(NODE)
 	local default_node_id = t["default_node"] or "_direct"
 	api.uci_foreach_c("shunt_rules", function(s)
 		local _node_id = t[s[".name"]]

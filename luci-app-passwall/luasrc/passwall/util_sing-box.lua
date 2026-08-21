@@ -1087,8 +1087,7 @@ function gen_config(var)
 	local server_host = var["server_host"]
 	local server_port = var["server_port"]
 	local tcp_proxy_way = var["tcp_proxy_way"]
-	local tcp_redir_port = var["tcp_redir_port"]
-	local udp_redir_port = var["udp_redir_port"]
+	local redir_port = var["redir_port"]
 	local local_socks_address = var["local_socks_address"] or "0.0.0.0"
 	local local_socks_port = var["local_socks_port"]
 	local local_socks_username = var["local_socks_username"]
@@ -1237,43 +1236,34 @@ function gen_config(var)
 			table.insert(inbounds, inbound)
 		end
 
-		if tcp_redir_port then
-			local inbound
+		if redir_port then
+			local inbound_tproxy = {
+				type = "tproxy",
+				tag = "tproxy",
+				listen = "::",
+				listen_port = tonumber(redir_port),
+			}
 			if tcp_proxy_way ~= "tproxy" then
-				inbound = {
+				local inbound = {
 					type = "redirect",
 					tag = "redirect_tcp",
 					listen = "::",
-					listen_port = tonumber(tcp_redir_port)
+					listen_port = tonumber(redir_port),
 				}
-			else
-				inbound = {
-					type = "tproxy",
-					tag = "tproxy_tcp",
-					network = "tcp",
-					listen = "::",
-					listen_port = tonumber(tcp_redir_port)
-				}
-			end
-			table.insert(inbounds, inbound)
-			table.insert(route.rules, {
-				action = "sniff",
-				inbound = inbound.tag
-			})
-		end
+				table.insert(inbounds, inbound)
+				table.insert(route.rules, {
+					action = "sniff",
+					inbound = inbound.tag
+				})
 
-		if udp_redir_port then
-			local inbound = {
-				type = "tproxy",
-				tag = "tproxy_udp",
-				network = "udp",
-				listen = "::",
-				listen_port = tonumber(udp_redir_port)
-			}
-			table.insert(inbounds, inbound)
+				inbound_tproxy.tag = "tproxy_udp"
+				inbound_tproxy.network = "udp"
+			end
+
+			table.insert(inbounds, inbound_tproxy)
 			table.insert(route.rules, {
 				action = "sniff",
-				inbound = inbound.tag
+				inbound = inbound_tproxy.tag
 			})
 		end
 
@@ -1315,7 +1305,7 @@ function gen_config(var)
 				ut_nodes = _node.urltest_node
 			end
 
-			api.log("  - 加载 Sing-Box URLTest 节点【" .. (_node.remarks or "") .. "】，子节点数量：" .. #(ut_nodes or {}))
+			-- api.log("  - 加载 Sing-Box URLTest 节点【" .. (_node.remarks or "") .. "】，子节点数量：" .. #(ut_nodes or {}))
 
 			local valid_nodes = {}
 			for i = 1, #(ut_nodes or {}) do
@@ -1620,15 +1610,13 @@ function gen_config(var)
 					if e["inbound"] and e["inbound"] ~= "" then
 						inboundTag = {}
 						if e["inbound"]:find("tproxy") then
-							if tcp_redir_port then
+							if redir_port then
 								if tcp_proxy_way == "tproxy" then
-									table.insert(inboundTag, "tproxy_tcp")
+									table.insert(inboundTag, "tproxy")
 								else
 									table.insert(inboundTag, "redirect_tcp")
+									table.insert(inboundTag, "tproxy_udp")
 								end
-							end
-							if udp_redir_port then
-								table.insert(inboundTag, "tproxy_udp")
 							end
 						end
 						if e["inbound"]:find("socks") then
@@ -1987,7 +1975,7 @@ function gen_config(var)
 		local default_dns_flag = "remote"
 		if dns_socks_address and dns_socks_port then
 		else
-			if node_id and (tcp_redir_port or udp_redir_port) then
+			if node_id and redir_port then
 				local node = get_node_by_id(node_id)
 				if node.protocol == "_shunt" then
 					if node.default_node == "_direct" then

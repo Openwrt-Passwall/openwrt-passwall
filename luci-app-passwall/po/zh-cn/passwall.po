@@ -94,11 +94,8 @@ msgstr "清除"
 msgid "Main switch"
 msgstr "主开关"
 
-msgid "TCP Node"
-msgstr "TCP 节点"
-
-msgid "UDP Node"
-msgstr "UDP 节点"
+msgid "Proxy Node"
+msgstr "代理节点"
 
 msgid "Edit Current Node"
 msgstr "编辑当前节点"
@@ -139,8 +136,8 @@ msgstr "%s 不能为空。"
 msgid "Filter Mode"
 msgstr "过滤模式"
 
-msgid "TCP node must be '%s' type to use FakeDNS."
-msgstr "TCP 节点必须是 '%s' 类型才能使用 FakeDNS。"
+msgid "Node must be '%s' type to use FakeDNS."
+msgstr "节点必须是 '%s' 类型才能使用 FakeDNS。"
 
 msgid "Direct DNS"
 msgstr "直连 DNS"
@@ -430,8 +427,8 @@ msgstr "你确定要删除选择的节点吗？"
 msgid "You no select nodes !"
 msgstr "你没有选择任何节点！"
 
-msgid "Are you sure set to"
-msgstr "你确定要设为"
+msgid "Are you sure set this node?"
+msgstr "你确定要设置这个节点吗？"
 
 msgid "the server?"
 msgstr "服务器吗？"
@@ -1625,9 +1622,6 @@ msgstr "日志"
 msgid "Enable Node Log"
 msgstr "启用节点日志"
 
-msgid "%s Node Log"
-msgstr "%s 节点日志"
-
 msgid "Log Level"
 msgstr "日志等级"
 
@@ -2133,8 +2127,8 @@ msgstr "调整分组"
 msgid "Reassign Node Group"
 msgstr "调整节点分组"
 
-msgid "Currently using %s node"
-msgstr "当前使用的 %s 节点"
+msgid "Currently using node"
+msgstr "当前使用的节点"
 
 msgid "Search nodes..."
 msgstr "搜索节点…"
