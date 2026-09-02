@@ -2,6 +2,7 @@ local api = require "luci.passwall.api"
 api.set_default_cbi()
 
 m = Map(api.s_config)
+m.redirect = api.url("server")
 
 t = m:section(NamedSection, "global", "global", translate("Server-Side"))
 t.anonymous = true

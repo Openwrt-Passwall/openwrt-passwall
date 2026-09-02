@@ -56,6 +56,7 @@ o.custom_write = function(self, section, value)
 end
 
 o = s:option(ListValue, "protocol", translate("Protocol"))
+o:value("direct", "Direct")
 o:value("mixed", "Mixed")
 o:value("socks", "Socks")
 o:value("http", "HTTP")
@@ -63,28 +64,11 @@ o:value("shadowsocks", "Shadowsocks")
 o:value("vmess", "Vmess")
 o:value("vless", "VLESS")
 o:value("trojan", "Trojan")
-o:value("naive", "Naive")
-if singbox_tags:find("with_quic") then
-	o:value("hysteria", "Hysteria")
-end
-if singbox_tags:find("with_quic") then
-	o:value("tuic", "TUIC")
-end
-if singbox_tags:find("with_quic") then
-	o:value("hysteria2", "Hysteria2")
+if singbox_tags:find("with_naive_outbound") then
+	o:value("naive", "Naive")
 end
 o:value("anytls", "AnyTLS")
-if singbox_tags:find("with_wireguard") then
-	o:value("wireguard", "WireGuard")
-end
-o:value("direct", "Direct")
 o:depends({ custom = false })
-
-o = s:option(DummyValue, "is_endpoint", "")
-o.not_rewrite = true
-o.template = m:template_path("/cbi/hidevalue")
-o.value = "1"
-o:depends({ custom = false, protocol = "wireguard" })
 
 o = s:option(Value, "port", translate("Listen Port"))
 o.datatype = "port"
@@ -102,13 +86,13 @@ o:depends({ protocol = "vmess" })
 o:depends({ protocol = "vless" })
 o:depends({ protocol = "trojan" })
 o:depends({ protocol = "naive" })
-o:depends({ protocol = "hysteria" })
-o:depends({ protocol = "tuic" })
-o:depends({ protocol = "hysteria2" })
 o:depends({ protocol = "anytls" })
-o:depends({ protocol = "wireguard" })
 
 if singbox_tags:find("with_quic") then
+	-- hysteria
+	s.fields["protocol"]:value("hysteria", "Hysteria")
+	s.fields["users"]:depends({ protocol = "hysteria" })
+
 	o = s:option(Value, "hysteria_obfs", translate("Obfs Password"))
 	o:depends({ protocol = "hysteria" })
 
@@ -135,6 +119,10 @@ if singbox_tags:find("with_quic") then
 end
 
 if singbox_tags:find("with_quic") then
+	-- tuic
+	s.fields["protocol"]:value("tuic", "TUIC")
+	s.fields["users"]:depends({ protocol = "tuic" })
+
 	o = s:option(ListValue, "tuic_congestion_control", translate("Congestion control algorithm"))
 	o.default = "cubic"
 	o:value("bbr", translate("BBR"))
@@ -166,6 +154,10 @@ if singbox_tags:find("with_quic") then
 end
 
 if singbox_tags:find("with_quic") then
+	-- hysteria2
+	s.fields["protocol"]:value("hysteria2", "Hysteria2")
+	s.fields["users"]:depends({ protocol = "hysteria2" })
+
 	o = s:option(Flag, "hysteria2_realms", translate("Realms"))
 	o.default = "0"
 	o:depends({ protocol = "hysteria2"})
@@ -436,6 +428,10 @@ o.default = "50"
 o:depends({ tcpbrutal = true })
 
 if singbox_tags:find("with_wireguard") then
+	-- wireguard
+	s.fields["protocol"]:value("wireguard", "WireGuard")
+	s.fields["users"]:depends({ protocol = "wireguard" })
+
 	o = s:option(Flag, "wireguard_system_interface", translate("System interface"))
 	o.default = 0
 	o:depends({ protocol = "wireguard" })
