@@ -597,6 +597,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 						realm.address = nil
 						realm.port = nil
 						realm.port_mapping = (node.hysteria2_realm_upnp == "1") and { enabled = true } or nil
+						realm.http_client = "direct_http_client"
 						return realm
 					end
 					return nil
@@ -953,6 +954,7 @@ function gen_config_server(node)
 					realm.port = nil
 					realm.stun_domain_resolver = "direct"
 					realm.port_mapping = (node.hysteria2_realm_upnp == "1") and { enabled = true } or nil
+					realm.http_client = { detour = "direct" }
 					return realm
 				end
 				return nil
@@ -1167,8 +1169,8 @@ function gen_config(var)
 							format = format,
 							path = _type == "local" and w or nil,
 							url = _type == "remote" and w or nil,
-							--download_detour = _type == "remote" and "",
-							--update_interval = _type == "remote" and "",
+							http_client = (_type == "remote" and version_ge_1_14_0) and "remote_http_client" or nil,
+							--update_interval = _type == "remote" and "1d" or nil,
 						}
 					end
 				end
@@ -2203,6 +2205,36 @@ function gen_config(var)
 		end
 	end
 
+	local http_clients
+	if outbounds then
+		local proxy_tag = COMMON.default_outbound_tag
+		if proxy_tag == "block" or proxy_tag == "direct" then  -- 如默认节点是特殊节点，则选一个可用节点作为出口(urltest优先)
+			local first_node
+			for _, v in ipairs(outbounds) do
+				if not v["_flag_proxy_tag"] and not v.detour and v["_id"] and ((v.server and (v.server_port or v.server_ports)) or v.type == "urltest") then
+					first_node = first_node or v.tag
+					if v.type == "urltest" then
+						proxy_tag = v.tag
+						break
+					end
+				end
+			end
+			if proxy_tag == COMMON.default_outbound_tag then
+				proxy_tag = first_node
+			end
+		end
+		http_clients = {
+			{
+				tag = "remote_http_client",
+				detour = proxy_tag
+			},
+			{
+				tag = "direct_http_client",
+				detour = "direct"
+			}
+		}
+	end
+
 	if inbounds or outbounds then
 		local config = {
 			log = {
@@ -2219,8 +2251,10 @@ function gen_config(var)
 			outbounds = outbounds,
 			-- 路由
 			route = route,
-			--实验性
+			-- 实验性
 			experimental = experimental,
+			-- HTTP Client
+			http_clients = version_ge_1_14_0 and http_clients or nil,
 		}
 		table.insert(outbounds, {
 			type = "direct",
