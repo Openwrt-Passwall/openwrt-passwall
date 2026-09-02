@@ -40,6 +40,7 @@ local security_list = { "none", "auto", "aes-128-gcm", "chacha20-poly1305", "zer
 local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
 
 local singbox_version = api.get_app_version("sing-box"):match("[^v]+")
+local version_ge_1_14_0 = api.compare_versions(singbox_version, ">=", "1.14.0")
 
 o = s:option(ListValue, "protocol", translate("Protocol"))
 o:value("socks", "Socks")
@@ -64,6 +65,9 @@ o:value("anytls", "AnyTLS")
 o:value("ssh", "SSH")
 if singbox_tags:find("with_naive_outbound") then
 	o:value("naive", "NaïveProxy")
+end
+if version_ge_1_14_0 then
+	o:value("snell", "Snell")
 end
 o:value("_urltest", translate("URLTest"))
 o:value("_shunt", translate("Shunt"))
@@ -232,6 +236,43 @@ o:depends({ protocol = "anytls" })
 o:depends({ protocol = "ssh" })
 o:depends({ protocol = "naive" })
 
+if version_ge_1_14_0 then
+	-- snell
+	s.fields["password"]:depends({ protocol = "snell" })
+
+	o = s:option(Value, "snell_psk", translate("Pre shared key"))
+	o.rmempty = false
+	o:depends({ protocol = "snell" })
+
+	o = s:option(ListValue, "snell_version", translate("Version"))
+	o:value("4")
+	o:value("6")
+	o:depends({ protocol = "snell" })
+
+	o = s:option(Flag, "snell_reuse", translate("Connection Reuse"))
+	o:depends({ protocol = "snell" })
+
+	o = s:option(ListValue, "snell_network", translate("Transport"))
+	o:value("", "TCP UDP")
+	o:value("tcp", "TCP")
+	o:value("udp", "UDP")
+	o:depends({ protocol = "snell" })
+
+	o = s:option(ListValue, "snell_obfs_mode", translate("Camouflage Type"))
+	o:value("none")
+	o:value("http")
+	o:depends({ protocol = "snell", snell_version = "4" })
+
+	o = s:option(Value, "snell_obfs_host", translate("HTTP Host"))
+	o:depends({ protocol = "snell", snell_version = "4", snell_obfs_mode = "http" })
+
+	o = s:option(ListValue, "snell_mode", translate("Mode"))
+	o:value("default")
+	o:value("unshaped")
+	o:value("unsafe-raw")
+	o:depends({ protocol = "snell", snell_version = "6" })
+end
+
 o = s:option(ListValue, "security", translate("Encrypt Method"))
 for a, t in ipairs(security_list) do o:value(t) end
 o:depends({ protocol = "vmess" })
@@ -364,7 +405,7 @@ if singbox_tags:find("with_quic") then
 
 	o = s:option(Flag, "hysteria2_realms", translate("Realms"))
 	o.default = "0"
-	if api.compare_versions(singbox_version, ">=", "1.14.0") then
+	if version_ge_1_14_0 then
 		o:depends({ protocol = "hysteria2"})
 	else
 		o:depends({ protocol = "__hide"})

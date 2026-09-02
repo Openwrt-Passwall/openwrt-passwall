@@ -27,6 +27,9 @@ s.option_prefix = "singbox_"
 
 local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
 
+local local_version = api.get_app_version("sing-box"):match("[^v]+")
+local version_ge_1_14_0 = api.compare_versions(local_version, ">=", "1.14.0")
+
 local ss_method_list = {
 	"none", "aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "chacha20-ietf-poly1305", "xchacha20-ietf-poly1305",
 	"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"
@@ -454,6 +457,32 @@ if singbox_tags:find("with_wireguard") then
 	o = s:option(DummyValue, "gen_wireguard_key")
 	o.template = m:template_path("/server/gen_wireguard_key")
 	o:depends({ protocol = "wireguard" })
+end
+
+if version_ge_1_14_0 then
+	-- snell
+	s.fields["protocol"]:value("snell", "Snell")
+	s.fields["users"]:depends({ protocol = "snell" })
+
+	o = s:option(ListValue, "snell_version", translate("Version"))
+	o:value("5")
+	o:value("6")
+	o:depends({ protocol = "snell" })
+
+	o = s:option(Value, "snell_psk", translate("Pre shared key"))
+	o.rmempty = false
+	o:depends({ protocol = "snell" })
+
+	o = s:option(ListValue, "snell_obfs_mode", translate("Obfs"))
+	o:value("none")
+	o:value("http")
+	o:depends({ protocol = "snell", snell_version = "5" })
+
+	o = s:option(ListValue, "snell_mode", translate("Mode"))
+	o:value("default")
+	o:value("unshaped")
+	o:value("unsafe-raw")
+	o:depends({ protocol = "snell", snell_version = "6" })
 end
 
 o = s:option(Flag, "firewall_allow", translate("Firewall Allow"))

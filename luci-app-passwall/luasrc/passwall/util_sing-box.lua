@@ -646,6 +646,19 @@ function gen_outbound(flag, node, tag, proxy_table)
 			}
 		end
 
+		if node.protocol == "snell" then
+			protocol_table = {
+				version = tonumber(node.snell_version),
+				psk = node.snell_psk,
+				userkey = node.password,
+				reuse = node.snell_reuse == "1" and true or false,
+				network = node.snell_network,
+				obfs_mode = node.snell_version == "4" and node.snell_obfs_mode or nil,
+				obfs_host = node.snell_version == "4" and node.snell_obfs_host or nil,
+				mode = node.snell_version == "6" and node.snell_mode or nil,
+			}
+		end
+
 		if protocol_table then
 			for key, value in pairs(protocol_table) do
 				result[key] = value
@@ -801,6 +814,10 @@ function gen_config_server(node)
 					u.pre_shared_key = user.wireguard_pre_shared_key
 					u.allowed_ips = user.allowed_ips or {}
 					u.persistent_keepalive_interval = 0
+				end
+				if node.protocol == "snell" then
+					u.name = user.username
+					u.userkey = user.password
 				end
 				users[#users + 1] = u
 			end
@@ -981,6 +998,16 @@ function gen_config_server(node)
 		if users then
 			inbound.peers = users
 		end
+	end
+
+	if node.protocol == "snell" then
+		protocol_table = {
+			users = users,
+			version = tonumber(node.snell_version),
+			psk = node.snell_psk,
+			obfs_mode = node.snell_version == "5" and node.snell_obfs_mode or nil,
+			mode = node.snell_version == "6" and node.snell_mode or nil,
+		}
 	end
 
 	if node.protocol == "direct" then

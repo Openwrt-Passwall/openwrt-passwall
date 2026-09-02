@@ -2183,3 +2183,6 @@ msgstr "密码套件"
 
 msgid "Configures the list of supported cipher suites, separated by :"
 msgstr "配置支持的密码套件列表，以冒号 (:) 分隔。"
+
+msgid "Connection Reuse"
+msgstr "连接复用"
