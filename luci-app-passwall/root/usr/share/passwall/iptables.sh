@@ -1060,7 +1060,7 @@ add_firewall_rule() {
 	$ipt_n -A PSW_OUTPUT $(dst $IPSET_LAN) -j RETURN
 	$ipt_n -A PSW_OUTPUT $(dst $IPSET_VPS) -j RETURN
 	[ "${USE_DIRECT_LIST}" = "1" ] && $ipt_n -A PSW_OUTPUT $(dst $IPSET_WHITE) -j RETURN
-	$ipt_n -A PSW_OUTPUT -m mark --mark 255 -j RETURN
+	$ipt_n -A PSW_OUTPUT -m mark --mark 0xff/0xff -j RETURN
 
 	$ipt_n -N PSW_DNS
 	if [ $(config_n_get @global[0] dns_redirect "1") = "0" ]; then
@@ -1115,7 +1115,7 @@ add_firewall_rule() {
 	[ "${USE_BLOCK_LIST}" = "1" ] && $ipt_m -A PSW_OUTPUT $(dst $IPSET_BLOCK) -j MARK --set-mark 88
 	[ "${USE_DIRECT_LIST}" = "1" ] && $ipt_m -A PSW_OUTPUT $(dst $IPSET_WHITE) -j RETURN
 	$ipt_m -A PSW_OUTPUT -m conntrack --ctdir REPLY -j RETURN
-	$ipt_m -A PSW_OUTPUT -m mark --mark 255 -j RETURN
+	$ipt_m -A PSW_OUTPUT -m mark --mark 0xff/0xff -j RETURN
 
 	ip rule add fwmark ${FWMARK} table 999 priority 999
 	ip route add local 0.0.0.0/0 dev lo table 999
@@ -1130,7 +1130,7 @@ add_firewall_rule() {
 		$ip6t_n -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
 		$ip6t_n -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
 		[ "${USE_DIRECT_LIST}" = "1" ] && $ip6t_n -A PSW_OUTPUT $(dst $IPSET_WHITE6) -j RETURN
-		$ip6t_n -A PSW_OUTPUT -m mark --mark 255 -j RETURN
+		$ip6t_n -A PSW_OUTPUT -m mark --mark 0xff/0xff -j RETURN
 	}
 
 	$ip6t_n -N PSW_DNS
@@ -1167,7 +1167,7 @@ add_firewall_rule() {
 	insert_rule_before "$ip6t_m" "PREROUTING" "PSW" "-p tcp -m socket -j PSW_DIVERT"
 
 	$ip6t_m -N PSW_OUTPUT
-	$ip6t_m -A PSW_OUTPUT -m mark --mark 255 -j RETURN
+	$ip6t_m -A PSW_OUTPUT -m mark --mark 0xff/0xff -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_LAN6) -j RETURN
 	$ip6t_m -A PSW_OUTPUT $(dst $IPSET_VPS6) -j RETURN
 	[ "${USE_BLOCK_LIST}" = "1" ] && $ip6t_m -A PSW_OUTPUT $(dst $IPSET_BLOCK6) -j MARK --set-mark 88

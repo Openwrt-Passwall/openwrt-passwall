@@ -1178,7 +1178,7 @@ add_firewall_rule() {
 	[ "${USE_BLOCK_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE" "ip daddr" "$NFTSET_BLOCK" "counter reject"
 	[ "${USE_DIRECT_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE" "ip daddr" "$NFTSET_WHITE" "counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE ct direction reply counter return"
-	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE meta mark 255 counter return"
+	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE meta mark and 0xff == 0xff counter return"
 
 	# jump chains
 	nft "add rule $NFTABLE_NAME mangle_prerouting counter jump PSW_DIVERT"
@@ -1199,7 +1199,7 @@ add_firewall_rule() {
 		nft "add rule $NFTABLE_NAME PSW_OUTPUT_NAT ip daddr @$NFTSET_VPS counter return"
 		[ "${USE_BLOCK_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_NAT" "ip daddr" "$NFTSET_BLOCK" "counter reject"
 		[ "${USE_DIRECT_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_NAT" "ip daddr" "$NFTSET_WHITE" "counter return"
-		nft "add rule $NFTABLE_NAME PSW_OUTPUT_NAT meta mark 255 counter return"
+		nft "add rule $NFTABLE_NAME PSW_OUTPUT_NAT meta mark and 0xff == 0xff counter return"
 	}
 
 	#icmp ipv6-icmp redirect
@@ -1239,7 +1239,7 @@ add_firewall_rule() {
 	[ "${USE_BLOCK_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "ip6 daddr" "$NFTSET_BLOCK6" "counter reject"
 	[ "${USE_DIRECT_LIST}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "ip6 daddr" "$NFTSET_WHITE6" "counter return"
 	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 ct direction reply counter return"
-	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 meta mark 255 counter return"
+	nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 meta mark and 0xff == 0xff counter return"
 
 	[ -n "$IPT_APPEND_DNS" ] && {
 		local local_dns dns_address dns_port
