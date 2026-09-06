@@ -103,6 +103,7 @@ local function curl(url, file)
 		"--connect-timeout 3",
 		"--max-time 300",
 		"--speed-limit 51200 --speed-time 15",
+		"-H 'Accept: */*'",
 		'-A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"',
 		"--dump-header -",
 		"-w '\\n%{http_code}'"

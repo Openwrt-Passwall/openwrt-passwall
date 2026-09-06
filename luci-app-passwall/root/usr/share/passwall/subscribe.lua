@@ -1708,6 +1708,7 @@ local function curl(url, file, ua, mode)
 		"-fskL",
 		"--retry 3",
 		"--connect-timeout 3",
+		"-H 'Accept: */*'",
 		"-H 'Accept-Encoding: identity'",
 		"--dump-header -",
 		"-w '\\n%{http_code}'"
