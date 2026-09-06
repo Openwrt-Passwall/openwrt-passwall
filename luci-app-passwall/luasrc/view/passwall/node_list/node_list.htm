@@ -421,10 +421,10 @@ table td, .table .td {
 <%- else %>
 	(function() {
 		if (typeof(cbi_t_switch) === "function") {
-			var old_switch = cbi_t_switch;
+			const ori_cbi_t_switch = cbi_t_switch;
 			cbi_t_switch = function(section, tab) {
 				dechecked_all_node();
-				return old_switch(section, tab);
+				return ori_cbi_t_switch(section, tab);
 			};
 		}
 	})();
@@ -1516,36 +1516,70 @@ table td, .table .td {
 
 	//Node list option saving logic
 	document.addEventListener("DOMContentLoaded", function () {
-		function onChange(option, value) {
+		function onChange(option, value, refresh) {
 			ajax.abortAll();
 			XHR.get('<%=api.url("save_node_list_opt")%>', {
 				option: option,
 				value: value
 			}, function(x) {
 				if (x && x.status == 200) {
-					document.getElementById("node_list").innerHTML = "";
-					loadNodeList();
+					if (refresh) {
+						document.getElementById("node_list").innerHTML = "";
+						loadNodeList();
+					}
 				} else {
 					alert("<%:Error%>");
 				}
 			});
 		}
 
-		waitForElement('input[type="checkbox"][name*="<%=appname%>"][name*="show_node_info"]', function(el) {
-			el.addEventListener("change", () => {
-				el.blur();
-				show_node_info = el.checked ? "1" : "0";
-				onChange("show_node_info", show_node_info);
+		function dom_event() {
+			waitForElement('input[type="checkbox"][name*="<%=appname%>"][name*="show_node_info"]', function(el) {
+				el.addEventListener("change", () => {
+					el.blur();
+					show_node_info = el.checked ? "1" : "0";
+					onChange("auto_detection_time", auto_detection_time, true);
+				});
 			});
-		});
 
-		waitForElement('select[name*="<%=appname%>"][name*="auto_detection_time"]', function(el) {
-			el.addEventListener("change", () => {
-				el.blur();
-				auto_detection_time = el.value;
-				onChange("auto_detection_time", auto_detection_time);
-			});
-		});
+			<% if api.is_js_luci() then -%>
+				waitForElement('div[id*="cbid.<%=appname%>"][id*="url_test_url"]', function(el) {
+					el.addEventListener("cbi-dropdown-change", () => {
+						if (el.value && (!el.new_val || el.new_val != el.value)) {
+							onChange("url_test_url", el.value, false);
+							el.new_val = el.value;
+						}
+					});
+				});
+			<% else -%>
+				waitForElement('select[id*="<%=appname%>"][id*="url_test_url"]', function(el) {
+					el.addEventListener("change", () => {
+						if (el.value && (!el.new_val || el.new_val != el.value)) {
+							onChange("url_test_url", el.value, false);
+							el.new_val = el.value;
+						}
+					});
+				});
+
+				waitForElement('input[id*="<%=appname%>"][id*="url_test_url"]', function(el) {
+					el.addEventListener("change", () => {
+						if (el.value && (!el.new_val || el.new_val != el.value)) {
+							onChange("url_test_url", el.value, false);
+							el.new_val = el.value;
+						}
+					});
+				});
+			<% end -%>
+		}
+
+		<% if not api.is_js_luci() then -%>
+			const ori_cbi_d_update = cbi_d_update;
+			cbi_d_update = function() {
+				ori_cbi_d_update();
+				dom_event();
+			};
+		<% end -%>
+		dom_event();
 
 		const links = document.querySelectorAll('a');
 		links.forEach(link => {

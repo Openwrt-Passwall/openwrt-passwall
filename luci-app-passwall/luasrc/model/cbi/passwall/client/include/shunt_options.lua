@@ -4,6 +4,7 @@ if not data.node_id or not data.node then
 	return
 end
 
+local api = m.api
 local s_cfgid = data.s_cfgid
 local current_node_id = data.node_id
 local node_list = data.node_list or api.get_node_list()

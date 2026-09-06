@@ -4,7 +4,8 @@
 
 . /usr/share/passwall/utils.sh
 LOCK_FILE=${LOCK_PATH}/${CONFIG}_lease2hosts.lock
-LEASE_FILE="/tmp/dhcp.leases"
+LEASE_FILE=$(uci -q get "dhcp.@dnsmasq[0].leasefile")
+LEASE_FILE=${LEASE_FILE:="/tmp/dhcp.leases"}
 HOSTS_FILE="$TMP_PATH2/dhcp-hosts"
 TMP_FILE="/tmp/dhcp-hosts.tmp"
 

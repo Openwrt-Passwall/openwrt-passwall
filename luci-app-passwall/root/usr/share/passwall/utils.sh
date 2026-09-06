@@ -40,9 +40,10 @@ config_n_get() {
 	echo "${ret:=$3}"
 }
 
-config_t_set() {
+config_t_get() {
 	local index=${4:-0}
-	local ret=$(uci -q set "${CONFIG}.@${1}[${index}].${2}=${3}" 2>/dev/null)
+	local ret=$(uci -q get "${CONFIG}.@${1}[${index}].${2}" 2>/dev/null)
+	echo "${ret:=${3}}"
 }
 
 first_type() {

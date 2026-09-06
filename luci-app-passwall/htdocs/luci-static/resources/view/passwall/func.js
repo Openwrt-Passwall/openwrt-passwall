@@ -47,6 +47,11 @@ function waitForElement(selector, callback) {
 	observer.observe(document.body, { childList: true, subtree: true });
 }
 
+function waitForElementId(id, callback) {
+	waitForElement("#" + CSS.escape(id), callback);
+	//waitForElement('[id="' + id + '"]', callback);
+}
+
 function get_current_url() {
 	return window.location.origin + window.location.pathname;
 }

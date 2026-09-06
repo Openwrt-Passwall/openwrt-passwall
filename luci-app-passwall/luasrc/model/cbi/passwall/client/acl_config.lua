@@ -192,10 +192,15 @@ o.rmempty = false
 o:depends({ _hide_node_option = "1",  ['!reverse'] = true })
 
 o = s:option(ListValue, "node", "<a style='color: red'>" .. translate("Proxy Node") .. "</a>")
-o.default = ""
+o.group = {}
 o:depends({ _hide_node_option = false, use_global_config = false })
 o.template = m:template_path("/cbi/nodes_listvalue")
-o.group = {}
+
+current_node_id = o:formvalue(arg[1])
+if not current_node_id then
+	current_node_id = m:get(arg[1], "node")
+end
+current_node = current_node_id and m:get(current_node_id) or {}
 
 o = s:option(DummyValue, "_acl_node_bool", "")
 o.template = m:template_path("/cbi/hidevalue")
@@ -519,6 +524,8 @@ o.description = desc .. "</ul>"
 o:depends({dns_shunt = "dnsmasq", tcp_proxy_mode = "proxy", chn_list = "direct"})
 
 local o_node = s.fields["node"]
+local shunt_list = {}
+
 for k, v in pairs(socks_list) do
 	o_node:value(v.id, v["remark"])
 	o_node.group[#o_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
@@ -528,7 +535,7 @@ for k, v in pairs(nodes_table) do
 		s.fields["dns_mode"]:depends({ _acl_node_bool = "1" })
 		break
 	end
-	if v.protocol == "_shunt" then
+	if v.protocol and v.protocol == "_shunt" then
 		if v.type == "Xray" and has_xray then
 			o_node:value(v.id, v["remark"])
 			o_node.group[#o_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
@@ -544,6 +551,7 @@ for k, v in pairs(nodes_table) do
 			s.fields["_node_sel_shunt"]:depends({ node = v.id })
 			s.fields["remote_rewrite_ttl"]:depends({ _acl_node_bool = "1", node = v.id })
 		end
+		shunt_list[#shunt_list + 1] = v
 	else
 		o_node:value(v.id, v["remark"])
 		o_node.group[#o_node.group+1] = (v.group and v.group ~= "") and v.group or translate("default")
@@ -551,5 +559,20 @@ for k, v in pairs(nodes_table) do
 end
 
 m:appendTemplate("/acl/config_footer", {section = arg[1]})
+
+--[[
+-- Shunt
+if current_node.protocol == "_shunt" then
+	local shunt_lua = loadfile("/usr/lib/lua/luci/model/cbi/passwall/client/include/shunt_options.lua")
+	setfenv(shunt_lua, getfenv(1))(m, s, {
+		s_cfgid = s.section,
+		node_id = current_node_id,
+		node = current_node,
+		verify_option = s.fields["node"]
+	})
+end
+
+m:appendTemplate("/acl/shunt", { shunt_list = api.jsonc.stringify(shunt_list), section = s.section })
+]]--
 
 return api.return_map(m)

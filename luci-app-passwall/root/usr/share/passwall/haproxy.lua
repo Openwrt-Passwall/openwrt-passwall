@@ -111,7 +111,7 @@ api.uci_foreach_c("haproxy_config", function(t)
 				if server_node.type ~= "Socks" then
 					local relay_port = server_node.port
 					local new_port = api.get_new_port()
-					local config_file = string.format("haproxy_%s_%s.json", t[".name"], new_port)
+					local config_file = string.format("%s_%s.json", t[".name"], new_port)
 					sys.call(string.format('/usr/share/%s/app.sh run_socks "%s"> /dev/null',
 						appname,
 						string.format("flag=%s node=%s bind=%s socks_port=%s config_file=%s",
