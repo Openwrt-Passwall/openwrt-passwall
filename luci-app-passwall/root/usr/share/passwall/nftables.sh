@@ -908,16 +908,22 @@ add_script_mwan3() {
 	}
 }
 
+MWAN3_RULE_ARGS="-m connmark --mark ${FWMARK}/0xffffffff -j RETURN"
+
 mwan3_stop() {
+	nft list chain ip mangle mwan3_hook >/dev/null 2>&1 || return 0
 	local handles=$(nft -a list chain ip mangle mwan3_hook 2>/dev/null | grep "${FWMARK}" | awk -F '# handle ' '{print$2}')
 	for handle in $handles; do
 		nft delete rule ip mangle mwan3_hook handle ${handle} 2>/dev/null
 	done
+	while iptables -w 5 -t mangle -D mwan3_hook ${MWAN3_RULE_ARGS} >/dev/null 2>&1; do :; done
 }
 
 mwan3_start() {
+	nft list chain ip mangle mwan3_hook >/dev/null 2>&1 || return 0
 	mwan3_stop
-	nft list chain ip mangle mwan3_hook >/dev/null 2>&1 && nft insert rule ip mangle mwan3_hook ct mark ${FWMARK} counter return >/dev/null 2>&1
+	iptables -w 5 -t mangle -I mwan3_hook 1 ${MWAN3_RULE_ARGS} >/dev/null 2>&1 || \
+		logger -t passwall "mwan3: failed to add ${FWMARK} exemption rule to mangle/mwan3_hook"
 }
 
 update_wan_sets() {
