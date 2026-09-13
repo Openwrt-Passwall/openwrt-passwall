@@ -2189,3 +2189,18 @@ msgstr "配置支持的密码套件列表，以冒号 (:) 分隔。"
 
 msgid "Connection Reuse"
 msgstr "连接复用"
+
+msgid "Local DNS passthrough"
+msgstr "本地 DNS 透传"
+
+msgid "Forward complete DNS replies through the same loopback TCP resolver for direct and remote DNS. Only for the global Xray shunt with Dnsmasq; requires Xray 26.4.25 or newer."
+msgstr "将直连和远程 DNS 的完整应答交给同一个回环地址上的 TCP 解析器。仅适用于使用 Dnsmasq 的全局 Xray 分流节点，需要 Xray 26.4.25 或更新版本。"
+
+msgid "Disable FakeDNS, Filter Proxy Host IPv6 and EDNS Client Subnet first. The local resolver controls client DNS filtering and caching. Do not point it back to PassWall or port 53."
+msgstr "请先关闭 FakeDNS、过滤代理域名 IPv6 和 EDNS Client Subnet。客户端 DNS 的过滤和缓存由本地解析器负责；该解析器不能回指 PassWall 或 53 端口。"
+
+msgid "Local DNS passthrough requires a global Xray shunt, Dnsmasq, TCP DNS and Xray 26.4.25 or newer."
+msgstr "本地 DNS 透传需要全局 Xray 分流节点、Dnsmasq、TCP DNS，以及 Xray 26.4.25 或更新版本。"
+
+msgid "Local DNS passthrough cannot be combined with FakeDNS, a default blackhole, IPv6 filtering or ECS."
+msgstr "本地 DNS 透传不能与 FakeDNS、默认黑洞、IPv6 过滤或 ECS 同时使用。"

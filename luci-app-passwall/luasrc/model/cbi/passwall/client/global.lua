@@ -411,6 +411,31 @@ o:depends({singbox_dns_mode = "tcp"})
 o:depends({singbox_dns_mode = "tls"})
 o:depends({singbox_dns_mode = "quic"})
 
+o = s:taboption("DNS", Flag, "local_dns_passthrough", translate("Local DNS passthrough"))
+o.default = "0"
+o.description = translate("Forward complete DNS replies through the same loopback TCP resolver for direct and remote DNS. Only for the global Xray shunt with Dnsmasq; requires Xray 26.4.25 or newer.") .. "<br />" ..
+	translate("Disable FakeDNS, Filter Proxy Host IPv6 and EDNS Client Subnet first. The local resolver controls client DNS filtering and caching. Do not point it back to PassWall or port 53.")
+o:depends({ node = "__always__" })
+o.validate = function(self, value, section)
+	if value ~= "1" then return value end
+	local function form(option)
+		local field = s.fields[option]
+		return field and field:formvalue(section)
+	end
+	local node = form("node")
+	if not node or m:get(node, "type") ~= "Xray" or m:get(node, "protocol") ~= "_shunt"
+		or form("dns_shunt") ~= "dnsmasq" or form("direct_dns_mode") ~= "tcp" or form("xray_dns_mode") ~= "tcp"
+		or api.compare_versions(api.get_app_version("xray"), "<", "26.4.25") then
+		return nil, translate("Local DNS passthrough requires a global Xray shunt, Dnsmasq, TCP DNS and Xray 26.4.25 or newer.")
+	end
+	if m:get(node, "fakedns") == "1" or m:get(node, "default_node") == "_blackhole"
+		or form("remote_fakedns") == "1" or form("filter_proxy_ipv6") == "1"
+		or (form("remote_dns_client_ip") or "") ~= "" then
+		return nil, translate("Local DNS passthrough cannot be combined with FakeDNS, a default blackhole, IPv6 filtering or ECS.")
+	end
+	return value
+end
+
 ---- DoH
 o = s:taboption("DNS", Value, "remote_dns_doh", translate("Remote DNS DoH"))
 o.description = translate("Format: URL[,IP] (optional IP to map the domain in the URL)")
@@ -761,6 +786,7 @@ for k, v in pairs(nodes_table) do
 			s.fields["_node_sel_shunt"]:depends({ node = v.id })
 			if m:get(v.id, "type") == "Xray" then
 				s.fields["xray_dns_mode"]:depends({ node = v.id })
+				s.fields["local_dns_passthrough"]:depends({ node = v.id, dns_shunt = "dnsmasq" })
 			else
 				s.fields["singbox_dns_mode"]:depends({ node = v.id })
 				s.fields["remote_rewrite_ttl"]:depends({ node = v.id })

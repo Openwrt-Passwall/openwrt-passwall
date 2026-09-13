@@ -200,6 +200,7 @@ run_singbox() {
 
 run_xray() {
 	local flag type node redir_port tcp_proxy_way socks_address socks_port socks_username socks_password http_address http_port http_username http_password
+	local local_dns_passthrough
 	local dns_listen_port direct_dns_query_strategy direct_dns_port direct_dns_udp_server direct_dns_tcp_server remote_dns_protocol remote_dns_udp_server remote_dns_tcp_server remote_dns_doh remote_dns_client_ip remote_fakedns remote_dns_query_strategy dns_cache dns_socks_address dns_socks_port
 	local loglevel log_file config_file server_host server_port no_run use_proxy_list use_gfw_list chn_list
 	eval_set_val "$@"
@@ -278,6 +279,7 @@ run_xray() {
 
 	json_add_string "loglevel" "$loglevel"
 	[ -n "$no_run" ] && json_add_string "no_run" "1"
+	[ "$local_dns_passthrough" = "1" ] && json_add_string "local_dns_passthrough" "1"
 	local _json_arg="$(json_dump)"
 	lua $UTIL_XRAY gen_config "${_json_arg}" > $config_file
 	[ -n "$no_run" ] && return
@@ -753,6 +755,9 @@ start_global() {
 			}
 			NEXT_DNS_LISTEN_PORT=$(expr $NEXT_DNS_LISTEN_PORT + 1)
 		}
+		[ "$protocol" = "_shunt" ] && [ "$DNS_SHUNT" = "dnsmasq" ] &&
+			[ "$(config_n_get @global[0] local_dns_passthrough 0)" = "1" ] &&
+			_args="${_args} local_dns_passthrough=1"
 		_args="${_args} use_proxy_list=$USE_PROXY_LIST use_gfw_list=$USE_GFW_LIST chn_list=$CHN_LIST"
 		run_xray flag=$_flag node=$NODE redir_port=$REDIR_PORT tcp_proxy_way=$TCP_PROXY_WAY config_file=$config_file log_file=$log_file ${_args}
 	;;
