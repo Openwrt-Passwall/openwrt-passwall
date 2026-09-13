@@ -913,7 +913,7 @@ function gen_config_server(node)
 			stream_receive_window = node.hysteria_recv_window_conn and tonumber(node.hysteria_recv_window_conn) or nil,
 			connection_receive_window = node.hysteria_recv_window_client and tonumber(node.hysteria_recv_window_client) or nil,
 			max_concurrent_streams = node.hysteria_max_conn_client and tonumber(node.hysteria_max_conn_client) or nil,
-			disable_path_mtu_discover = (node.hysteria_disable_mtu_discovery == "1") and true or false,
+			disable_path_mtu_discovery = (node.hysteria_disable_mtu_discovery == "1") and true or false,
 			tls = tls
 		}
 	end
