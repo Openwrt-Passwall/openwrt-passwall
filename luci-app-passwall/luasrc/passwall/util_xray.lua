@@ -901,6 +901,34 @@ function gen_config(var)
 	local use_proxy_list = var["use_proxy_list"]
 	local use_gfw_list = var["use_gfw_list"]
 	local chn_list = var["chn_list"]
+	local local_dns_passthrough = var["local_dns_passthrough"] == "1"
+	local local_dns_address, local_dns_port
+	if local_dns_passthrough then
+		local node = api.uci_get_c(node_id) or {}
+		assert(flag == "global" and node.type == "Xray" and node.protocol == "_shunt" and dns_listen_port,
+			"Local DNS passthrough requires the global Xray shunt DNS instance")
+		assert(not api.compare_versions(xray_version, "<", "26.4.25"),
+			"Local DNS passthrough requires Xray 26.4.25 or newer")
+		local function loopback(address)
+			address = (address or ""):gsub("^%[(.-)%]$", "%1")
+			if address == "0:0:0:0:0:0:0:1" then address = "::1" end
+			if address == "127.0.0.1" or address == "::1" then return address end
+		end
+		local_dns_address = loopback(direct_dns_tcp_server)
+		local_dns_port = tonumber(direct_dns_port) or 53
+		assert(local_dns_address and local_dns_address == loopback(remote_dns_tcp_server)
+			and not direct_dns_udp_server and not remote_dns_udp_server and not remote_dns_doh
+			and local_dns_port == (tonumber(remote_dns_tcp_port) or 53)
+			and local_dns_port >= 1 and local_dns_port <= 65535 and local_dns_port % 1 == 0,
+			"Local DNS passthrough requires the same loopback TCP server and port for direct and remote DNS")
+		assert(local_dns_port ~= 53 and local_dns_port ~= tonumber(dns_listen_port),
+			"Local DNS passthrough must not point back to the DNS frontend")
+		assert((not direct_dns_query_strategy or direct_dns_query_strategy == "" or direct_dns_query_strategy == "UseIP")
+			and remote_dns_query_strategy == "UseIP"
+			and (not remote_dns_client_ip or remote_dns_client_ip == "")
+			and not dns_socks_address and not dns_socks_port,
+			"Local DNS passthrough requires unfiltered DNS without ECS or a DNS SOCKS proxy")
+	end
 
 	local dns_domain_rules = {}
 	local dns = nil
@@ -1782,6 +1810,10 @@ function gen_config(var)
 
 		local dns_rule_position = 1
 		local remote_dns_outbound
+		if local_dns_passthrough then
+			assert(not fakedns and COMMON.default_outbound_tag and COMMON.default_outbound_tag ~= "blackhole",
+				"Local DNS passthrough is incompatible with FakeDNS or a default blackhole")
+		end
 		if dns_listen_port then
 			table.insert(inbounds, {
 				listen = "127.0.0.1",
@@ -1809,6 +1841,12 @@ function gen_config(var)
 					rules = (api.compare_versions(xray_version, ">", "26.4.17")) and {} or nil
 				}
 			}
+			if local_dns_passthrough then
+				-- Keep the whole reply (including CNAME and non-address records) at the local resolver.
+				remote_dns_outbound.settings.address = local_dns_address
+				remote_dns_outbound.settings.port = local_dns_port
+				remote_dns_outbound.streamSettings = { sockopt = { dialerProxy = "direct" } }
+			end
 
 			table.insert(routing.rules, 1, {
 				inboundTag = {
@@ -1873,7 +1911,7 @@ function gen_config(var)
 						})
 					else
 						table.insert(remote_dns_out_rules, {
-							action = "hijack",
+							action = local_dns_passthrough and "direct" or "hijack",
 							qType = "1,28",
 							domain = api.clone(value.domain)
 						})
@@ -1940,7 +1978,7 @@ function gen_config(var)
 		if remote_dns_outbound then
 			if remote_dns_outbound.settings.rules then
 				table.insert(remote_dns_out_rules, {
-					action = "hijack",
+					action = local_dns_passthrough and "direct" or "hijack",
 					qType = "1,28"
 				})
 				table.insert(remote_dns_out_rules, {
