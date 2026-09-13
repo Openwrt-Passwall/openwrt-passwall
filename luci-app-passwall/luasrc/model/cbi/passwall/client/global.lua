@@ -117,6 +117,7 @@ if node_value then
 	current_node_id = node_value
 end
 current_node = current_node_id and m:get(current_node_id) or {}
+local shunt_default_node, shunt_default_row
 
 -- Shunt Start
 if (has_singbox or has_xray) and #nodes_table > 0 then
@@ -129,6 +130,12 @@ if (has_singbox or has_xray) and #nodes_table > 0 then
 				tab = "Shunt",
 				tab_desc = translate("Shunt Rule"),
 			})
+			for row, rule in pairs(s2.data or {}) do
+				if rule._node_option == "default_node" then
+					shunt_default_node, shunt_default_row = s2.fields._node, row
+					break
+				end
+			end
 		end
 	else
 		local tips = s:taboption("Main", DummyValue, "tips", "　")
@@ -428,7 +435,17 @@ o.validate = function(self, value, section)
 		or api.compare_versions(api.get_app_version("xray"), "<", "26.4.25") then
 		return nil, translate("Local DNS passthrough requires a global Xray shunt, Dnsmasq, TCP DNS and Xray 26.4.25 or newer.")
 	end
-	if m:get(node, "fakedns") == "1" or m:get(node, "default_node") == "_blackhole"
+	local default_node, fakedns = m:get(node, "default_node"), m:get(node, "fakedns")
+	local node_save_before = luci.http.formvalue("node_save_before")
+	-- The shunt Table is parsed after this section. Check the values that its
+	-- write callbacks will apply, not the old UCI values; respect skipped writes.
+	if (not node_save_before or node_save_before == node) and luci.http.formvalue("load_shunt") ~= "1" then
+		if shunt_default_node then
+			default_node = shunt_default_node:formvalue(shunt_default_row) or default_node
+		end
+		if s.fields.fakedns then fakedns = form("fakedns") end
+	end
+	if fakedns == "1" or default_node == "_blackhole"
 		or form("remote_fakedns") == "1" or form("filter_proxy_ipv6") == "1"
 		or (form("remote_dns_client_ip") or "") ~= "" then
 		return nil, translate("Local DNS passthrough cannot be combined with FakeDNS, a default blackhole, IPv6 filtering or ECS.")

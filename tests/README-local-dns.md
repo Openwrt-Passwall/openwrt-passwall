@@ -4,6 +4,7 @@ Run from the repository root with Lua 5.1:
 
 ```sh
 lua tests/test_xray_local_dns.lua
+lua tests/test_xray_local_dns_form.lua
 python3 tests/test_xray_local_dns_bridge.py
 ```
 
@@ -24,6 +25,12 @@ The Python smoke test executes the real `run_xray` and `eval_set_val` shell
 functions with substituted UCI/JSON/Lua boundaries and `no_run=1`. It also
 executes the global Xray arm's opt-in selection statement over 18 combinations.
 It checks argument serialization and isolation, not full service orchestration.
+
+The form regression loads the complete CBI model and shunt-options include with
+separate stored UCI and submitted HTTP values. It invokes the actual Flag
+validation callback for simultaneous shunt-target/FakeDNS changes and skipped
+writes. It does not replace those two states with an already-updated UCI view,
+and does not claim to exercise a browser or the entire CBI save/apply lifecycle.
 
 ## Opt-in behavior
 
