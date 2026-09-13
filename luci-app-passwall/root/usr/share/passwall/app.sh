@@ -200,7 +200,7 @@ run_singbox() {
 
 run_xray() {
 	local flag type node redir_port tcp_proxy_way socks_address socks_port socks_username socks_password http_address http_port http_username http_password
-	local local_dns_passthrough
+	local local_dns_passthrough=0
 	local dns_listen_port direct_dns_query_strategy direct_dns_port direct_dns_udp_server direct_dns_tcp_server remote_dns_protocol remote_dns_udp_server remote_dns_tcp_server remote_dns_doh remote_dns_client_ip remote_fakedns remote_dns_query_strategy dns_cache dns_socks_address dns_socks_port
 	local loglevel log_file config_file server_host server_port no_run use_proxy_list use_gfw_list chn_list
 	eval_set_val "$@"

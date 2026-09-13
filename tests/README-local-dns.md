@@ -4,6 +4,7 @@ Run from the repository root with Lua 5.1:
 
 ```sh
 lua tests/test_xray_local_dns.lua
+python3 tests/test_xray_local_dns_bridge.py
 ```
 
 The test loads the real Xray `gen_config(var)` in a fresh environment for each
@@ -18,6 +19,11 @@ endpoint. The suite checks complete generated configurations, ordered DNS
 policy, unchanged node DNS, default-off compatibility and rejected conflicts.
 This is a configuration-generation test, not a Linux packet-path or Xray wire
 protocol integration test.
+
+The Python smoke test executes the real `run_xray` and `eval_set_val` shell
+functions with substituted UCI/JSON/Lua boundaries and `no_run=1`. It also
+executes the global Xray arm's opt-in selection statement over 18 combinations.
+It checks argument serialization and isolation, not full service orchestration.
 
 ## Opt-in behavior
 
