@@ -1640,6 +1640,9 @@ msgstr "用户管理"
 msgid "User Config"
 msgstr "用户配置"
 
+msgid "Please configure user info on the User Management page."
+msgstr "请在用户管理页设置用户信息。"
+
 msgid "Logs"
 msgstr "日志"
 

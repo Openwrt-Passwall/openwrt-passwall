@@ -50,6 +50,21 @@ for i, v in ipairs(user_list) do
 	o:value(v[".name"], v.username)
 end
 o:depends({ custom = false })
+o.validate = function(self, value, t)
+	if type(value) == "string" then value = {value} end
+	if type(value) == "table" then
+		for _, u in ipairs(value) do
+			local found = false
+			for _, v in ipairs(user_list) do
+				if u == v[".name"] then found = true; break end
+			end
+			if not found then
+				return nil, translate("Please configure user info on the User Management page.")
+			end
+		end
+	end
+	return value
+end
 
 o = s:option(Flag, "realms", translate("Realms"))
 o.default = "0"

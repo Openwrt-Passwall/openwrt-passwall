@@ -3,6 +3,13 @@ local map = self.map
 local api = map.api
 local section = self.section
 -%>
+<style>
+	[id*="_users"] .cbi-dropdown li[data-value="-"],
+	[id*="_users"] .cbi-dropdown input[type="text"],
+	[id*="_users"] .cbi-dropdown .preview li[data-value="-"] {
+		display: none !important;
+	}
+</style>
 <script type="text/javascript">
 	//<![CDATA[
 	function server_update_config(cfgid, data, redirect_url) {
