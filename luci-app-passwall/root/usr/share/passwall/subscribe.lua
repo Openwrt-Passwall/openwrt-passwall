@@ -749,6 +749,12 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 				if idx_pn then
 					result.plugin = plugin_info:sub(1, idx_pn - 1)
 					result.plugin_opts = plugin_info:sub(idx_pn + 1, #plugin_info)
+					if result.type == "SS-Rust" and result.plugin == "shadow-tls" then
+						result.plugin_opts = result.plugin_opts:gsub("^password=", "passwd=")
+						result.plugin_opts = result.plugin_opts:gsub(";password=", ";passwd=")
+						result.plugin_opts = result.plugin_opts:gsub("^version=3", "v3=1")
+						result.plugin_opts = result.plugin_opts:gsub(";version=3", ";v3=1")
+					end
 				else
 					result.plugin = plugin_info
 				end
