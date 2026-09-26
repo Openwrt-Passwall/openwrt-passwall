@@ -20,6 +20,7 @@ function index()
 			luci.sys.call('cp -f /usr/share/passwall/0_default_config /etc/config/passwall')
 		else return end
 	end
+	luci.sys.call("mkdir -p /etc/passwall/rules")
 	local api = require "luci.passwall.api"
 	local appname = api.appname		-- global definitions not available
 	local fs = api.fs
@@ -854,13 +855,15 @@ end
 local backup_files = {
     "/etc/config/passwall",
     "/etc/config/passwall_server",
-    "/usr/share/passwall/rules/block_host",
-    "/usr/share/passwall/rules/block_ip",
-    "/usr/share/passwall/rules/direct_host",
-    "/usr/share/passwall/rules/direct_ip",
-    "/usr/share/passwall/rules/proxy_host",
-    "/usr/share/passwall/rules/proxy_ip",
-    "/usr/share/passwall/rules/domains_excluded"
+    "/etc/passwall/rules/block_host",
+    "/etc/passwall/rules/block_ip",
+    "/etc/passwall/rules/direct_host",
+    "/etc/passwall/rules/direct_ip",
+    "/etc/passwall/rules/proxy_host",
+    "/etc/passwall/rules/proxy_ip",
+    "/etc/passwall/rules/lanlist_ipv4",
+    "/etc/passwall/rules/lanlist_ipv6",
+    "/etc/passwall/rules/domains_excluded"
 }
 
 function create_backup()
@@ -965,6 +968,13 @@ function reset_config()
 		luci.sys.call('/etc/init.d/passwall stop')
 		if luci.sys.call('[ -s "/usr/share/passwall/0_default_config" ]') == 0 then
 			luci.sys.call('cp -f /usr/share/passwall/0_default_config /etc/config/passwall')
+			local files = {
+				"direct_host", "direct_ip", "proxy_host", "proxy_ip", "block_host", "block_ip",
+				"lanlist_ipv4", "lanlist_ipv6", "domains_excluded"
+			}
+			for _, f in ipairs(files) do
+				luci.sys.call("cp -f /usr/share/passwall/rules/" .. f .. " /etc/passwall/rules/" .. f)
+			end
 			api.log(" * 恢复默认配置成功。")
 		else
 			api.log(" * 找不到默认配置文件，重置失败！")

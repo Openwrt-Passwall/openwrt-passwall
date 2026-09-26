@@ -1643,8 +1643,8 @@ function gen_config(var)
 					return table.concat(list, "\n")
 				end
 
-				local domain_list = read_proxy_list("/usr/share/passwall/rules/proxy_host")
-				local ip_list = read_proxy_list("/usr/share/passwall/rules/proxy_ip")
+				local domain_list = read_proxy_list("/etc/passwall/rules/proxy_host")
+				local ip_list = read_proxy_list("/etc/passwall/rules/proxy_ip")
 
 				local bin = api.finded_com("geoview")
 				if bin then

@@ -31,6 +31,21 @@ uci commit firewall
 
 [ ! -s "/etc/config/passwall" ] && cp -f /usr/share/passwall/0_default_config /etc/config/passwall
 
+mkdir -p /etc/passwall/rules
+for file in \
+	direct_host \
+	direct_ip \
+	proxy_host \
+	proxy_ip \
+	block_host \
+	block_ip \
+	lanlist_ipv4 \
+	lanlist_ipv6 \
+	domains_excluded
+do
+	[ -f "/etc/passwall/rules/$file" ] || cp "/usr/share/passwall/rules/$file" "/etc/passwall/rules/$file"
+done
+
 chmod +x /usr/share/passwall/*.sh
 
 [ "$(uci -q get passwall.@global_xray[0].sniffing)" == "1" ] && [ "$(uci -q get passwall.@global_xray[0].route_only)" != "1" ] && uci -q set passwall.@global_xray[0].sniffing_override_dest=1

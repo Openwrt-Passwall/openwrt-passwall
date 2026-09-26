@@ -193,7 +193,7 @@ if has_xray then
 	o.default = 0
 	o.description = translate("Override the connection destination address with the sniffed domain.<br />Otherwise use sniffed domain for routing only.<br />If using shunt nodes, configure the domain shunt rules correctly.")
 
-	local domains_excluded = string.format("/usr/share/%s/rules/domains_excluded", m.config)
+	local domains_excluded = string.format("/etc/%s/rules/domains_excluded", m.config)
 	o = s_xray:option(TextValue, "excluded_domains", translate("Excluded Domains"), translate("If the traffic sniffing result is in this list, the destination address will not be overridden."))
 	o.rows = 15
 	o.wrap = "off"

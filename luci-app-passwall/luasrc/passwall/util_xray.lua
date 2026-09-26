@@ -15,7 +15,7 @@ local xray_version = api.get_app_version("xray")
 local xray_min_version = "26.7.11"
 
 local function get_domain_excluded()
-	local path = string.format("/usr/share/%s/rules/domains_excluded", api.c_config)
+	local path = string.format("/etc/%s/rules/domains_excluded", api.c_config)
 	local content = fs.readfile(path)
 	if not content then return nil end
 	local hosts = {}
@@ -1425,8 +1425,8 @@ function gen_config(var)
 					return table.concat(list, "\n")
 				end
 
-				local domain_list = read_proxy_list("/usr/share/passwall/rules/proxy_host")
-				local ip_list = read_proxy_list("/usr/share/passwall/rules/proxy_ip")
+				local domain_list = read_proxy_list("/etc/passwall/rules/proxy_host")
+				local ip_list = read_proxy_list("/etc/passwall/rules/proxy_ip")
 
 				local bin = api.finded_com("geoview")
 				if bin then

@@ -336,6 +336,7 @@ function add_rule(var)
 	local cache_text = ""
 	local nodes_address_md5 = sys.exec("echo -n $(uci show passwall | grep '\\.address') | md5sum")
 	local new_rules = sys.exec("echo -n $(find /usr/share/passwall/rules -type f | xargs md5sum)")
+	new_rules = new_rules .. sys.exec("echo -n $(find /etc/passwall/rules -type f | xargs md5sum)")
 	local new_text = TMP_DNSMASQ_PATH .. DNSMASQ_CONF_FILE .. DEFAULT_DNS .. LOCAL_DNS .. TUN_DNS .. USE_DEFAULT_DNS .. CHINADNS_DNS .. USE_DIRECT_LIST .. USE_PROXY_LIST .. USE_BLOCK_LIST .. USE_GFW_LIST .. CHN_LIST .. DEFAULT_PROXY_MODE .. NO_PROXY_IPV6 .. nodes_address_md5 .. new_rules .. NFTFLAG
 	if fs.access(CACHE_TEXT_FILE) then
 		for line in io.lines(CACHE_TEXT_FILE) do
@@ -380,7 +381,7 @@ function add_rule(var)
 		--屏蔽列表
 		if USE_CHINADNS_NG == "0" and USE_BLOCK_LIST == "1" then
 			local geosite_arg = ""
-			local f = io.open("/usr/share/passwall/rules/block_host")
+			local f = io.open("/etc/passwall/rules/block_host")
 			if f then
 				for line in f:lines() do
 					if not line:find("#") and line:find("geosite:") then
@@ -455,7 +456,7 @@ function add_rule(var)
 				}
 				--始终用国内DNS解析直连（白名单）列表
 				local geosite_arg = ""
-				local f = io.open("/usr/share/passwall/rules/direct_host")
+				local f = io.open("/etc/passwall/rules/direct_host")
 				if f then
 					for line in f:lines() do
 						if not line:find("#") and line:find("geosite:") then
@@ -505,7 +506,7 @@ function add_rule(var)
 				end
 				--始终使用远程DNS解析代理（黑名单）列表
 				local geosite_arg = ""
-				local f = io.open("/usr/share/passwall/rules/proxy_host")
+				local f = io.open("/etc/passwall/rules/proxy_host")
 				if f then
 					for line in f:lines() do
 						if not line:find("#") and line:find("geosite:") then

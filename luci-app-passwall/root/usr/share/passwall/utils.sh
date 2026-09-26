@@ -14,6 +14,7 @@ TMP_IFACE_PATH=${TMP_PATH}/iface
 TMP_ROUTE_PATH=${TMP_PATH}/route
 TMP_SCRIPT_FUNC_PATH=${TMP_PATH}/script_func
 RULES_PATH=/usr/share/${CONFIG}/rules
+USER_RULES_PATH=/etc/${CONFIG}/rules
 
 IPv6_REGEX="([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|"
 IPv6_REGEX="${IPv6_REGEX}([0-9a-fA-F]{1,4}:){1,7}:|"
@@ -493,11 +494,11 @@ get_subscribe_host(){
 }
 
 gen_lanlist() {
-	cat $RULES_PATH/lanlist_ipv4 | tr -s '\n' | grep -v "^#"
+	cat $USER_RULES_PATH/lanlist_ipv4 | tr -s '\n' | grep -v "^#"
 }
 
 gen_lanlist_6() {
-	cat $RULES_PATH/lanlist_ipv6 | tr -s '\n' | grep -v "^#"
+	cat $USER_RULES_PATH/lanlist_ipv6 | tr -s '\n' | grep -v "^#"
 }
 
 get_wan_ips() {
