@@ -105,7 +105,8 @@ function index()
 	entry({"admin", "services", appname, "read_rulelist"}, call("read_rulelist")).leaf = true
 
 	--[[Components update]]
-	entry({"admin", "services", appname, "check_passwall"}, call("app_check")).leaf = true
+	entry({"admin", "services", appname, "check_" .. appname}, call("app_check")).leaf = true
+	entry({"admin", "services", appname, "update_" .. appname}, call("app_update")).leaf = true
 	local coms = require "luci.passwall.com"
 	local com
 	for _, com in ipairs(coms.order) do
@@ -807,6 +808,23 @@ end
 function app_check()
 	local json = api.to_check_self()
 	http_write_json(json)
+end
+
+function app_update()
+	local id = http.formvalue("id")
+	if not id or not id:match("^[%w_-]+$") then http_write_json({code = 1}); return end
+	local task = http.formvalue("task")
+	local result
+	if task == "progress" then
+		result = api.to_download_progress(appname, id, http.formvalue("total_size"))
+	elseif task == "install" then
+		if not luci.dispatcher.test_post_security() then return end
+		result = api.to_install_self(id, http.formvalue("force"))
+	else
+		local part = http.formvalue("part") == "2" and "2" or "1"
+		result = api.to_download(appname, http.formvalue("url"), http.formvalue("size"), id .. part, part == "2")
+	end
+	http_write_json(result)
 end
 
 function com_check(comname)

@@ -12,7 +12,6 @@ datatypes = require "luci.cbi.datatypes"
 jsonc = require "luci.jsonc"
 i18n = require "luci.i18n"
 
-appname = "passwall"
 curl_args = { "-skfL", "--connect-timeout 3", "--retry 3", "-H 'Accept: */*'" }
 command_timeout = 300
 OPENWRT_ARCH = nil
@@ -1239,8 +1238,8 @@ function to_check(arch, app_name)
 	}
 end
 
-function to_download(app_name, url, size, task_id)
-	local result = check_path(app_name)
+function to_download(app_name, url, size, task_id, keep_files)
+	local result = app_name == appname and {code = 0} or check_path(app_name)
 	if result.code ~= 0 then
 		return result
 	end
@@ -1249,7 +1248,7 @@ function to_download(app_name, url, size, task_id)
 		return {code = 1, error = i18n.translate("Download url is required.")}
 	end
 
-	remove("/tmp/" .. app_name .. "_download.*")
+	if not keep_files then remove("/tmp/" .. app_name .. "_download.*") end
 
 	local tmp_file
 	if task_id and task_id:match("^[%w_-]+$") then
@@ -1298,6 +1297,9 @@ function to_download_progress(app_name, task_id, total_size)
 	total_size = tonumber(total_size) or 0
 	local tmp_file = "/tmp/" .. app_name .. "_download." .. task_id
 	local downloaded = tonumber(fs.stat(tmp_file, "size")) or 0
+	if app_name == appname then
+		downloaded = (tonumber(fs.stat(tmp_file .. "1", "size")) or 0) + (tonumber(fs.stat(tmp_file .. "2", "size")) or 0)
+	end
 	local percent
 	if total_size > 0 then
 		-- The download request has not completed yet, so leave 100% for its success callback.
@@ -1455,7 +1457,7 @@ function get_version()
 end
 
 function to_check_self()
-	local release = get_api_json(com.passwall:get_url())
+	local release = get_api_json(com[appname]:get_url())
 	if type(release) == "table" and #release > 0 then
 		release = release[1]
 	end
@@ -1469,24 +1471,54 @@ function to_check_self()
 	-- Keep the release suffix (-1, -2, ...) so package revisions are compared too.
 	local remote_version = release.tag_name:gsub("^v", "")
 	local has_update = compare_versions(local_version, "<", remote_version)
-	if not has_update then
-		return {
-			code = 0,
-			local_version = local_version,
-			remote_version = remote_version,
-			html_url = release.html_url,
-			data = release.assets or {}
-		}
+	local prefix, extension
+	if sys.call("command -v apk >/dev/null 2>&1") == 0 then
+		prefix, extension = "25.12+_", ".apk"
+	else
+		if sys.call("command -v uname >/dev/null 2>&1") ~= 0 then return {code = 1} end
+		local kernel = trim(sys.exec("uname -r 2>/dev/null")):match("^(%d+%.%d+)")
+		if not kernel then return {code = 1} end
+		prefix = compare_versions(kernel, "<", "5.11") and "22.03-_" or "23.05-24.10_"
+		extension = ".ipk"
 	end
+	local main, i18n_package
+	for _, asset in ipairs(release.assets or {}) do
+		local name = asset.name or ""
+		if name:find(prefix, 1, true) == 1 and name:sub(-#extension) == extension then
+			name = name:sub(#prefix + 1)
+			if name:match("^luci%-app%-" .. appname .. "[_%-]%d") then main = asset end
+			if name:match("^luci%-i18n%-" .. appname .. "%-zh%-cn[_%-]%d") then i18n_package = asset end
+		end
+	end
+	if not main or not i18n_package then return {code = 1} end
 	return {
-		code = 1,
-		has_update = true,
-		local_version = local_version,
-		remote_version = remote_version,
-		html_url = release.html_url,
-		data = release.assets or {},
-		error = i18n.translatef("The latest version: %s, currently does not support automatic update, if you need to update, please compile or download the ipk and then manually install.", remote_version)
+		code = 0, has_update = has_update, local_version = local_version,
+		remote_version = remote_version, html_url = release.html_url,
+		data = main, i18n = i18n_package
 	}
+end
+
+function to_install_self(id, force)
+	if not id or not id:match("^[%w_-]+$") then return {code = 1} end
+	local dir = "/tmp/" .. appname .. "_luci_update." .. id
+	local manager = sys.call("command -v apk >/dev/null 2>&1") == 0 and "apk" or "opkg"
+	local extension = manager == "apk" and ".apk" or ".ipk"
+	local status_dir = "/www/luci-static/resources/" .. appname .. "-update"
+	local status = status_dir .. "/" .. id .. ".json"
+	fs.mkdir(dir)
+	fs.mkdir(status_dir)
+	exec("/bin/mv", {"/tmp/" .. appname .. "_download." .. id .. "1", dir .. "/luci-app-" .. appname .. extension})
+	exec("/bin/mv", {"/tmp/" .. appname .. "_download." .. id .. "2", dir .. "/luci-i18n-" .. appname .. "-zh-cn" .. extension})
+	local script = dir .. "/luci_update.sh"
+	if exec("/bin/cp", {"/usr/share/" .. appname .. "/luci_update.sh", script}) ~= 0 then
+		remove(dir)
+		return {code = 1}
+	end
+	fs.chmod(script, 755)
+	fs.writefile(status, '{"installing":true}')
+	sys.call("nohup " .. script .. " " .. dir .. " " .. status .. " " .. manager .. " " ..
+		(force == "1" and "1" or "0") .. " >/dev/null 2>&1 </dev/null &")
+	return {code = 0}
 end
 
 function is_js_luci()

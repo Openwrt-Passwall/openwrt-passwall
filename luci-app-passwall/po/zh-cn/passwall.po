@@ -995,9 +995,6 @@ msgstr "回滚中..."
 msgid "Update Options"
 msgstr "更新选项"
 
-msgid "The latest version: %s, currently does not support automatic update, if you need to update, please compile or download the ipk and then manually install."
-msgstr "最新版本：%s，目前暂不支持自动更新，如需更新，请自行编译或下载 ipk 然后手动安装。"
-
 msgid "Enable custom URL"
 msgstr "启用自定义规则地址"
 
@@ -2168,3 +2165,15 @@ msgstr "配置支持的密码套件列表，以冒号 (:) 分隔。"
 
 msgid "Connection Reuse"
 msgstr "连接复用"
+
+msgid "Installing..."
+msgstr "安装中"
+
+msgid "Do not refresh or switch pages during installation."
+msgstr "安装时请勿刷新页面和切换页面。"
+
+msgid "Update failed"
+msgstr "更新失败"
+
+msgid "Unknown error"
+msgstr "未知错误"
