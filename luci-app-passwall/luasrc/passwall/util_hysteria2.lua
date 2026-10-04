@@ -144,8 +144,8 @@ function gen_config(var)
 			ech = (node.ech == "1") and node.ech_config or nil
 		},
 		quic = {
-			initStreamReceiveWindow = (node.hysteria2_recv_window) and tonumber(node.hysteria2_recv_window) or nil,
-			initConnReceiveWindow = (node.hysteria2_recv_window_conn) and tonumber(node.hysteria2_recv_window_conn) or nil,
+			initStreamReceiveWindow = node.hysteria2_stream_recv_win and tonumber(node.hysteria2_stream_recv_win) or nil,
+			initConnReceiveWindow = node.hysteria2_conn_recv_win and tonumber(node.hysteria2_conn_recv_win) or nil,
 			maxIdleTimeout = (function(t)
 				t = tonumber(tostring(t or "30"):match("^%d+"))
 				return (t and t >= 4 and t <= 120) and t .. "s" or "30s"

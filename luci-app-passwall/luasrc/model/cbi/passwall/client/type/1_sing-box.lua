@@ -429,6 +429,16 @@ if singbox_tags:find("with_quic") then
 	o = s:option(Value, "hysteria2_down_mbps", translate("Max download Mbps"))
 	o:depends({ protocol = "hysteria2" })
 
+	o = s:option(Value, "hysteria2_stream_recv_win", translate("QUIC stream receive window"))
+	o.datatype = "uinteger"
+	o.placeholder = "8388608"
+	o:depends({ protocol = "hysteria2" })
+
+	o = s:option(Value, "hysteria2_conn_recv_win", translate("QUIC connection receive window"))
+	o.datatype = "uinteger"
+	o.placeholder = "20971520"
+	o:depends({ protocol = "hysteria2" })
+
 	o = s:option(Value, "hysteria2_idle_timeout", translate("Idle Timeout"), translate("Units:seconds") .. " (4~120)")
 	o.datatype = "range(4,120)"
 	o:depends({ protocol = "hysteria2"})
