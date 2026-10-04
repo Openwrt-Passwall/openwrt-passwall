@@ -87,7 +87,7 @@ jobs:
           echo "\`\`\`" >>release.txt
           echo "apk" >>release.txt
           echo "\`\`\`" >>release.txt
-          echo "apk add /path/to/package.apk" >>release.txt
+          echo "apk add --allow-untrusted /path/to/package.apk" >>release.txt
           echo "\`\`\`" >>release.txt
           echo "" >>release.txt
           echo ":warning: 请将 /path/to/package 替换为实际下载的软件包路径。" >>release.txt
