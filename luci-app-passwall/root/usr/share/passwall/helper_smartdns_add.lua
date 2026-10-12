@@ -178,25 +178,27 @@ end
 
 if not REMOTE_GROUP or REMOTE_GROUP == "nil" then
 	REMOTE_GROUP = "passwall_proxy"
-	if REMOTE_DNS then
-		REMOTE_DNS = REMOTE_DNS:gsub("#", ":")
-	end
-	sys.call('sed -i "/passwall/d" /etc/smartdns/custom.conf >/dev/null 2>&1')
 end
+if REMOTE_DNS then
+	REMOTE_DNS = REMOTE_DNS:gsub("#", ":")
+end
+sys.call('sed -i "/passwall/d" /etc/smartdns/custom.conf >/dev/null 2>&1')
 
+local SANDBOX_GROUP = "passwall_" .. FLAG
 local force_https_soa = api.uci_get_c("@global[0]", "force_https_soa") or 0
 local proxy_server_name = "psw-proxy-server"
 local listen_address = "[::]:" .. LISTEN_PORT .. (DNS_REDIRECT and "" or "@lo")
 local local_domain = DNS_REDIRECT and api.uci_get("dhcp", "@dnsmasq[0]", "domain")
 config_lines = {
-	tonumber(LISTEN_PORT) ~= 0 and "bind " .. listen_address or "",
-	tonumber(LISTEN_PORT) ~= 0 and "bind-tcp " .. listen_address or "",
+	tonumber(LISTEN_PORT) ~= 0 and ("bind " .. listen_address .. " -group " .. SANDBOX_GROUP) or "",
+	tonumber(LISTEN_PORT) ~= 0 and ("bind-tcp " .. listen_address .. " -group " .. SANDBOX_GROUP) or "",
 	(tonumber(LOCAL_PORT) ~= 0 and LOCAL_GROUP) and "bind [::]:" .. LOCAL_PORT .. "@lo -group " ..  LOCAL_GROUP or "",
 	(tonumber(LOCAL_PORT) ~= 0 and LOCAL_GROUP) and "bind-tcp [::]:" .. LOCAL_PORT .. "@lo -group " .. LOCAL_GROUP or "",
 	tonumber(force_https_soa) == 1 and "force-qtype-SOA 65" or "force-qtype-SOA -,65",
 	"server 223.5.5.5 -bootstrap-dns",
 	-- Set the suffix before loading hosts/leases so initial records are expanded too.
 	(local_domain and local_domain ~= "") and "local-domain " .. local_domain or "",
+	DNS_REDIRECT and "hosts-file /tmp/hosts/*" or "",
 	is_file_nonzero("/etc/hosts") and "hosts-file /etc/hosts" or "",
 	DNS_MODE == "socks" and string.format("proxy-server socks5://%s -name %s", REMOTE_PROXY_SERVER, proxy_server_name) or ""
 }
@@ -205,6 +207,10 @@ if DNS_REDIRECT then
 	local lease_file = api.uci_get("dhcp", "@dnsmasq[0]", "leasefile")
 	if not lease_file or lease_file == "" then lease_file = "/tmp/dhcp.leases" end
 	table.insert(config_lines, string.format("dnsmasq-lease-file %q", lease_file))
+	local odhcpd_lease = api.uci_get("dhcp", "odhcpd", "leasefile")
+	if odhcpd_lease and odhcpd_lease ~= "" then
+		table.insert(config_lines, string.format("odhcpd-lease-file %q", odhcpd_lease))
+	end
 end
 if DNS_MODE == "socks" then
 	for w in string.gmatch(REMOTE_DNS, '[^|]+') do
@@ -267,6 +273,9 @@ else
 	table.insert(config_lines, server_param)
 	log("  - " .. DNS_MODE:gsub("^%l",string.upper) .. " " .. TUN_DNS .. " -> " .. REMOTE_GROUP)
 end
+
+-- Isolate PassWall domain rules within dedicated group to avoid polluting SmartDNS default group
+table.insert(config_lines, "group-begin " .. SANDBOX_GROUP)
 
 --设置默认 DNS 分组(托底组)
 local DEFAULT_DNS_GROUP = (USE_DEFAULT_DNS == "direct" and LOCAL_GROUP) or
@@ -767,6 +776,8 @@ if IS_SHUNT_NODE and not only_global then
 		insert_array_after(config_lines, tmp_lines, "#--3")
 	end
 end
+
+table.insert(config_lines, "group-end")
 
 if #config_lines > 0 then
 	local f_out = io.open(TMP_CONF_FILE, "w")
