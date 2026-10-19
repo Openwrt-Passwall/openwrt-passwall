@@ -130,9 +130,13 @@ end
 
 local nodeResult = {} -- update result
 local isDebug = false
+local log_buffer = nil
 
 local log = function(...)
-	if isDebug == true then
+	if log_buffer then
+		local n = select("#", ...)
+		tinsert(log_buffer, n == 1 and (...) or table.concat({...}, " "))
+	elseif isDebug == true then
 		local result = os.date("%Y-%m-%d %H:%M:%S: ") .. table.concat({...}, " ")
 		print(result)
 	else
@@ -2187,7 +2191,8 @@ local function parse_link(raw, add_mode, group, sub_cfg)
 							log('丢弃节点：' .. result.remarks .. " ，原因：" .. result.error_msg)
 						elseif not result.type then
 							log('丢弃节点：' .. result.remarks .. " ，找不到可使用二进制。")
-						elseif (add_mode == "2" and is_filter_keyword(keyword_filter, result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or
+							-- 过滤无效物理网络节点（回环、全零、非法端口等非网络出站卡片）
+						elseif (add_mode == "2" and is_filter_keyword(keyword_filter, result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or result.address == "0.0.0.0" or (tonumber(result.port) or 0) <= 0 or
 								(not datatypes.hostname(result.address) and not (api.is_ip(result.address))) then
 							log('丢弃过滤节点：' .. result.type .. ' 节点，' .. result.remarks)
 						else
@@ -2205,17 +2210,21 @@ local function parse_link(raw, add_mode, group, sub_cfg)
 			end
 		end
 		if #node_list > 0 then
-			nodeResult[#nodeResult + 1] = {
-				remark = group,
-				list = node_list,
-				sub_cfg = sub_cfg
-			}
+			if add_mode ~= "2" then
+				nodeResult[#nodeResult + 1] = {
+					remark = group,
+					list = node_list,
+					sub_cfg = sub_cfg
+				}
+			end
 		end
 		log('成功解析【' .. group .. '】节点数量：' .. #node_list)
+		return node_list
 	else
 		if add_mode == "2" then
 			log('获取到的【' .. group .. '】订阅内容为空，可能是订阅地址无效，或是网络问题，请诊断！')
 		end
+		return {}
 	end
 end
 
@@ -2266,15 +2275,43 @@ local execute = function()
 					local stdout = f:read("*all")
 					f:close()
 					local raw_data = api.trim(stdout)
-					local old_md5 = value.md5 or ""
-					local new_md5 = api.md5_file(tmp_file)
-					if not manual_sub and new_md5 ~= "" and old_md5 == new_md5 then
-						log('订阅:【' .. remark .. '】没有变化，无需更新。')
-					else
-						raw_data = parseClashNode(raw_data)
+					raw_data = parseClashNode(raw_data)
+					-- 1. 优先提取标准 Clash 订阅响应头中的账户用量与到期时间（不受节点变化与否影响）
+					if headers and headers ~= "" then
 						subscribe_info[cfgid] = parse_clash_sub_info(headers)
-						parse_link(raw_data, "2", remark, value)
-						uci_set(cfgid, "md5", new_md5)
+					end
+
+					-- 2. 开启日志事务缓冲：前置解析期间日志暂存，未变更时静默丢弃，避免定时任务刷屏
+					log_buffer = {}
+					local parsed_nodes = parse_link(raw_data, "2", remark, value)
+					local old_md5 = value.md5 or ""
+					local new_md5 = #parsed_nodes > 0 and api.md5_string(jsonStringify(parsed_nodes)) or ""
+
+					-- 3. 仅当解析出有效节点且节点集合与上次完全一致时，跳过节点重写与服务重启
+					if not manual_sub and new_md5 ~= "" and old_md5 == new_md5 then
+						log_buffer = nil -- 无物理变动，直接丢弃暂存的丢弃与计数明细
+						log('订阅:【' .. remark .. '】没有变化，无需更新。')
+						if subscribe_info[cfgid] then
+							log('订阅:【' .. remark .. '】已同步刷新账户用量与到期时间信息。')
+						end
+					else
+						-- 节点发生变动时，回放前置解析期间的节点统计与丢弃日志
+						if log_buffer then
+							local bufs = log_buffer
+							log_buffer = nil
+							for _, msg in ipairs(bufs) do
+								log(msg)
+							end
+						end
+						-- 仅在成功解析出有效节点时才写入配置并记录新 MD5，防止解析失败时误存空数据或伪造无变更状态
+						if #parsed_nodes > 0 then
+							nodeResult[#nodeResult + 1] = {
+								remark = remark,
+								list = parsed_nodes,
+								sub_cfg = value
+							}
+							uci_set(cfgid, "md5", new_md5)
+						end
 					end
 				else
 					fail_list[#fail_list + 1] = value
@@ -2284,6 +2321,18 @@ local execute = function()
 				end
 			end
 		end
+
+		-- 4. 无论节点物理配置是否变动，始终将最新提取到的账户用量与到期时间静默写回 UCI，确保 Web 面板实时刷新
+		for c_id, info in pairs(subscribe_info) do
+			for key, val in pairs(info) do
+				if val and val ~= "" then
+					uci_set(c_id, key, val)
+				else
+					uci_del(c_id, key)
+				end
+			end
+		end
+		uci_save(true)
 
 		if #fail_list > 0 then
 			for index, value in ipairs(fail_list) do
