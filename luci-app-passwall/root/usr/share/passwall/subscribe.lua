@@ -2191,8 +2191,8 @@ local function parse_link(raw, add_mode, group, sub_cfg)
 							log('丢弃节点：' .. result.remarks .. " ，原因：" .. result.error_msg)
 						elseif not result.type then
 							log('丢弃节点：' .. result.remarks .. " ，找不到可使用二进制。")
-							-- 过滤无效物理网络节点（回环、全零、非法端口等非网络出站卡片）
-						elseif (add_mode == "2" and is_filter_keyword(keyword_filter, result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or result.address == "0.0.0.0" or (tonumber(result.port) or 0) <= 0 or
+							-- 过滤无效物理网络节点（回环、全零等非网络出站卡片）
+						elseif (add_mode == "2" and is_filter_keyword(keyword_filter, result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or result.address == "0.0.0.0" or
 								(not datatypes.hostname(result.address) and not (api.is_ip(result.address))) then
 							log('丢弃过滤节点：' .. result.type .. ' 节点，' .. result.remarks)
 						else
