@@ -2276,18 +2276,16 @@ local execute = function()
 					f:close()
 					local raw_data = api.trim(stdout)
 					raw_data = parseClashNode(raw_data)
-					-- 1. 优先提取标准 Clash 订阅响应头中的账户用量与到期时间（不受节点变化与否影响）
+					-- 优先提取标准 Clash 订阅响应头中的账户用量与到期时间（不受节点变化与否影响）
 					if headers and headers ~= "" then
 						subscribe_info[cfgid] = parse_clash_sub_info(headers)
 					end
-
-					-- 2. 开启日志事务缓冲：前置解析期间日志暂存，未变更时静默丢弃，避免定时任务刷屏
+					-- 开启日志事务缓冲：前置解析期间日志暂存，未变更时静默丢弃，避免定时任务刷屏
 					log_buffer = {}
 					local parsed_nodes = parse_link(raw_data, "2", remark, value)
 					local old_md5 = value.md5 or ""
 					local new_md5 = #parsed_nodes > 0 and api.md5_string(jsonStringify(parsed_nodes)) or ""
-
-					-- 3. 仅当解析出有效节点且节点集合与上次完全一致时，跳过节点重写与服务重启
+					-- 仅当解析出有效节点且节点集合与上次完全一致时，跳过节点重写与服务重启
 					if not manual_sub and new_md5 ~= "" and old_md5 == new_md5 then
 						log_buffer = nil -- 无物理变动，直接丢弃暂存的丢弃与计数明细
 						log('订阅:【' .. remark .. '】没有变化，无需更新。')
@@ -2321,8 +2319,7 @@ local execute = function()
 				end
 			end
 		end
-
-		-- 4. 无论节点物理配置是否变动，始终将最新提取到的账户用量与到期时间静默写回 UCI，确保 Web 面板实时刷新
+		-- 无论节点物理配置是否变动，始终将最新提取到的账户用量与到期时间静默写回 UCI，确保 Web 面板实时刷新
 		for c_id, info in pairs(subscribe_info) do
 			for key, val in pairs(info) do
 				if val and val ~= "" then
