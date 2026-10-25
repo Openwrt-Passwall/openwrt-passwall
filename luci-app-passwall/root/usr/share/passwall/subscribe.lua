@@ -1501,8 +1501,20 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.tls_serverName = params.sni
 		result.tls_pinSHA256 = params.pcs or params.pinsha256
 		result.tls_CertByName = params.vcn
-		result.hysteria2_up_mbps = params.upmbps or (sub_cfg and sub_hy_up_mbps or nil)
-		result.hysteria2_down_mbps = params.downmbps or (sub_cfg and sub_hy_down_mbps or nil)
+		local up, down
+		if sub_cfg then
+			up, down = sub_hy_up_mbps, sub_hy_down_mbps
+		elseif add_mode == "1" then
+			if arg[3] ~= nil and arg[4] ~= nil then
+				-- LuCI passes saved session values, including intentionally empty defaults.
+				up = arg[3] ~= "" and arg[3] or nil
+				down = arg[4] ~= "" and arg[4] or nil
+			else
+				up, down = api.get_hysteria2_bandwidth_defaults()
+			end
+		end
+		result.hysteria2_up_mbps = params.upmbps or up
+		result.hysteria2_down_mbps = params.downmbps or down
 		result.hysteria2_hop = params.mport
 		result.hysteria2_hop_interval = params.hopinterval or params["hop-interval"]
 		if params.ech and params.ech ~= "" then

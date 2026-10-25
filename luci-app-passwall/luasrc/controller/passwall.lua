@@ -178,7 +178,9 @@ function link_add_node()
 		end
 		-- 如果是最后一片，才执行
 		if chunk_index + 1 == total_chunks then
-			luci.sys.call("lua /usr/share/passwall/subscribe.lua add " .. group)
+			local up, down = api.get_hysteria2_bandwidth_defaults()
+			luci.sys.call("lua /usr/share/passwall/subscribe.lua add " .. util.shellquote(group)
+				.. " " .. util.shellquote(up or "") .. " " .. util.shellquote(down or ""))
 		end
 	end
 end
@@ -488,6 +490,9 @@ function add_node()
 
 	local uid = api.gen_random_char()
 	uci:section(c_config, "nodes", uid)
+	local up, down = api.get_hysteria2_bandwidth_defaults()
+	if up then uci_set(uid, "hysteria2_up_mbps", up) end
+	if down then uci_set(uid, "hysteria2_down_mbps", down) end
 
 	local group = http.formvalue("group")
 	if group and group ~= "default" then

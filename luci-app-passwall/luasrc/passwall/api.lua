@@ -2041,6 +2041,19 @@ function get_socks_backup_nodes(id)
 	return table.concat(backup_nodes, " ")
 end
 
+-- Distinguish legacy configurations from intentionally cleared bandwidth defaults.
+function get_hysteria2_bandwidth_defaults(cursor)
+	cursor = cursor or uci
+	local section = "@global_subscribe[0]"
+	local initialized = cursor:get(c_config, section, "hysteria2_bandwidth_defaults") == "1"
+	local function get_bandwidth(option)
+		local value = cursor:get(c_config, section, option)
+		if value == nil and not initialized then return "100" end
+		return value and value ~= "" and value or nil
+	end
+	return get_bandwidth("hysteria2_up_mbps"), get_bandwidth("hysteria2_down_mbps")
+end
+
 function get_core(field, candidates)
 	local v = uci_get_c("@global_subscribe[0]", field)
 	if v and v ~= "" then

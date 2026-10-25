@@ -105,6 +105,34 @@ if #ss_type > 0 or #trojan_type > 0 or #vmess_type > 0 or #vless_type > 0 or #hy
 			translate("The configured type also applies to the core specified when manually importing nodes."))
 end
 
+if #hysteria2_type > 0 then
+	o = s:option(Value, "hysteria2_up_mbps", "Hy/Hy2 " .. translate("Max upload Mbps"))
+	o.datatype = "uinteger"
+	o.forcewrite = true
+	o.cfgvalue = function(self, section)
+		if self.tag_error[section] then return Value.cfgvalue(self, section) end
+		local up = api.get_hysteria2_bandwidth_defaults(self.map.uci)
+		return up
+	end
+
+	o = s:option(Value, "hysteria2_down_mbps", "Hy/Hy2 " .. translate("Max download Mbps"))
+	o.datatype = "uinteger"
+	o.forcewrite = true
+	o.cfgvalue = function(self, section)
+		if self.tag_error[section] then return Value.cfgvalue(self, section) end
+		local _, down = api.get_hysteria2_bandwidth_defaults(self.map.uci)
+		return down
+	end
+
+	function s.parse(self, ...)
+		NamedSection.parse(self, ...)
+		if self.map.save and self.fields.hysteria2_up_mbps:formvalue(self.section) ~= nil
+			and self.fields.hysteria2_down_mbps:formvalue(self.section) ~= nil then
+			self.map:set(self.section, "hysteria2_bandwidth_defaults", "1")
+		end
+	end
+end
+
 ---- Subscribe Delete All
 o = s:option(DummyValue, "_stop", translate("Delete All Subscribe Node"))
 o.rawhtml = true
@@ -131,8 +159,9 @@ s.extedit = api.url("node_subscribe_config", "%s")
 function s.create(e, t)
 	local uid = "sub_" .. api.gen_random_char(5)
 	TypedSection.create(e, uid)
-	m:set(uid, "hysteria_up_mbps", "100")
-	m:set(uid, "hysteria_down_mbps", "100")
+	local up, down = api.get_hysteria2_bandwidth_defaults(m.uci)
+	if up then m:set(uid, "hysteria_up_mbps", up) end
+	if down then m:set(uid, "hysteria_down_mbps", down) end
 	luci.http.redirect(e.extedit:format(uid))
 end
 

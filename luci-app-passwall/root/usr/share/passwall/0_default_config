@@ -78,6 +78,9 @@ config global_app
 	option hysteria_file '/usr/bin/hysteria'
 
 config global_subscribe
+	option hysteria2_bandwidth_defaults '1'
+	option hysteria2_up_mbps '100'
+	option hysteria2_down_mbps '100'
 	option filter_keyword_mode '1'
 	list filter_discard_list '距离下次重置剩余'
 	list filter_discard_list '套餐到期'
