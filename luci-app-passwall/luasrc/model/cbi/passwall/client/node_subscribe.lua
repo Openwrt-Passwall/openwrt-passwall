@@ -105,6 +105,14 @@ if #ss_type > 0 or #trojan_type > 0 or #vmess_type > 0 or #vless_type > 0 or #hy
 			translate("The configured type also applies to the core specified when manually importing nodes."))
 end
 
+if #hysteria2_type > 0 then
+	o = s:option(Value, "hysteria2_up_mbps", "Hysteria2 " .. translate("Default") .. " " .. translate("Max upload Mbps"))
+	o.datatype = "uinteger"
+
+	o = s:option(Value, "hysteria2_down_mbps", "Hysteria2 " .. translate("Default") .. " " .. translate("Max download Mbps"))
+	o.datatype = "uinteger"
+end
+
 ---- Subscribe Delete All
 o = s:option(DummyValue, "_stop", translate("Delete All Subscribe Node"))
 o.rawhtml = true
@@ -131,8 +139,10 @@ s.extedit = api.url("node_subscribe_config", "%s")
 function s.create(e, t)
 	local uid = "sub_" .. api.gen_random_char(5)
 	TypedSection.create(e, uid)
-	m:set(uid, "hysteria_up_mbps", "100")
-	m:set(uid, "hysteria_down_mbps", "100")
+	m:set(uid, "hysteria_up_mbps", m:get("@global_subscribe[0]", "hysteria2_up_mbps") or "")
+	m:set(uid, "hysteria_down_mbps", m:get("@global_subscribe[0]", "hysteria2_down_mbps") or "")
+	m:set(uid, "hysteria1_up_mbps", "100")
+	m:set(uid, "hysteria1_down_mbps", "100")
 	luci.http.redirect(e.extedit:format(uid))
 end
 

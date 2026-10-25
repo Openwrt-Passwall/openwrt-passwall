@@ -557,6 +557,11 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 	local sub_vless_type = DEFAULT_VLESS_TYPE
 	local sub_hysteria2_type = DEFAULT_HYSTERIA2_TYPE
 	local sub_hy_up_mbps, sub_hy_down_mbps = 1000, 1000
+	local sub_hy2_up_mbps, sub_hy2_down_mbps
+	if add_mode == "1" then
+		sub_hy2_up_mbps = arg[3] or uci_get("@global_subscribe[0]", "hysteria2_up_mbps")
+		sub_hy2_down_mbps = arg[4] or uci_get("@global_subscribe[0]", "hysteria2_down_mbps")
+	end
 	if sub_cfg then
 		if sub_cfg.allowInsecure and sub_cfg.allowInsecure ~= "1" then
 			sub_allowinsecure = nil
@@ -581,8 +586,10 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		if hysteria2_type ~= "global" and core_has[hysteria2_type] then
 			sub_hysteria2_type = hysteria2_type
 		end
-		sub_hy_up_mbps = sub_cfg.hysteria_up_mbps
-		sub_hy_down_mbps = sub_cfg.hysteria_down_mbps
+		sub_hy_up_mbps = sub_cfg.hysteria1_up_mbps or sub_cfg.hysteria_up_mbps
+		sub_hy_down_mbps = sub_cfg.hysteria1_down_mbps or sub_cfg.hysteria_down_mbps
+		sub_hy2_up_mbps = sub_cfg.hysteria_up_mbps
+		sub_hy2_down_mbps = sub_cfg.hysteria_down_mbps
 	end
 	local result = {
 		timeout = 60,
@@ -1501,8 +1508,8 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.tls_serverName = params.sni
 		result.tls_pinSHA256 = params.pcs or params.pinsha256
 		result.tls_CertByName = params.vcn
-		result.hysteria2_up_mbps = params.upmbps or (sub_cfg and sub_hy_up_mbps or nil)
-		result.hysteria2_down_mbps = params.downmbps or (sub_cfg and sub_hy_down_mbps or nil)
+		result.hysteria2_up_mbps = params.upmbps or (sub_hy2_up_mbps ~= "" and sub_hy2_up_mbps or nil)
+		result.hysteria2_down_mbps = params.downmbps or (sub_hy2_down_mbps ~= "" and sub_hy2_down_mbps or nil)
 		result.hysteria2_hop = params.mport
 		result.hysteria2_hop_interval = params.hopinterval or params["hop-interval"]
 		if params.ech and params.ech ~= "" then
