@@ -106,7 +106,7 @@ if #ss_type > 0 or #trojan_type > 0 or #vmess_type > 0 or #vless_type > 0 or #hy
 end
 
 if #hysteria2_type > 0 then
-	o = s:option(Value, "hysteria2_up_mbps", "Hy/Hy2 " .. translate("Max upload Mbps"))
+	o = s:option(Value, "hysteria2_up_mbps", "Hysteria2 " .. translate("Default") .. " " .. translate("Max upload Mbps"))
 	o.datatype = "uinteger"
 	o.forcewrite = true
 	o.cfgvalue = function(self, section)
@@ -115,7 +115,7 @@ if #hysteria2_type > 0 then
 		return up
 	end
 
-	o = s:option(Value, "hysteria2_down_mbps", "Hy/Hy2 " .. translate("Max download Mbps"))
+	o = s:option(Value, "hysteria2_down_mbps", "Hysteria2 " .. translate("Default") .. " " .. translate("Max download Mbps"))
 	o.datatype = "uinteger"
 	o.forcewrite = true
 	o.cfgvalue = function(self, section)
@@ -159,9 +159,12 @@ s.extedit = api.url("node_subscribe_config", "%s")
 function s.create(e, t)
 	local uid = "sub_" .. api.gen_random_char(5)
 	TypedSection.create(e, uid)
+	m:set(uid, "hysteria_up_mbps", "100")
+	m:set(uid, "hysteria_down_mbps", "100")
+	m:set(uid, "hysteria2_bandwidth_separate", "1")
 	local up, down = api.get_hysteria2_bandwidth_defaults(m.uci)
-	if up then m:set(uid, "hysteria_up_mbps", up) end
-	if down then m:set(uid, "hysteria_down_mbps", down) end
+	if up then m:set(uid, "hysteria2_up_mbps", up) end
+	if down then m:set(uid, "hysteria2_down_mbps", down) end
 	luci.http.redirect(e.extedit:format(uid))
 end
 

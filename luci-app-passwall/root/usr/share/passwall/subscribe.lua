@@ -557,6 +557,16 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 	local sub_vless_type = DEFAULT_VLESS_TYPE
 	local sub_hysteria2_type = DEFAULT_HYSTERIA2_TYPE
 	local sub_hy_up_mbps, sub_hy_down_mbps = 1000, 1000
+	local sub_hy2_up_mbps, sub_hy2_down_mbps
+	if add_mode == "1" then
+		if arg[3] ~= nil and arg[4] ~= nil then
+			-- LuCI passes saved session values, including intentionally empty defaults.
+			sub_hy2_up_mbps = arg[3] ~= "" and arg[3] or nil
+			sub_hy2_down_mbps = arg[4] ~= "" and arg[4] or nil
+		else
+			sub_hy2_up_mbps, sub_hy2_down_mbps = api.get_hysteria2_bandwidth_defaults()
+		end
+	end
 	if sub_cfg then
 		if sub_cfg.allowInsecure and sub_cfg.allowInsecure ~= "1" then
 			sub_allowinsecure = nil
@@ -581,8 +591,9 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		if hysteria2_type ~= "global" and core_has[hysteria2_type] then
 			sub_hysteria2_type = hysteria2_type
 		end
-		sub_hy_up_mbps = sub_cfg.hysteria_up_mbps
-		sub_hy_down_mbps = sub_cfg.hysteria_down_mbps
+		sub_hy_up_mbps = sub_cfg.hysteria_up_mbps ~= "" and sub_cfg.hysteria_up_mbps or nil
+		sub_hy_down_mbps = sub_cfg.hysteria_down_mbps ~= "" and sub_cfg.hysteria_down_mbps or nil
+		sub_hy2_up_mbps, sub_hy2_down_mbps = api.get_subscribe_hysteria2_bandwidth(sub_cfg)
 	end
 	local result = {
 		timeout = 60,
@@ -1457,8 +1468,9 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		local insecure = params.allowinsecure or params.allowInsecure or params.insecure
 		result.tls_allowInsecure = (insecure == "1" or insecure == "0") and insecure or (sub_allowinsecure and "1" or "0")
 		result.alpn = params.alpn
-		result.hysteria_up_mbps = params.upmbps or sub_hy_up_mbps
-		result.hysteria_down_mbps = params.downmbps or sub_hy_down_mbps
+		-- Hysteria v1 requires bandwidth; retain the manual node defaults when unset.
+		result.hysteria_up_mbps = params.upmbps or sub_hy_up_mbps or "10"
+		result.hysteria_down_mbps = params.downmbps or sub_hy_down_mbps or "50"
 		result.hysteria_hop = params.mport
 		result.tls_CertByName = params.vcn
 
@@ -1501,20 +1513,8 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.tls_serverName = params.sni
 		result.tls_pinSHA256 = params.pcs or params.pinsha256
 		result.tls_CertByName = params.vcn
-		local up, down
-		if sub_cfg then
-			up, down = sub_hy_up_mbps, sub_hy_down_mbps
-		elseif add_mode == "1" then
-			if arg[3] ~= nil and arg[4] ~= nil then
-				-- LuCI passes saved session values, including intentionally empty defaults.
-				up = arg[3] ~= "" and arg[3] or nil
-				down = arg[4] ~= "" and arg[4] or nil
-			else
-				up, down = api.get_hysteria2_bandwidth_defaults()
-			end
-		end
-		result.hysteria2_up_mbps = params.upmbps or up
-		result.hysteria2_down_mbps = params.downmbps or down
+		result.hysteria2_up_mbps = params.upmbps or sub_hy2_up_mbps
+		result.hysteria2_down_mbps = params.downmbps or sub_hy2_down_mbps
 		result.hysteria2_hop = params.mport
 		result.hysteria2_hop_interval = params.hopinterval or params["hop-interval"]
 		if params.ech and params.ech ~= "" then

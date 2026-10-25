@@ -221,11 +221,43 @@ if #hysteria2_type > 0 then
 		o:value(value)
 	end
 
-	o = s:option(Value, "hysteria_up_mbps", "Hy/Hy2 " .. translate("Max upload Mbps"))
+	o = s:option(Value, "hysteria2_up_mbps", "Hysteria2 " .. translate("Max upload Mbps"))
 	o.datatype = "uinteger"
+	o.forcewrite = true
+	o.cfgvalue = function(self, section)
+		if self.tag_error[section] then return Value.cfgvalue(self, section) end
+		local value = api.get_subscribe_hysteria2_bandwidth(self.map:get(section))
+		return value
+	end
 
-	o = s:option(Value, "hysteria_down_mbps", "Hy/Hy2 " .. translate("Max download Mbps"))
+	o = s:option(Value, "hysteria2_down_mbps", "Hysteria2 " .. translate("Max download Mbps"))
 	o.datatype = "uinteger"
+	o.forcewrite = true
+	o.cfgvalue = function(self, section)
+		if self.tag_error[section] then return Value.cfgvalue(self, section) end
+		local _, value = api.get_subscribe_hysteria2_bandwidth(self.map:get(section))
+		return value
+	end
+
+	function s.parse(self, ...)
+		NamedSection.parse(self, ...)
+		if self.map.save and self.fields.hysteria2_up_mbps:formvalue(self.section) ~= nil
+			and self.fields.hysteria2_down_mbps:formvalue(self.section) ~= nil then
+			self.map:set(self.section, "hysteria2_bandwidth_separate", "1")
+		end
+	end
+end
+
+if has_singbox then
+	o = s:option(Value, "hysteria_up_mbps", "Hysteria " .. translate("Max upload Mbps"))
+	o.datatype = "and(uinteger,min(1))"
+	o.rmempty = false
+	o.default = "100"
+
+	o = s:option(Value, "hysteria_down_mbps", "Hysteria " .. translate("Max download Mbps"))
+	o.datatype = "and(uinteger,min(1))"
+	o.rmempty = false
+	o.default = "100"
 end
 
 o = s:option(Flag, "boot_update", translate("Update Once on Boot"), translate("Updates the subscription the first time PassWall runs automatically after each system boot."))

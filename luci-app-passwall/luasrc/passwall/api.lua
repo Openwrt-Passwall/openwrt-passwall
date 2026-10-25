@@ -2054,6 +2054,18 @@ function get_hysteria2_bandwidth_defaults(cursor)
 	return get_bandwidth("hysteria2_up_mbps"), get_bandwidth("hysteria2_down_mbps")
 end
 
+-- Older subscription groups used the Hysteria v1 fields for both protocols.
+function get_subscribe_hysteria2_bandwidth(config)
+	local function get_bandwidth(direction)
+		local value = config["hysteria2_" .. direction .. "_mbps"]
+		if value == nil and config.hysteria2_bandwidth_separate ~= "1" then
+			value = config["hysteria_" .. direction .. "_mbps"]
+		end
+		return value and value ~= "" and value or nil
+	end
+	return get_bandwidth("up"), get_bandwidth("down")
+end
+
 function get_core(field, candidates)
 	local v = uci_get_c("@global_subscribe[0]", field)
 	if v and v ~= "" then
