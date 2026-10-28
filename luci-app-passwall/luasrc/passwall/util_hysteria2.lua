@@ -145,9 +145,9 @@ function gen_config(var)
 		},
 		quic = {
 			initStreamReceiveWindow = tonumber(node.hysteria2_stream_recv_win) and tonumber(node.hysteria2_stream_recv_win)*1048576 or nil,
-			maxStreamReceiveWindow  = tonumber(node.hysteria2_stream_recv_win) and tonumber(node.hysteria2_stream_recv_win)*1048576 or nil,
-			initConnReceiveWindow   = tonumber(node.hysteria2_conn_recv_win) and tonumber(node.hysteria2_conn_recv_win)*1048576 or nil,
-			maxConnReceiveWindow    = tonumber(node.hysteria2_conn_recv_win) and tonumber(node.hysteria2_conn_recv_win)*1048576 or nil,
+			maxStreamReceiveWindow = tonumber(node.hysteria2_stream_recv_win) and tonumber(node.hysteria2_stream_recv_win)*1048576 or nil,
+			initConnReceiveWindow = tonumber(node.hysteria2_conn_recv_win) and tonumber(node.hysteria2_conn_recv_win)*1048576 or nil,
+			maxConnReceiveWindow = tonumber(node.hysteria2_conn_recv_win) and tonumber(node.hysteria2_conn_recv_win)*1048576 or nil,
 			maxIdleTimeout = (function(t)
 				t = tonumber(tostring(t or "30"):match("^%d+"))
 				return (t and t >= 4 and t <= 120) and t .. "s" or "30s"
