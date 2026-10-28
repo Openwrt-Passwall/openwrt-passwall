@@ -106,7 +106,7 @@ uci -q commit passwall
 sed -i "s#add_from#group#g" /etc/config/passwall 2>/dev/null
 
 rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
-rm -rf /tmp/luci-modulecache/
+rm -rf /tmp/luci-modulecache /tmp/etc/passwall_tmp
 killall -HUP rpcd 2>/dev/null
 
 exit 0
