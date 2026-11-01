@@ -5,6 +5,9 @@ status="$2"
 manager="$3"
 force="$4"
 
+acl_file="/usr/share/rpcd/acl.d/luci-app-${CONFIG}.json"
+acl_md5_before=$(md5sum "$acl_file" 2>/dev/null | awk '{print $1}')
+
 if [ "$manager" = apk ]; then
 	extra=""
 	[ "$force" = 1 ] && extra="--force-reinstall --force-overwrite"
@@ -20,7 +23,10 @@ fi
 rm -rf "$dir"
 if [ "$result" = 0 ]; then
 	rm -f "/tmp/etc/${CONFIG}_tmp/${CONFIG}_version" /tmp/luci-indexcache /tmp/luci-indexcache.*
-	if [ -x /etc/init.d/rpcd ]; then
+	acl_md5_after=$(md5sum "$acl_file" 2>/dev/null | awk '{print $1}')
+	# rpcd only reads ACL definitions at startup. Restart it only when the ACL
+	# file actually changed, so in-place updates no longer drop the web session.
+	if [ "$acl_md5_before" != "$acl_md5_after" ] && [ -x /etc/init.d/rpcd ]; then
 		/etc/init.d/rpcd restart >/dev/null 2>&1
 	fi
 	if [ -x /etc/init.d/uhttpd ]; then
