@@ -216,7 +216,7 @@ insert_nftset() {
 gen_nftset() {
 	local nftset_name="${1}"; shift
 	local ip_type="${1}"; shift
-	#  0 - don't set defalut timeout
+	#  0 - don't set default timeout
 	local timeout_argument_set="${1}"; shift
 	local gc_interval_time="1h"
 
