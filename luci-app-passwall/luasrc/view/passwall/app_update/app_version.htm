@@ -149,6 +149,13 @@ local com = self.com
 
 	function doUpdate(btn, app) {
 		if (luciUpdating || (app === appname && componentUpdates > 0)) return;
+		var appInfo = appInfoList[app];
+		if (!appInfo || !appInfo.data || !appInfo.data.browser_download_url ||
+			(app === appname && (!appInfo.i18n || !appInfo.i18n.browser_download_url))) {
+			onRequestError(btn, updateFailedText);
+			return;
+		}
+
 		if (app === appname) luciUpdating = true;
 		else componentUpdates++;
 		setButtonDisabled(btn, true);
@@ -157,7 +164,6 @@ local com = self.com
 		addPageNotice();
 
 		var appUpdateUrl = '<%=api.url("update_")%>' + app;
-		var appInfo = appInfoList[app];
 		var downloadId = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 		var totalSize = appInfo && appInfo.data ? Number(appInfo.data.size) : 0;
 		if (app === appname) totalSize += Number(appInfo.i18n.size) || 0;
