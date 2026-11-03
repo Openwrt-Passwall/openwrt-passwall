@@ -64,8 +64,9 @@ local appname = map.config
 			const lastVal = lastInput.value.trim();
 			const secondLastVal = secondLastInput.value.trim();
 
-			const lbssHiddenInput = lastRow.querySelector("div.cbi-dropdown > div > input[type='hidden'][name$='.lbss']");
-			if (!lbssHiddenInput) {
+			const lbssInput = lastRow.querySelector("input[type='text'][name$='.lbss']");
+			const hasNodeSelected = lbssInput && lbssInput.value && lbssInput.value.trim() !== "";
+			if (!hasNodeSelected) {
 				if (lastVal !== secondLastVal && secondLastVal !== "" && secondLastVal !== "0") {
 					lastInput.value = secondLastVal;
 				}
