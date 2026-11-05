@@ -39,15 +39,103 @@ table td, .table .td {
 
 #set_node_div {
 	display: none;
-	width: 30rem;
+	width: 90%;
+	max-width: 30rem;
+	max-height: 90vh;
+	box-sizing: border-box;
+	overflow-y: auto;
 	position: fixed;
-	top:45%;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
 	z-index: 99;
 	text-align: center;
 	background: white;
-	box-shadow: darkgrey 10px 10px 30px 5px;
+	color: inherit;
+	border: 1px solid rgba(127, 127, 127, 0.5);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 	text-align: center;
 	padding: 0.5em;
+}
+
+#set_node_div .pw-set-node-header {
+	display: grid;
+	grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
+	align-items: center;
+	gap: 6px;
+	margin: 0.2em 0 0.5em;
+}
+
+#set_node_div .pw-set-node-title {
+	grid-column: 2;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+#set_node_div .pw-set-node-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	box-shadow: none;
+	appearance: none;
+	cursor: pointer;
+	opacity: 0.65;
+}
+
+#set_node_div .pw-set-node-close:hover,
+#set_node_div .pw-set-node-close:focus-visible {
+	background: rgba(127, 127, 127, 0.15);
+	opacity: 1;
+}
+
+#set_node_div .pw-set-node-close:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+#set_node_div .pw-set-node-label {
+	opacity: 0.75;
+}
+
+#set_node_name {
+	font-weight: bold;
+}
+
+#set_node_div .pw-set-node-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0.2em 0;
+}
+
+#set_node_div .pw-set-node-section {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.5em;
+	background: rgba(127, 127, 127, 0.1);
+	border-radius: 4px;
+}
+
+#set_node_div .pw-set-node-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	gap: 4px;
+}
+
+#set_node_div .pw-set-node-buttons > .cbi-button {
+	margin: 0 !important;
 }
 
 ._now_use_bg {
@@ -231,7 +319,7 @@ table td, .table .td {
 		transform: translate(-50%, -50%);
 		background: white;
 		padding: 20px;
-		border: 2px solid #ccc;
+		border: 1px solid rgba(127, 127, 127, 0.5);
 		box-shadow: 0 0 10px rgba(0,0,0,0.5);
 		z-index: 1000;
 		width: 90%;
@@ -1276,7 +1364,9 @@ table td, .table .td {
 		section: '',
 		open(cbi_id, protocol) {
 			this.section = cbi_id;
-			document.getElementById("set_node_div").style.display="block";
+			const setNodeDiv = document.getElementById("set_node_div");
+			setNodeDiv.style.background = getBg(document.querySelector('.cbi-section')) || getBg(document.body) || getBg(document.documentElement) || '';
+			setNodeDiv.style.display = "block";
 			const node_name = document.getElementById("cbid.<%=appname%>." + cbi_id + ".remarks").value;
 			document.getElementById("set_node_name").textContent = node_name;
 			const shunt_div = document.getElementById("set_node_shunt_div");
@@ -1724,23 +1814,25 @@ table td, .table .td {
 
 <div style="display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;">
 	<div id="set_node_div">
-		<div class="cbi-value" style="display: flex; justify-content: center; align-items: center; margin: 0.2em 0; height: 2em;">
-			<font color=#666><%:You choose node is:%></font><a style="color: red" id="set_node_name"></a>
-			<div style="position:absolute; right:0.5em; top: 0.5em;"><input class="btn cbi-button" type="button" onclick="set_node_div.close()" value="X" /></div>
+		<div class="pw-set-node-header">
+			<div class="pw-set-node-title"><span class="pw-set-node-label"><%:You choose node is:%></span> <a id="set_node_name"></a></div>
+			<button class="pw-set-node-close" type="button" onclick="set_node_div.close()" title="<%:Close%>" aria-label="<%:Close%>">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
+			</button>
 		</div>
-		<div class="cbi-value" style="justify-content: center; gap: 8px; margin: 0.2em 0;">
-			<div style="margin: 0.5em 0; padding: 0.5em; background: #f7f7f7; border-radius: 4px;">
-				<div class="cbi-section-descr" style="text-align: left;"><a style="color:#FF8C00"><%:Set as the main proxy node:%></a></div>
-				<div>
-					<input class="btn cbi-button" type="button" onclick="set_node_div.set('@global[0]', 'node')" value="<%:OK%>" />
+		<div class="pw-set-node-sections">
+			<div class="pw-set-node-section">
+				<div class="cbi-section-descr" style="text-align: left;"><a><%:Set as the main proxy node:%></a></div>
+				<div class="pw-set-node-buttons">
+					<input class="btn cbi-button cbi-button-edit" type="button" onclick="set_node_div.set('@global[0]', 'node')" value="<%:OK%>" />
 				</div>
 			</div>
 			<% if #shunt_rule_list > 0 then %>
-			<div id="set_node_shunt_div" style="margin: 0.5em 0; padding: 0.5em; background: #f7f7f7; border-radius: 4px;">
-				<div class="cbi-section-descr" style="text-align: left;"><a style="color:#FF8C00"><%:Set as the routing rule node:%></a></div>
-				<div>
+			<div id="set_node_shunt_div" class="pw-set-node-section">
+				<div class="cbi-section-descr" style="text-align: left;"><a><%:Set as the routing rule node:%></a></div>
+				<div class="pw-set-node-buttons">
 				<% for i, v in ipairs(shunt_rule_list) do %>
-					<input class="btn cbi-button" type="button" onclick="set_node_div.set('<%=node%>', '<%=v[".name"]%>')" value="<%=v.remarks%>" />
+					<input class="btn cbi-button cbi-button-edit" type="button" onclick="set_node_div.set('<%=node%>', '<%=v[".name"]%>')" value="<%=v.remarks%>" />
 				<% end %>
 				</div>
 			</div>
