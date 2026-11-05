@@ -83,6 +83,10 @@
 	box-sizing: border-box;
 	width: 100%;
 }
+/* 使用控件自带箭头，清除主题背景箭头 */
+.v-dropdown-display.cbi-input-select {
+	background-image: none !important;
+}
 .v-dropdown-label {
 	display: inline-block;
 	overflow: hidden;
@@ -103,7 +107,7 @@
 	overscroll-behavior: contain;
 }
 .v-dropdown-search, .v-dropdown-custom {
-	width: 100%;
+	width: 100% !important;
 	max-width: 100% !important;
 	min-width: 0 !important;
 	box-sizing: border-box;
@@ -249,7 +253,8 @@
 			const panelRadius = styleSelect.borderRadius;
 			const optionColor = !v_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !v_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
 			const titleColor = v_getColorSchema(optionColor) === "light" ? v_darker(optionColor, 30) : v_lighter(optionColor, 30)
-			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")} {`, v_style2Css(styleSelect, styleNames), v_style2Css(styleSelect, ["backgroundColor"]), "}"]
+			// 自带箭头已占据布局空间，右内边距使用主题的左内边距
+			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")} {`, v_style2Css(styleSelect, styleNames), v_style2Css(styleSelect, ["backgroundColor"]), `padding-right: ${styleSelect.paddingLeft} !important;`, "}"]
 			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, v_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
 			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .v-group-title  {`, `background-color: ${titleColor} !important;`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")

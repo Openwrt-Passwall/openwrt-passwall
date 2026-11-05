@@ -6,6 +6,10 @@
 %>
 
 <style>
+/* 清除主题为外层容器绘制的下拉箭头 */
+.mv-container.cbi-input-select {
+	background-image: none !important;
+}
 /* 组标题的右箭头 */
 .mv-arrow-right {
 	width: 0;
@@ -196,6 +200,7 @@
 		const panel = document.getElementById(cbid + ".panel");
 		if (hiddenRef && mainDiv) {
 			const elOption = hiddenRef.getElementsByTagName("option")[0]
+			const styleMain = window.getComputedStyle(mainDiv)
 			const styleSelect = window.getComputedStyle(hiddenRef)
 			const styleOption = window.getComputedStyle(elOption)
 			const styleBody = window.getComputedStyle(document.body)
@@ -208,7 +213,8 @@
 			const panelRadius = styleSelect.borderRadius;
 			const optionColor = !mv_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !mv_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
 			const titleColor = mv_getColorSchema(optionColor) === "light" ? mv_darker(optionColor, 30) : mv_lighter(optionColor, 30)
-			const selectStyleCSS = [`#${CSS.escape(cbid)} {`, mv_style2Css(styleSelect, styleNames), "}"]
+			// 多选容器无需为下拉箭头留白，右内边距跟随当前主题的左内边距
+			const selectStyleCSS = [`#${CSS.escape(cbid)} {`, mv_style2Css(styleSelect, styleNames), `padding-right: ${styleMain.paddingLeft} !important;`, "}"]
 			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, mv_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
 			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .group-title  {`, `background-color: ${titleColor} !important;`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")

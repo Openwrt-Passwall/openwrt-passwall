@@ -79,6 +79,10 @@
 	justify-content: space-between;
 	box-sizing: border-box;
 }
+/* 使用控件自带箭头，清除主题背景箭头 */
+.dl-dropdown-display.cbi-input-select {
+	background-image: none !important;
+}
 .dl-dropdown-label,
 .dl-selected-label {
 	display: inline-block;
@@ -100,7 +104,7 @@
 	overscroll-behavior: contain;
 }
 .dl-dropdown-search {
-	width: 100%;
+	width: 100% !important;
 	max-width: 100% !important;
 	min-width: 0 !important;
 	box-sizing: border-box;
@@ -135,6 +139,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 5px;
+}
+/* 选择框与已选列表之间保持相同的行间距 */
+.dl-selected-list:not(:empty) {
+	margin-bottom: 5px;
 }
 .dl-remove {
 	margin-left: 8px;
@@ -260,7 +268,8 @@
 			const panelRadius = styleSelect.borderRadius;
 			const optionColor = !dl_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !dl_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
 			const titleColor = dl_getColorSchema(optionColor) === "light" ? dl_darker(optionColor, 30) : dl_lighter(optionColor, 30)
-			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")}, .dl-selected-item {`, dl_style2Css(styleSelect, styleNames), dl_style2Css(styleSelect, ["backgroundColor"]), "}"]
+			// 自带箭头已占据布局空间，右内边距使用主题的左内边距
+			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")}, .dl-selected-item {`, dl_style2Css(styleSelect, styleNames), dl_style2Css(styleSelect, ["backgroundColor"]), `padding-right: ${styleSelect.paddingLeft} !important;`, "}"]
 			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, dl_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
 			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .dl-group-title  {`, `background-color: ${titleColor} !important;`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")
