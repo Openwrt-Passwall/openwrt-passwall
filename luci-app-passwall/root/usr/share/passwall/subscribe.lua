@@ -876,20 +876,6 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 				password = hostInfo[1]  --一些链接用明文uuid做密码
 			end
 
-			-- 判断密码是否经过url编码
-			local function isURLEncodedPassword(pwd)
-				if not pwd:find("%%[0-9A-Fa-f][0-9A-Fa-f]") then
-					return false
-				end
-				local ok, decoded = pcall(UrlDecode, pwd)
-				return ok and UrlEncode(decoded) == pwd
-			end
-
-			local decoded = UrlDecode(password)
-			if isURLEncodedPassword(password) and decoded then
-				password = decoded
-			end
-
 			local _method = (method or "none"):lower()
 			method = (_method == "chacha20-poly1305" and "chacha20-ietf-poly1305") or
 				(_method == "xchacha20-poly1305" and "xchacha20-ietf-poly1305") or _method

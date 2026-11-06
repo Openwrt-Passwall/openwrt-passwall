@@ -973,19 +973,6 @@ local current_node = map:get(section)
 				}
 			}
 
-			// 判断密码是否经过url编码
-			const isURLEncodedPassword = function(pwd) {
-				if (!/%[0-9A-Fa-f]{2}/.test(pwd)) return false;
-				try {
-					const decoded = decodeURIComponent(pwd.replace(/\+/g, "%20"));
-					const reencoded = encodeURIComponent(decoded);
-					return reencoded === pwd;
-				} catch (e) {
-					return false;
-				}
-			}
-			password = isURLEncodedPassword(password) ? decodeURIComponent(password) : password;
-
 			if (queryParam.plugin) {
 				var pluginParams = decodeURIComponent(queryParam.plugin).split(";");
 				plugin = pluginParams.shift();
