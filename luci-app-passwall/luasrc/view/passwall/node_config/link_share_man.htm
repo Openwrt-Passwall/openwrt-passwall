@@ -98,7 +98,8 @@ local current_node = map:get(section)
 
 	function parseNodeUrl(url) {
 		let protocol = url.substring(0, url.indexOf("://")) + ":"
-		let str = "http" + url.substring(url.indexOf("://"))
+		// 使用 HTTPS 的默认端口 443，避免显式 :80 被 URL 归一化为空。
+		let str = "https" + url.substring(url.indexOf("://"))
 		const parsedUrl = new URL(str);
 		var r = {
 			hash: parsedUrl.hash, // #asd
@@ -1336,7 +1337,7 @@ local current_node = map:get(section)
 				let url0 = sstr.substr(0, ploc);
 				let paramStr = sstr.substr(ploc + 2);
 
-				const m = new URL("http://" + b64decsafe(url0));
+				const m = new URL("https://" + b64decsafe(url0));
 				if (m.username !== "") {
 					ssm.security = m.username;
 					ssm.id = m.password || m.username;
@@ -1655,7 +1656,7 @@ local current_node = map:get(section)
 				opt.set('type', "sing-box");
 			}
 			opt.set(dom_prefix + 'protocol', "tuic");
-			var _parsedUrl = new URL("http://" + link_split[1]);
+			var _parsedUrl = new URL("https://" + link_split[1]);
 			var username = _parsedUrl.username;
 			var password = _parsedUrl.password;
 			var hostname = _parsedUrl.hostname;
@@ -1755,7 +1756,7 @@ local current_node = map:get(section)
 				opt.set('type', "sing-box");
 			}
 			opt.set(dom_prefix + 'protocol', "naive");
-			var _parsedUrl = new URL("http://" + link_split[1]);
+			var _parsedUrl = new URL("https://" + link_split[1]);
 			var username = _parsedUrl.username;
 			var password = _parsedUrl.password;
 			var hostname = _parsedUrl.hostname;
