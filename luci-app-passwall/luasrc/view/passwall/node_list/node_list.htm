@@ -279,15 +279,16 @@ table td, .table .td {
 
 <style>
 	.pw-toolbar {
-		width: 100%;
-		text-align: center;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		padding-block: calc(5px + var(--pw-extra-top, 0px)) calc(5px + var(--pw-extra-bottom, 0px)) !important;
 	}
 
-	.pw-toolbar-field {
-		width: 100%;
-		text-align: center;
-		display: inline-block;
-		padding: 5px 0 5px;
+	.pw-toolbar > .cbi-button {
+		margin: 0 !important;
 	}
 
 	#modal-mask {
@@ -1389,17 +1390,15 @@ table td, .table .td {
 </script>
 
 <div class="pw-toolbar">
-	<div class="pw-toolbar-field">
-		<input class="btn cbi-button cbi-button-add" type="button" onclick="node_action('add')" value="<%:Add%>" />
-		<input class="btn cbi-button cbi-button-add" type="button" onclick="add_link_div.open()" value="<%:Add the node via the link%>" />
-		<input class="btn cbi-button cbi-button-remove" type="button" onclick="node_action('del_all')" value="<%:Clear all nodes%>" />
-		<input class="btn cbi-button cbi-button-remove" type="button" onclick="delete_select_nodes()" value="<%:Delete select nodes%>" />
-		<input class="btn cbi-button cbi-button-edit" type="button" id="select_all_btn" onclick="checked_all_node(this)" value="<%:Select all%>" />
-		<input class="btn cbi-button cbi-button-edit" type="button" onclick="reassign_group_div.open()" value="<%:Reassign Group%>" />
-		<input class="btn cbi-button cbi-button-apply" type="submit" name="cbi.apply" value="<%:Save & Apply%>" />
-		<!--<input class="btn cbi-button cbi-button-save" type="submit" name="cbi.save" value="<%:Save%>" />-->
-		<!--<input class="btn cbi-button cbi-button-reset" type="button" value="<%:Reset%>" onclick="location.href='<%=REQUEST_URI%>'" />-->
-	</div>
+	<input class="btn cbi-button cbi-button-add" type="button" onclick="node_action('add')" value="<%:Add%>" />
+	<input class="btn cbi-button cbi-button-add" type="button" onclick="add_link_div.open()" value="<%:Add the node via the link%>" />
+	<input class="btn cbi-button cbi-button-remove" type="button" onclick="node_action('del_all')" value="<%:Clear all nodes%>" />
+	<input class="btn cbi-button cbi-button-remove" type="button" onclick="delete_select_nodes()" value="<%:Delete select nodes%>" />
+	<input class="btn cbi-button cbi-button-edit" type="button" id="select_all_btn" onclick="checked_all_node(this)" value="<%:Select all%>" />
+	<input class="btn cbi-button cbi-button-edit" type="button" onclick="reassign_group_div.open()" value="<%:Reassign Group%>" />
+	<input class="btn cbi-button cbi-button-apply" type="submit" name="cbi.apply" value="<%:Save & Apply%>" />
+	<!--<input class="btn cbi-button cbi-button-save" type="submit" name="cbi.save" value="<%:Save%>" />-->
+	<!--<input class="btn cbi-button cbi-button-reset" type="button" value="<%:Reset%>" onclick="location.href='<%=REQUEST_URI%>'" />-->
 </div>
 
 <script type="text/template" id="nodes-table-template">
@@ -1688,8 +1687,22 @@ table td, .table .td {
 
 	loadNodeList();
 
-	//Node list option saving logic
 	document.addEventListener("DOMContentLoaded", function () {
+		// Themes space sections differently, so add padding on the side with the smaller gap.
+		const toolbar = document.querySelector(".pw-toolbar");
+		const nodes = document.getElementById("node_list");
+		const section = toolbar.parentElement.querySelector(".cbi-section");
+		function updateToolbarSpacing() {
+			const bounds = toolbar.getBoundingClientRect();
+			const above = bounds.top - section.getBoundingClientRect().bottom;
+			const below = nodes.getBoundingClientRect().top - bounds.bottom;
+			toolbar.style.setProperty("--pw-extra-top", Math.max(0, below - above) + "px");
+			toolbar.style.setProperty("--pw-extra-bottom", Math.max(0, above - below) + "px");
+		}
+		updateToolbarSpacing();
+		window.addEventListener("resize", updateToolbarSpacing);
+
+		// Save node list options when they change.
 		function onChange(option, value, refresh) {
 			ajax.abortAll();
 			XHR.get('<%=api.url("save_node_list_opt")%>', {
