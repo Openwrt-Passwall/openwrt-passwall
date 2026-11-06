@@ -1682,13 +1682,13 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 			local contents = split(content, "@")
 			local auth = contents[1] or ""
 			local idx = auth:find(":", 1, true)
-			if not idx then --修正某些链接会把username和password之间的:进行编码
-				auth = UrlDecode(auth)
-				idx = auth:find(":", 1, true)
-			end
+			-- 先按明文冒号拆分，再分别解码；没有分隔符时整个 userinfo 是密码。
 			if idx then
 				result.username = UrlDecode(auth:sub(1, idx - 1))
 				result.password = UrlDecode(auth:sub(idx + 1))
+			else
+				result.username = ""
+				result.password = UrlDecode(auth)
 			end
 			Info = (contents[2] or ""):gsub("/%?", "?")
 		end

@@ -1775,13 +1775,10 @@ local current_node = map:get(section)
 			var port = _parsedUrl.port;
 			var search = _parsedUrl.search;
 			var hash = _parsedUrl.hash;
-			if (!username || !password) {  //某些链接会把username和password之间的:进行编码
-				const decoded = decodeURIComponent(username || password || "");
-				const i = decoded.indexOf(":");
-				if (i > -1) {
-					username = decoded.slice(0, i);
-					password = decoded.slice(i + 1);
-				}
+			// URL 已按明文冒号拆分；没有分隔符时整个 userinfo 是密码。
+			if (link_split[1].split("@", 1)[0].indexOf(":") === -1) {
+				password = username;
+				username = "";
 			}
 			opt.set(dom_prefix + 'username', decodeURIComponent(username));
 			opt.set(dom_prefix + 'password', decodeURIComponent(password));
