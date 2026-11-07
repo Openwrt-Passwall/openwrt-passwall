@@ -1721,6 +1721,9 @@ msgstr "如果节点地址是域名，则将使用此 DNS 进行解析。"
 msgid "Note: For node-specific DNS only. Keep Auto to avoid extra overhead."
 msgstr "注意：仅用于节点专用 DNS，通常请保持自动，以免增加开销。"
 
+msgid "Note: Auto tries to extract node DNS from Clash subscriptions. Disable skips extraction."
+msgstr "注意：自动尝试提取 Clash 订阅中的节点 DNS，禁用则不提取。"
+
 msgid "Enable Happy Eyeballs"
 msgstr "启用 Happy Eyeballs"
 

@@ -624,7 +624,83 @@ local function encode_node(node)
 	end
 end
 
-function parseClashNode(raw, remark)
+local function parse_dns_endpoint(value)
+	if type(value) ~= "string" then return nil end
+	value = api.trim(value)
+	-- Clash fragments and URL queries cannot be preserved by both node DNS backends.
+	if value == "" or value:find("[%s#?@,]") then return nil end
+	local url = value:find("://", 1, true) and value or "udp://" .. value
+	local ok, endpoint = pcall(api.parseURL, url)
+	if not ok or not endpoint then return nil end
+	local protocol = endpoint.protocol
+	if protocol ~= "udp" and protocol ~= "tcp" and protocol ~= "https" then return nil end
+	local host = endpoint.hostname
+	if not host or not (api.is_ip(host) or api.datatypes.hostname(host)) then return nil end
+	local bracketed = endpoint.host:sub(1, 1) == "["
+	local ipv6 = api.datatypes.ip6addr(host)
+	if bracketed and not ipv6 then return nil end
+	if protocol == "https" and ipv6 and not bracketed then return nil end
+	local port = endpoint.port or (protocol == "https" and 443 or 53)
+	if port < 1 or port > 65535 then return nil end
+	if protocol ~= "https" and endpoint.pathname then return nil end
+	return { protocol = protocol, host = host:lower():gsub("%.$", ""), port = port, url = url }
+end
+
+local function is_loopback_dns(host)
+	return host == "localhost" or (api.datatypes.ip4addr(host) and host:match("^127%.")) or host:match("^[0:]+:0*1$")
+end
+
+local function is_unspecified_dns(host)
+	return host == "0.0.0.0" or host:match("^[0:]+$")
+end
+
+local function extract_clash_dns(data)
+	local dns = data.dns
+	if type(dns) ~= "table" or not dns["proxy-server-nameserver"] then return nil end
+	-- A subscription-wide resolver cannot represent per-domain node DNS policies.
+	local node_policy = dns["proxy-server-nameserver-policy"]
+	if type(node_policy) == "table" and next(node_policy) then return nil end
+	local listener = parse_dns_endpoint(dns.listen)
+	local resolving = {}
+	local policy = dns["nameserver-policy"]
+	local has_policy = type(policy) == "table" and next(policy)
+	local function pick(candidates, depth)
+		if depth > 4 then return nil end
+		if type(candidates) == "string" then candidates = { candidates } end
+		if type(candidates) ~= "table" then return nil end
+		for _, value in ipairs(candidates) do
+			local endpoint = parse_dns_endpoint(value)
+			if endpoint and not is_unspecified_dns(endpoint.host) then
+				if is_loopback_dns(endpoint.host) then
+					local key = endpoint.protocol .. "://" .. endpoint.host .. ":" .. endpoint.port
+					local listen_matches = listener and listener.protocol ~= "https" and listener.port == endpoint.port and (
+						listener.host == endpoint.host or
+						(listener.host == "0.0.0.0" and not endpoint.host:find(":", 1, true)) or
+						(is_unspecified_dns(listener.host) and listener.host ~= "0.0.0.0" and endpoint.host:find(":", 1, true)) or
+						(endpoint.host == "localhost" and is_loopback_dns(listener.host)))
+					if endpoint.protocol ~= "https" and dns.enable == true and listen_matches and not resolving[key] and not has_policy then
+						resolving[key] = true
+						local resolver = pick(dns.nameserver, depth + 1)
+						resolving[key] = nil
+						if resolver then return resolver end
+					end
+				elseif endpoint.protocol == "https" then
+					return { domain_resolver = "https", domain_resolver_dns_https = endpoint.url }
+				elseif api.datatypes.ip4addr(endpoint.host) then
+					return { domain_resolver = endpoint.protocol, domain_resolver_dns = endpoint.host .. ":" .. endpoint.port }
+				end
+			end
+		end
+	end
+	local resolver = pick(dns["proxy-server-nameserver"], 0)
+	if resolver then
+		local address = resolver.domain_resolver_dns_https or resolver.domain_resolver .. "://" .. resolver.domain_resolver_dns
+		api.log("订阅转换 → 已提取节点域名 DNS：" .. address)
+	end
+	return resolver
+end
+
+function parseClashNode(raw, remark, auto_dns)
 	if not raw then return "" end
 	domain_redir = {}
 	local ok, lyaml = pcall(require, "lyaml")
@@ -662,7 +738,8 @@ function parseClashNode(raw, remark)
 		end
 	end
 
-	return #links > 0 and table.concat(links, "\n") or ""
+	local resolver = #links > 0 and auto_dns and extract_clash_dns(data) or nil
+	return #links > 0 and table.concat(links, "\n") or "", resolver
 end
 
 function parse_clash_sub_info(headers)

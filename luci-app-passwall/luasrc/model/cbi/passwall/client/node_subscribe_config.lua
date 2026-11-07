@@ -124,7 +124,9 @@ end
 o = s:option(ListValue, "domain_resolver", translate("Domain DNS Resolve"))
 o.description = translate("If the node address is a domain name, this DNS will be used for resolution.") .. "<br>" ..
 		translate("Supports only Xray or Sing-box node types.") .. "<br>" .. string.format('<font color="red">%s</font>',
-		translate("Note: For node-specific DNS only. Keep Auto to avoid extra overhead."))
+		translate("Note: Auto tries to extract node DNS from Clash subscriptions. Disable skips extraction."))
+o.default = ""
+o:value("disable", translate("Disable"))
 o:value("", translate("Auto"))
 o:value("tcp", "TCP")
 o:value("udp", "UDP")
