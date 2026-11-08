@@ -336,6 +336,17 @@ local com = self.com
 		font-weight: normal;
 		opacity: .7;
 	}
+	/* Keep action controls out of theme help-text folding. */
+	#app_version .app-update-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: .5rem;
+	}
+	#app_version .app-update-actions > span {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
 </style>
 
 <div class="cbi-value">
@@ -343,13 +354,13 @@ local com = self.com
 		<span class="app-version-sub"><%=api.get_version()%></span>
 	</label>
 	<div class="cbi-value-field">
-		<!--div class="cbi-value-description"-->
+		<div class="app-update-actions">
 			<input class="btn cbi-button cbi-button-apply" type="button" id="<%=api.appname%>-check_btn" data-update-app="<%=api.appname%>"
 				onclick="onBtnClick(this, appname);" value="<%:Check update%>" />
 			<input class="btn cbi-button cbi-button-apply" type="button" id="_<%=api.appname%>-force_btn" data-update-app="<%=api.appname%>"
 				onclick="doUpdate(this, appname);" value="<%:Force update%>" style="display:none" />
 			<span id="<%=api.appname%>-check_btn-detail"></span>
-		<!--/div-->
+		</div>
 	</div>
 </div>
 
@@ -362,13 +373,13 @@ local com = self.com
 		<span class="app-version-sub"><span class="com_version" key="<%=k%>"><%=translate("Null")%></span></span>
 	</label>
 	<div class="cbi-value-field">
-		<!--div class="cbi-value-description"-->
+		<div class="app-update-actions">
 			<input class="btn cbi-button cbi-button-apply" type="button" id="_<%=k%>-check_btn" data-update-app="<%=k%>"
 				onclick="onBtnClick(this,'<%=k%>');" value="<%:Check update%>" />
 			<input class="btn cbi-button cbi-button-apply" type="button" id="_<%=k%>-force_btn" data-update-app="<%=k%>"
 				onclick="doUpdate(this,'<%=k%>');" value="<%:Force update%>" style="display:none"/>
 			<span id="_<%=k%>-check_btn-detail"></span>
-		<!--/div-->
+		</div>
 	</div>
 </div>
 <%end%>
