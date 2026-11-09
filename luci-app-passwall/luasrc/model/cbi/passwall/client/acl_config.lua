@@ -107,7 +107,7 @@ sources.description = "<ul><li>" .. translate("Example:")
 .. "</li></ul>"
 sources.cast = "string"
 for _, key in pairs(mac_t) do
-	sources:value(key.mac, "%s (%s)" % {key.mac, key.ip})
+	sources:value(key.mac, string.format("%s (%s)", key.mac, key.ip))
 end
 sources.cfgvalue = function(self, section)
 	local value

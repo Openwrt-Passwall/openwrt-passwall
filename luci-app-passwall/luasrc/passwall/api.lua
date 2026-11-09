@@ -652,7 +652,7 @@ function get_valid_nodes()
 			local type_name = e.type
 			if e.type == "sing-box" then type_name = "Sing-Box" end
 			if e.protocol and (e.protocol == "_balancing" or e.protocol == "_shunt" or e.protocol == "_iface" or e.protocol == "_urltest") then
-				e["remark"] = trim("%s：[%s]" % {type_name .. " " .. i18n.translatef(e.protocol), e.remarks})
+				e["remark"] = trim(string.format("%s：[%s]", type_name .. " " .. i18n.translatef(e.protocol), e.remarks))
 				e["node_type"] = "special"
 				if not e.group or e.group == "" then
 					default_nodes[#default_nodes + 1] = e
@@ -692,11 +692,11 @@ function get_valid_nodes()
 					end
 					if is_ipv6(address) then address = get_ipv6_full(address) end
 					type_name = is_realm and type_name .. " Realm" or type_name
-					e["remark"] = trim("%s：[%s]" % {type_name, e.remarks})
+					e["remark"] = trim(string.format("%s：[%s]", type_name, e.remarks))
 					if show_node_info == "1" then
 						port = (port or ""):gsub(":", "-")
 						if not is_realm then
-							e["remark"] = trim("%s：[%s] %s:%s" % {type_name, e.remarks, address, port})
+							e["remark"] = trim(string.format("%s：[%s] %s:%s", type_name, e.remarks, address, port))
 						end
 					end
 					e.node_type = "normal"
@@ -757,10 +757,12 @@ end
 function get_node_remarks(n)
 	local remarks = ""
 	if n then
-		local type_name = n.type
+		local type_name = n.type or ""
+		local node_remarks = n.remarks or ""
+		if type_name == "" then return remarks end
 		if n.type == "sing-box" then type_name = "Sing-Box" end
 		if n.protocol and (n.protocol == "_balancing" or n.protocol == "_shunt" or n.protocol == "_iface" or n.protocol == "_urltest") then
-			remarks = trim("%s：[%s]" % {type_name .. " " .. i18n.translatef(n.protocol), n.remarks})
+			remarks = trim(string.format("%s：[%s]", type_name .. " " .. i18n.translatef(n.protocol), node_remarks))
 		else
 			if (n.type == "sing-box" or n.type == "Xray") and n.protocol then
 				local protocol = n.protocol
@@ -790,7 +792,7 @@ function get_node_remarks(n)
 			if (n.type == "Hysteria2" or n.protocol == 'hysteria2') and n.hysteria2_realms then
 				type_name = type_name .. " Realm"
 			end
-			remarks = trim("%s：[%s]" % {type_name, n.remarks})
+			remarks = trim(string.format("%s：[%s]", type_name, node_remarks))
 		end
 	end
 	return remarks
@@ -856,7 +858,7 @@ end
 function finded_com(e)
 	local bin = get_app_path(e)
 	if not bin then return end
-	local s = luci.sys.exec('echo -n $(type -t -p "%s" | head -n1)' % { bin })
+	local s = luci.sys.exec(string.format('echo -n $(type -t -p "%s" | head -n1)', bin))
 	if s == "" then
 		s = nil
 	end
@@ -864,7 +866,7 @@ function finded_com(e)
 end
 
 function finded(e)
-	return luci.sys.exec('echo -n $(type -t -p "/bin/%s" -p "/usr/bin/%s" "%s" | head -n1)' % {e, e, e})
+	return luci.sys.exec(string.format('echo -n $(type -t -p "/bin/%s" -p "/usr/bin/%s" "%s" | head -n1)', e, e, e))
 end
 
 function is_finded(e)
@@ -1435,7 +1437,7 @@ function to_extract(app_name, file, subfix)
 			tools_name = "tar"
 		end
 		if tools_name then
-			if sys.exec("echo -n $(command -v %s)" % { tools_name }) == "" then
+			if sys.exec(string.format("echo -n $(command -v %s)", tools_name)) == "" then
 				exec("/bin/rm", {"-f", file})
 				return {
 					code = 1,
@@ -2321,9 +2323,9 @@ function gen_wireguard_key()
 end
 
 function get_socks_port_by_cache(node_id)
-	return get_cache_var("node_%s_socks_port" % { node_id })
+	return get_cache_var(string.format("node_%s_socks_port", node_id))
 end
 
 function set_socks_port_to_cache(node_id, v)
-	set_cache_var("node_%s_socks_port" % { node_id }, v)
+	set_cache_var(string.format("node_%s_socks_port", node_id), v)
 end

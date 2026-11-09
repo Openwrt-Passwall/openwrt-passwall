@@ -52,6 +52,123 @@ msgstr "规则管理"
 msgid "Rule List"
 msgstr "规则列表"
 
+msgid "Route Query"
+msgstr "走向查询"
+
+msgid "请输入域名或 IP 地址！"
+msgstr "请输入域名或 IP 地址！"
+
+msgid "端口无效！"
+msgstr "端口无效！"
+
+msgid "未配置全局节点"
+msgstr "未配置全局节点"
+
+msgid "当前全局节点类型不参与代理客户端路由分流，走向由系统级转发决定"
+msgstr "当前全局节点类型不参与代理客户端路由分流，走向由系统级转发决定"
+
+msgid "未能读取代理客户端运行配置(global.json)，代理客户端分流无法判定"
+msgstr "未能读取代理客户端运行配置(global.json)，代理客户端分流无法判定"
+
+msgid "直连"
+msgstr "直连"
+
+msgid "代理"
+msgstr "代理"
+
+msgid "屏蔽"
+msgstr "屏蔽"
+
+msgid "未知"
+msgstr "未知"
+
+msgid "查询"
+msgstr "查询"
+
+msgid "查询中"
+msgstr "查询中"
+
+msgid "输入域名或 IP，查询它在系统级(透明代理)与代理客户端(分流)中的走向判定。"
+msgstr "输入域名或 IP，查询它在系统级(透明代理)与代理客户端(分流)中的走向判定。"
+
+msgid "说明：结果按默认规则判定，未计入针对单台设备(ACL)的独立规则。如需按来源设备预览 ACL 场景，请在“来源设备 IP”填写该设备的局域网 IP。"
+msgstr "说明：结果按默认规则判定，未计入针对单台设备(ACL)的独立规则。如需按来源设备预览 ACL 场景，请在“来源设备 IP”填写该设备的局域网 IP。"
+
+msgid "域名或 IP，例如 www.google.com 或 8.8.8.8"
+msgstr "域名或 IP，例如 www.google.com 或 8.8.8.8"
+
+msgid "端口(可选)"
+msgstr "端口(可选)"
+
+msgid "来源设备 IP(可选，用于 ACL 场景预览)"
+msgstr "来源设备 IP(可选，用于 ACL 场景预览)"
+
+msgid "ACL 场景"
+msgstr "ACL 场景"
+
+msgid "未指定来源设备。"
+msgstr "未指定来源设备。"
+
+msgid "未匹配到可用的 ACL，沿用全局判定"
+msgstr "未匹配到可用的 ACL，沿用全局判定"
+
+msgid "命中 ACL"
+msgstr "命中 ACL"
+
+msgid "使用全局配置"
+msgstr "使用全局配置"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "按解析 IP 判定"
+msgstr "按解析 IP 判定"
+
+msgid "来源设备 IP 无效！"
+msgstr "来源设备 IP 无效！"
+
+msgid "代理客户端分流按全局配置近似判定"
+msgstr "代理客户端分流按全局配置近似判定"
+
+msgid "系统级分流(透明代理)"
+msgstr "系统级分流(透明代理)"
+
+msgid "命中集合/列表"
+msgstr "命中集合/列表"
+
+msgid "匹配条目"
+msgstr "匹配条目"
+
+msgid "域名解析后 IP 判定:"
+msgstr "域名解析后 IP 判定:"
+
+msgid "未匹配到任何域名规则，未做 IP 判定(解析失败/规则开关关闭)。"
+msgstr "未匹配到任何域名规则，未做 IP 判定(解析失败/规则开关关闭)。"
+
+msgid "代理客户端分流"
+msgstr "代理客户端分流"
+
+msgid "命中规则"
+msgstr "命中规则"
+
+msgid "客户端配置不含可识别的路由规则"
+msgstr "客户端配置不含可识别的路由规则"
+
+msgid "耗时"
+msgstr "耗时"
+
+msgid "出口"
+msgstr "出口"
+
+msgid "未命中前置规则，按兜底出口。"
+msgstr "未命中前置规则，按兜底出口。"
+
+msgid "提示：系统级判定反映防火墙转发走向；代理客户端判定反映 socks 全局端点分流。两者可能因运行模式不同而结论不同。"
+msgstr "提示：系统级判定反映防火墙转发走向；代理客户端判定反映 socks 全局端点分流。两者可能因运行模式不同而结论不同。"
+
+msgid "点击「查询」开始。"
+msgstr "点击「查询」开始。"
+
 msgid "Access control"
 msgstr "访问控制"
 

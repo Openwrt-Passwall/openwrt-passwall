@@ -1,0 +1,255 @@
+<%
+local map = self.map
+local api = map.api
+-%>
+
+<style>
+	.rq-box {
+		--rq-border: var(--border-color, var(--border-color-high, var(--gray-color, #ccc)));
+		--rq-bg: var(--main-bg, var(--background-color-high, var(--white-color, #fff)));
+		--rq-text: var(--main-color, var(--text-color-high, var(--main-menu-color, #222)));
+		--rq-text-dim: var(--text-dim, var(--text-color-medium, var(--main-menu-color, #888)));
+		--rq-accent-sys: var(--success-color-medium, var(--green-color, #2e7d32));
+		--rq-accent-client: var(--primary-color-medium, var(--blue-color, #1565c0));
+
+		display: flex;
+		gap: 8px;
+		align-items: center;
+		flex-wrap: wrap;
+		margin-bottom: 10px;
+	}
+	.rq-box input, .rq-box select {
+		min-width: 180px;
+	}
+	.rq-sec {
+		margin-bottom: 12px;
+	}
+	.rq-card {
+		border: 1px solid var(--rq-border);
+		border-radius: 4px;
+		padding: 8px 12px;
+		margin-top: 8px;
+		background: var(--rq-bg);
+		color: var(--rq-text);
+	}
+	.rq-card.sys { border-left: 4px solid var(--rq-accent-sys); }
+	.rq-card.client { border-left: 4px solid var(--rq-accent-client); }
+	.rq-title {
+		font-weight: bold;
+		margin-bottom: 6px;
+		display: inline-block;
+	}
+	.rq-badge {
+		display: inline-block;
+		padding: 1px 8px;
+		border-radius: 10px;
+		color: var(--on-primary-color, #fff);
+		font-size: 12px;
+		margin-left: 6px;
+	}
+	.rq-badge.direct { background: var(--success-color-medium, var(--green-color, #2e7d32)); }
+	.rq-badge.proxy { background: var(--primary-color-medium, var(--blue-color, #1565c0)); }
+	.rq-badge.block { background: var(--error-color-medium, var(--red-color, #c62828)); }
+	.rq-badge.unknown { background: var(--warn-color-medium, var(--yellow-color, #f57c00)); }
+	.rq-detail { margin: 2px 0; font-size: 13px; word-break: break-all; }
+	.rq-note { color: var(--rq-text-dim); font-size: 12px; margin: 2px 0; }
+	.rq-rule-file { color: var(--rq-text-dim); }
+	#rq_result { white-space: normal; }
+</style>
+
+<div class="cbi-value">
+	<ul>
+		<li><%:输入域名或 IP，查询它在系统级(透明代理)与代理客户端(分流)中的走向判定。%></li>
+		<li class="rq-note"><%:说明：结果按默认规则判定，未计入针对单台设备(ACL)的独立规则。如需按来源设备预览 ACL 场景，请在“来源设备 IP”填写该设备的局域网 IP。%></li>
+	</ul>
+</div>
+
+<div class="cbi-value">
+	<div class="cbi-value-field">
+		<div class="rq-box">
+			<input type="text" id="rq_target" class="cbi-input-text" placeholder="<%:域名或 IP，例如 www.google.com 或 8.8.8.8%>" inputmode="search" enterkeyhint="search" />
+			<input type="text" id="rq_port" class="cbi-input-text" style="min-width:90px" placeholder="<%:端口(可选)%>" inputmode="numeric" />
+			<select id="rq_proto" class="cbi-input-select" style="min-width:90px">
+				<option value="tcp">TCP</option>
+				<option value="udp">UDP</option>
+			</select>
+			<input type="text" id="rq_src" class="cbi-input-text" style="min-width:140px" placeholder="<%:来源设备 IP(可选，用于 ACL 场景预览)%>" inputmode="numeric" />
+			<input class="btn cbi-button cbi-button-apply" type="button" id="rq_btn" value="<%:查询%>" />
+		</div>
+	</div>
+</div>
+
+<div id="rq_result">
+	<div class="cbi-value rq-note"><%:点击「查询」开始。%></div>
+</div>
+
+<script type="text/javascript">
+	//<![CDATA[
+	const rq_target = document.getElementById("rq_target");
+	const rq_port = document.getElementById("rq_port");
+	const rq_proto = document.getElementById("rq_proto");
+	const rq_src = document.getElementById("rq_src");
+	const rq_btn = document.getElementById("rq_btn");
+
+	function rqEsc(s) {
+		var d = document.createElement("div");
+		d.textContent = s == null ? "" : s;
+		return d.innerHTML;
+	}
+
+	function rqBadge(decision) {
+		var cls = "unknown", label;
+		switch (decision) {
+			case "direct": cls = "direct"; label = "<%:直连%>"; break;
+			case "proxy":  cls = "proxy";  label = "<%:代理%>"; break;
+			case "block":  cls = "block";  label = "<%:屏蔽%>"; break;
+			default:       cls = "unknown"; label = "<%:未知%>"; break;
+		}
+		return '<span class="rq-badge ' + cls + '">' + label + "</span>";
+	}
+
+	function rqRenderSys(sys) {
+		var decision = sys.decision || "unknown";
+		var html = '<div class="rq-card sys">';
+		html += '<span class="rq-title"><%:系统级分流(透明代理)%></span>' + rqBadge(decision);
+		if (sys.backend) html += '<span class="rq-rule-file">(' + rqEsc(sys.backend) + ")</span>";
+		if (sys.matched) html += '<div class="rq-detail"><%:命中集合/列表%>: ' + rqEsc(sys.matched) + "</div>";
+		if (sys.entry) html += '<div class="rq-detail"><%:匹配条目%>: ' + rqEsc(sys.entry) + "</div>";
+		if (sys.note) html += '<div class="rq-note">' + rqEsc(sys.note) + "</div>";
+		if (sys.dns_note) html += '<div class="rq-note"><%:DNS%>: ' + rqEsc(sys.dns_note) + "</div>";
+		if (sys.resolved && sys.resolved.length > 0) {
+			html += '<div class="rq-note"><%:域名解析后 IP 判定:%></div>';
+			sys.resolved.forEach(function(r) {
+				html += '<div class="rq-detail">' + rqEsc(r.ip) + " " + rqBadge(r.decision) + '</div>';
+			});
+		}
+		if (sys.decision == null && !(sys.resolved && sys.resolved.length > 0)) html += '<div class="rq-note"><%:未匹配到任何域名规则，未做 IP 判定(解析失败/规则开关关闭)。%></div>';
+		html += "</div>";
+		return html;
+	}
+
+	function rqRenderClient(client) {
+		var html = '<div class="rq-card client">';
+		html += '<span class="rq-title"><%:代理客户端分流%></span>';
+		if (!client.available) {
+			html += '<div class="rq-note">' + rqEsc(client.note || "N/A") + "</div>";
+			html += "</div>";
+			return html;
+		}
+		var decision = "proxy";
+		var outbound = client.outbound;
+		if (outbound === "direct" || outbound === "direct_outbound") decision = "direct";
+		else if (outbound === "block" || outbound === "blackhole" || outbound === null) decision = "block";
+		html += rqBadge(decision) + '<span class="rq-rule-file">(' + rqEsc(client.core) + ")</span>";
+		if (client.rule) html += '<div class="rq-detail"><%:命中规则%>: ' + rqEsc(client.rule) + "</div>";
+		html += '<div class="rq-detail"><%:出口%>: ' + rqEsc(outbound || "N/A") + "</div>";
+		if (client.final) html += '<div class="rq-note"><%:未命中前置规则，按兜底出口。%></div>';
+		if (client.note) html += '<div class="rq-note">' + rqEsc(client.note) + "</div>";
+		html += "</div>";
+		return html;
+	}
+
+	function rqRenderAcl(acl) {
+		var html = '<div class="rq-card client">';
+		html += '<span class="rq-title"><%:ACL 场景%></span>';
+		if (!acl) { html += '<div class="rq-note"><%:未指定来源设备。%></div>'; html += "</div>"; return html; }
+		if (acl.matched === false) {
+			html += '<div class="rq-note">' + rqEsc(acl.note || "") + "</div>";
+			html += "</div>";
+			return html;
+		}
+		html += '<div class="rq-detail"><%:命中 ACL%>: ' + rqEsc(acl.name || "") + "</div>";
+		if (acl.use_global_config) html += '<div class="rq-note"><%:使用全局配置%></div>';
+		html += rqRenderSys(acl.system);
+		html += rqRenderClient(acl.client);
+		html += "</div>";
+		return html;
+	}
+
+	function rqRun() {
+		var target = rq_target.value.trim();
+		if (!target) {
+			alert("<%:请输入域名或 IP 地址！%>");
+			return;
+		}
+		var port = rq_port.value.trim();
+		var proto = rq_proto.value;
+		var src = rq_src.value.trim();
+		rq_btn.disabled = true;
+		rq_btn.value = "<%:查询中%>";
+		var t0 = performance.now();
+		var stick = "";
+		if (src) {
+			try { sessionStorage.setItem("rq_src", src); } catch (e) {}
+			stick = "&src=" + encodeURIComponent(src);
+		} else {
+			try { sessionStorage.removeItem("rq_src"); } catch (e) {}
+		}
+		var url = '<%= api.url("route_query_action") %>?target=' + encodeURIComponent(target)
+			+ "&port=" + encodeURIComponent(port)
+			+ "&proto=" + encodeURIComponent(proto)
+			+ stick;
+		fetch(url)
+			.then(function(resp) { return resp.json(); })
+			.then(function(data) {
+				var out = document.getElementById("rq_result");
+				if (data.code === 0) {
+					out.innerHTML = '<div class="cbi-value rq-note" style="color:red">' + rqEsc(data.message) + "</div>";
+					return;
+				}
+				var html = '<div class="rq-sec">';
+				html += '<div class="rq-detail"><b>' + rqEsc(data.target) + "</b>"
+					+ ' (' + rqEsc(data.type)
+					+ (data.family ? ', ' + rqEsc(data.family) : "")
+					+ ")"
+					+ (data.port ? ' :' + rqEsc(data.port) : "")
+					+ ' / ' + rqEsc(data.proto.toUpperCase()) + "</div>";
+				html += "</div>";
+				html += '<div class="rq-sec">' + rqRenderSys(data.system) + "</div>";
+				html += '<div class="rq-sec">' + rqRenderClient(data.client) + "</div>";
+				if (data.acl || src) html += '<div class="rq-sec">' + rqRenderAcl(data.acl) + "</div>";
+				html += '<div class="cbi-value rq-note" style="margin-top:8px"><%:提示：系统级判定反映防火墙转发走向；代理客户端判定反映 socks 全局端点分流。两者可能因运行模式不同而结论不同。%></div>';
+				html += '<div class="cbi-value rq-note" style="margin-top:4px"><%:耗时%>: '
+					+ ((performance.now() - t0) / 1000).toFixed(2) + "s"
+					+ (data.elapsed ? '(' + rqEsc(data.elapsed) + 's)' : "")
+					+ "</div>";
+				out.innerHTML = html;
+			})
+			.catch(function(err) {
+				var out = document.getElementById("rq_result");
+				out.innerHTML = '<div class="cbi-value rq-note" style="color:red">Request failed: ' + rqEsc(String(err)) + "</div>";
+			})
+			.finally(function() {
+				rq_btn.disabled = false;
+				rq_btn.value = "<%:查询%>";
+			});
+	}
+
+	rq_btn.addEventListener("click", rqRun);
+	rq_target.addEventListener("keydown", function(e) {
+		if (e.key === "Enter" || e.keyCode === 13) {
+			e.stopPropagation();
+			e.preventDefault();
+			rqRun();
+		}
+	});
+	rq_port.addEventListener("keydown", function(e) {
+		if (e.key === "Enter" || e.keyCode === 13) {
+			e.stopPropagation();
+			e.preventDefault();
+			rqRun();
+		}
+	});
+	rq_src.addEventListener("keydown", function(e) {
+		if (e.key === "Enter" || e.keyCode === 13) {
+			e.stopPropagation();
+			e.preventDefault();
+			rqRun();
+		}
+	});
+	try {
+		var saved = sessionStorage.getItem("rq_src");
+		if (saved) rq_src.value = saved;
+	} catch (e) {}
+	//]]>
+</script>

@@ -46,6 +46,7 @@ function index()
 	entry({"admin", "services", appname, "app_update"}, cbi(appname .. "/client/app_update"), _("App Update"), 95).leaf = true
 	entry({"admin", "services", appname, "rule"}, cbi(appname .. "/client/rule"), _("Rule Manage"), 96).leaf = true
 	entry({"admin", "services", appname, "rule_list"}, cbi(appname .. "/client/rule_list", {autoapply = true}), _("Rule List"), 97).leaf = true
+	entry({"admin", "services", appname, "route_query"}, cbi(appname .. "/client/route_query"), _("Route Query"), 97.5).leaf = true
 	entry({"admin", "services", appname, "node_subscribe_config"}, cbi(appname .. "/client/node_subscribe_config")).leaf = true
 	entry({"admin", "services", appname, "node_config"}, cbi(appname .. "/client/node_config")).leaf = true
 	entry({"admin", "services", appname, "shunt_rules"}, cbi(appname .. "/client/shunt_rules")).leaf = true
@@ -123,6 +124,9 @@ function index()
 
 	--[[geoview]]
 	entry({"admin", "services", appname, "geo_view"}, call("geo_view")).leaf = true
+
+	--[[route_query]]
+	entry({"admin", "services", appname, "route_query_action"}, call("route_query_action")).leaf = true
 
 	entry({"admin", "services", appname, "fetch_certsha256"}, call("fetch_certsha256")).leaf = true
 	entry({"admin", "services", appname, "gen_wireguard_key"}, call("gen_wireguard_key")).leaf = true
@@ -1115,6 +1119,29 @@ function subscribe_del_node()
 		luci.sys.call("lua /usr/share/" .. appname .. "/subscribe.lua truncate " .. luci.util.shellquote(remark) .. " > /dev/null 2>&1")
 	end
 	http.status(200, "OK")
+end
+
+function route_query_action()
+	local engine = require "luci.passwall.route_query_engine"
+	local opts = {
+		target = http.formvalue("target") or "",
+		port = http.formvalue("port") or "",
+		proto = http.formvalue("proto") or "tcp",
+		protocol = http.formvalue("protocol") or "",
+		src = http.formvalue("src") or "",
+	}
+	local env = {
+		api = api,
+		rm = require "luci.passwall.route_match",
+		i18n = i18n,
+	}
+	local data = engine.query(opts, env)
+
+	local function resp(d)
+		http.prepare_content("application/json")
+		http.write(jsonStringify(d or {}))
+	end
+	resp(data)
 end
 
 function subscribe_del_all()
