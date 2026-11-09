@@ -1102,17 +1102,17 @@ add_firewall_rule() {
 
 	[ -n "$ISP_DNS" ] && {
 		#echolog "处理 ISP DNS 例外..."
-		echo "$ISP_DNS" | insert_nftset $NFTSET_WHITE
+		echo "$ISP_DNS" | insert_nftset $NFTSET_VPS
 		for ispip in $ISP_DNS; do
-			echolog "  - [$?]追加ISP IPv4 DNS到白名单：${ispip}"
+			echolog "  - [$?]追加ISP IPv4 DNS到nftset[$NFTSET_VPS]：${ispip}"
 		done
 	}
 
 	[ -n "$ISP_DNS6" ] && {
 		#echolog "处理 ISP IPv6 DNS 例外..."
-		echo $ISP_DNS6 | insert_nftset $NFTSET_WHITE6
+		echo "$ISP_DNS6" | insert_nftset $NFTSET_VPS6
 		for ispip6 in $ISP_DNS6; do
-			echolog "  - [$?]追加ISP IPv6 DNS到白名单：${ispip6}"
+			echolog "  - [$?]追加ISP IPv6 DNS到nftset[$NFTSET_VPS6]：${ispip6}"
 		done
 	}
 

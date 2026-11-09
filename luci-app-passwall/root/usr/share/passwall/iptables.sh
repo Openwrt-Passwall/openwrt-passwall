@@ -1029,16 +1029,16 @@ add_firewall_rule() {
 	[ -n "$ISP_DNS" ] && {
 		#echolog "处理 ISP DNS 例外..."
 		for ispip in $ISP_DNS; do
-			ipset -! add $IPSET_WHITE $ispip timeout 0
-			echolog "  - [$?]追加ISP IPv4 DNS到白名单：${ispip}"
+			ipset -! add $IPSET_VPS $ispip
+			echolog "  - [$?]追加ISP IPv4 DNS到ipset[$IPSET_VPS]：${ispip}"
 		done
 	}
 
 	[ -n "$ISP_DNS6" ] && {
 		#echolog "处理 ISP IPv6 DNS 例外..."
 		for ispip6 in $ISP_DNS6; do
-			ipset -! add $IPSET_WHITE6 $ispip6 timeout 0
-			echolog "  - [$?]追加ISP IPv6 DNS到白名单：${ispip6}"
+			ipset -! add $IPSET_VPS6 $ispip6
+			echolog "  - [$?]追加ISP IPv6 DNS到ipset[$IPSET_VPS6]：${ispip6}"
 		done
 	}
 
