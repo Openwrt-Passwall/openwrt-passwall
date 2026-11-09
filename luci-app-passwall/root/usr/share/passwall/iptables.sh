@@ -1468,7 +1468,7 @@ del_firewall_rule() {
 	destroy_ipset $IPSET_WAN
 	destroy_ipset $IPSET_LAN
 	destroy_ipset $IPSET_VPS
-	#destroy_ipset $IPSET_SHUNT
+	destroy_ipset $IPSET_SHUNT
 	#destroy_ipset $IPSET_GFW
 	#destroy_ipset $IPSET_CHN
 	#destroy_ipset $IPSET_BLACK
@@ -1479,12 +1479,17 @@ del_firewall_rule() {
 	destroy_ipset $IPSET_WAN6
 	destroy_ipset $IPSET_LAN6
 	destroy_ipset $IPSET_VPS6
-	#destroy_ipset $IPSET_SHUNT6
+	destroy_ipset $IPSET_SHUNT6
 	#destroy_ipset $IPSET_GFW6
 	#destroy_ipset $IPSET_CHN6
 	#destroy_ipset $IPSET_BLACK6
 	destroy_ipset $IPSET_BLOCK6
 	destroy_ipset $IPSET_WHITE6
+
+	local ipset_name
+	for ipset_name in $(ipset list -name 2>/dev/null | grep -E '^psw_.+_shunt6?$'); do
+		destroy_ipset "$ipset_name"
+	done
 
 	echolog "删除 iptables 规则完成。"
 }

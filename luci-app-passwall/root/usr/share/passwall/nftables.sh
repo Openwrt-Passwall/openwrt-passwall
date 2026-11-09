@@ -1549,6 +1549,11 @@ del_firewall_rule() {
 	destroy_nftset $NFTSET_BLOCK6 $NFTSET_BLOCK6_STATIC
 	destroy_nftset $NFTSET_WHITE6 $NFTSET_WHITE6_STATIC
 
+	local nftset
+	for nftset in $(nft -t list table $NFTABLE_NAME 2>/dev/null | awk '$1 == "set" && $2 ~ /^psw_.+_shunt6?_static$/ {print $2}'); do
+		destroy_nftset "$nftset"
+	done
+
 	del_script_mwan3
 
 	echolog "删除 nftables 规则完成。"
