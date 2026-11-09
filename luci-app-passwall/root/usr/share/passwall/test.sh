@@ -44,14 +44,15 @@ test_proxy() {
 	echo $result
 }
 
-url_test_node() {
+node_probe() {
 	local result=0
 	local node_id=$1
-	local test_flag="url_test_${node_id}_$$"
-	local _address _port curlx _username _password _tmp_port probeUrl pid_file
+	local probe_url=$2
+	shift 2
+	local test_flag="probe_${node_id}_$$"
+	local _address _port curlx _username _password _tmp_port pid_file
 	local _type=$(config_n_get "$node_id" type | tr 'A-Z' 'a-z')
 
-	set --
 	[ -n "${_type}" ] && {
 		if [ "${_type}" == "socks" ]; then
 			# 防止socks节点密码包含 #、% 等字符，将地址和认证信息分开传递
@@ -65,15 +66,17 @@ url_test_node() {
 			curlx="socks5h://${_address}:${_port}"
 			_username=$(config_n_get "$node_id" username)
 			_password=$(config_n_get "$node_id" password)
-			[ -n "${_username}" ] && [ -n "${_password}" ] && set -- --proxy-user "${_username}:${_password}"
 		else
 			_tmp_port=$(get_new_port $((48900 + $$ % 201)) tcp,udp) || { echo 0; return 1; }
 			NO_REC_PROCESS=1 /usr/share/${CONFIG}/app.sh run_socks flag="$test_flag" node="$node_id" bind=127.0.0.1 socks_port="$_tmp_port" config_file="${test_flag}.json"
 			curlx="socks5h://127.0.0.1:${_tmp_port}"
 		fi
 		sleep 2s
-		probeUrl=$(config_n_get @global_other[0] url_test_url https://www.google.com/generate_204)
-		result=$(curl --connect-timeout 3 --max-time 5 -o /dev/null -I -sk -w "%{http_code}:%{time_pretransfer}:%{time_starttransfer}" "$@" -x "$curlx" "${probeUrl}") || result=0
+		if [ "${_type}" == "socks" ] && [ -n "${_username}" ] && [ -n "${_password}" ]; then
+			result=$(curl --connect-timeout 3 -o /dev/null -sk --proxy-user "${_username}:${_password}" -x "$curlx" "$@" "${probe_url}") || result=0
+		else
+			result=$(curl --connect-timeout 3 -o /dev/null -sk -x "$curlx" "$@" "${probe_url}") || result=0
+		fi
 		# 结束 SS 插件进程
 		if [ "$_type" != "socks" ]; then
 			pid_file="${TMP_PATH}/${test_flag}_plugin.pid"
@@ -85,6 +88,22 @@ url_test_node() {
 	printf '%s' "$result"
 }
 
+url_test_node() {
+	local node_id=$1
+	local probeUrl
+	probeUrl=$(config_n_get @global_other[0] url_test_url https://www.google.com/generate_204)
+	node_probe "$node_id" "$probeUrl" --max-time 5 -I -w "%{http_code}:%{time_pretransfer}:%{time_starttransfer}"
+}
+
+speed_test_node() {
+	local node_id=$1
+	# Cloudflare 测速文件 99MB（其 __down 端点 bytes 上限为 <100000000，超限返回 403）。
+	# 千兆下约 0.8s 完成；--max-time 20 时最慢可测约 40Mbps，更慢节点 curl 超时（非 0 退出码）
+	# 会被 node_probe 的 `|| result=0` 覆盖为 0，前端显示 Timeout 而不是部分速度。
+	# 速度由 size_download / (time_total - time_starttransfer) 计算。
+	node_probe "$node_id" "https://speed.cloudflare.com/__down?bytes=99000000" --max-time 20 -w "%{http_code}:%{size_download}:%{time_starttransfer}:%{time_total}"
+}
+
 arg1=$1
 shift
 case $arg1 in
@@ -93,5 +112,8 @@ test_url)
 	;;
 url_test_node)
 	url_test_node "$@"
+	;;
+speed_test_node)
+	speed_test_node "$@"
 	;;
 esac

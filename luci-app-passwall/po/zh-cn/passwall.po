@@ -632,6 +632,18 @@ msgstr "URL 测试地址"
 msgid "URL Test"
 msgstr "URL 测试"
 
+msgid "Speed"
+msgstr "测速"
+
+msgid "Download speed test"
+msgstr "下载测速"
+
+msgid "Download size"
+msgstr "下载大小"
+
+msgid "Speed test is running, please wait."
+msgstr "测速进行中，请先等待当前测速完成。"
+
 msgid "Test"
 msgstr "测试"
 

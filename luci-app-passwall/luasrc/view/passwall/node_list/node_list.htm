@@ -233,6 +233,12 @@ table td, .table .td {
 		min-width: 0;
 	}
 
+	#cbi-<%=appname%>-nodes .pw-speed {
+		flex: 0 0 70px;
+		white-space: nowrap;
+		min-width: 0;
+	}
+
 	.pw-actions {
 		padding-top: 0 !important;
 		border-top-width: 0 !important;
@@ -916,6 +922,58 @@ table td, .table .td {
 		}
 	}
 
+	var speed_test_lock = false;
+	function speedtest_node(cbi_id, dom) {
+		if (speed_test_lock) {
+			alert("<%:Speed test is running, please wait.%>");
+			return;
+		}
+		if (dom.dataset.busy == "1" || !cbi_id) return;
+		speed_test_lock = true;
+		dom.dataset.busy = "1";
+		dom.title = "";
+		dom.style.color = "";
+		dom.innerText = "<%:Downloading...%>";
+		// 兜底：请求异常/超时（回调不触发）时释放锁并复位行状态，避免卡死；由回调先 clearTimeout 消除竞态
+		var lock_timer = setTimeout(function() {
+			speed_test_lock = false;
+			if (dom.dataset.busy == "1") {
+				dom.dataset.busy = "0";
+				dom.style.color = "red";
+				dom.innerText = "<%:Error%>";
+			}
+		}, 40000);
+		XHR.get('<%=api.url("speedtest_node")%>', {
+				id: cbi_id
+			},
+			function(x, result) {
+				clearTimeout(lock_timer);
+				speed_test_lock = false;
+				let color = "red";
+				let text = "<%:Error%>";
+				if (x && x.status == 200) {
+					if (result.http_code && result.http_code >= 200 && result.http_code < 400 && result.download_speed) {
+						let bps = parseInt(result.download_speed);
+						if (bps >= 50 * 1024 * 1024)
+							color = "green";
+						else if (bps >= 15 * 1024 * 1024)
+							color = "#fb9a05";
+						if (bps >= 1024 * 1024)
+							text = (bps / 1024 / 1024).toFixed(1) + " MB/s";
+						else
+							text = Math.round(bps / 1024) + " KB/s";
+						dom.title = (bps * 8 / 1000000).toFixed(2) + " Mbps\n<%:Download size%>: " + (result.size_download / 1024 / 1024).toFixed(0) + " MB";
+					} else {
+						text = result.http_code ? "HTTP " + result.http_code : "<%:Timeout%>";
+					}
+				}
+				dom.innerText = text;
+				dom.style.color = color;
+				dom.dataset.busy = "0";
+			}
+		);
+	}
+
 	/* 自动Ping */
 	function pingAllNodes() {
 		if (auto_detection_time == "icmp" || auto_detection_time == "tcping") {
@@ -1412,6 +1470,7 @@ table td, .table .td {
 				<th class="th cbi-section-table-cell" style="width:8%">Ping</th>
 				<th class="th cbi-section-table-cell" style="width:8%">TCPing</th>
 				<th class="th cbi-section-table-cell" style="width:8%"><%:URL Test%></th>
+				<th class="th cbi-section-table-cell" style="width:8%"><%:Speed%></th>
 				<th class="th cbi-section-table-cell cbi-section-actions"></th>
 			</tr>
 			{{node-tr}}
@@ -1435,6 +1494,7 @@ table td, .table .td {
 		<td class="td cbi-value-field pw-ping">{{ping}}</td>
 		<td class="td cbi-value-field pw-tcping">{{tcping}}</td>
 		<td class="td cbi-value-field pw-urltest">{{url_test}}</td>
+		<td class="td cbi-value-field pw-speed">{{speed}}</td>
 		<td class="td cbi-section-table-cell nowrap cbi-section-actions pw-actions">
 			<div class="node-wrapper">
 				<input class="btn cbi-button cbi-button-edit" type="button" value="<%:To Top%>" onclick="node_action('row_top', null, {btn:this, group:'{{group}}'})" title="<%:To Top%>"/>
@@ -1591,6 +1651,11 @@ table td, .table .td {
 							innerHTML = innerHTML.split("{{url_test}}").join('<span class="ping"><a href="javascript:void(0)" onclick="javascript:urltest_node(\'{{id}}\', this)" title="<%:HTTP request latency, for reference only%>"><%:Test%></a></span>');
 						} else {
 							innerHTML = innerHTML.split("{{url_test}}").join('<span class="ping" cbiid="{{id}}">---</span>');
+						}
+						if (o["address"] && _port) {
+							innerHTML = innerHTML.split("{{speed}}").join('<span class="ping"><a href="javascript:void(0)" onclick="javascript:speedtest_node(\'{{id}}\', this)" title="<%:Download speed test%>"><%:Test%></a></span>');
+						} else {
+							innerHTML = innerHTML.split("{{speed}}").join('<span class="ping" cbiid="{{id}}">---</span>');
 						}
 						innerHTML = innerHTML.split("{{id}}").join(o[".name"]);
 						innerHTML = innerHTML.split("{{group}}").join(o["group"] || "");

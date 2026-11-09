@@ -82,6 +82,7 @@ function index()
 	entry({"admin", "services", appname, "connect_status"}, call("connect_status")).leaf = true
 	entry({"admin", "services", appname, "ping_node"}, call("ping_node")).leaf = true
 	entry({"admin", "services", appname, "urltest_node"}, call("urltest_node")).leaf = true
+	entry({"admin", "services", appname, "speedtest_node"}, call("speedtest_node")).leaf = true
 	entry({"admin", "services", appname, "update_config"}, call("update_config")).leaf = true
 	entry({"admin", "services", appname, "add_node"}, call("add_node")).leaf = true
 	entry({"admin", "services", appname, "set_node"}, call("set_node")).leaf = true
@@ -462,6 +463,22 @@ function urltest_node()
 		-- Keep node test parsing independent from the homepage test.
 		e.use_time = string.format("%.2f", (starttransfer - pretransfer) * 1000)
 		e.handshake_time = string.format("%.2f", pretransfer * 1000)
+	end
+	http_write_json(e)
+end
+
+function speedtest_node()
+	local index = http.formvalue("index")
+	local id = http.formvalue("id")
+	local e = {}
+	e.index = index
+	local result = luci.sys.exec("/usr/share/passwall/test.sh speed_test_node " .. util.shellquote(id or ""))
+	local code, size, pretransfer, total = result:match("^%s*(%d+):(%d+):([%d%.]+):([%d%.]+)%s*$")
+	code, size, pretransfer, total = tonumber(code), tonumber(size), tonumber(pretransfer), tonumber(total)
+	if code and code > 0 then e.http_code = code end
+	if code and code >= 200 and code < 400 and size and size > 0 and pretransfer and pretransfer >= 0 and total and total > pretransfer then
+		e.download_speed = string.format("%.0f", size / (total - pretransfer))
+		e.size_download = size
 	end
 	http_write_json(e)
 end
