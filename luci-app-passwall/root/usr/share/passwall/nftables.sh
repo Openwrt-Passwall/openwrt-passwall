@@ -224,7 +224,7 @@ gen_nftset() {
 		if [ "$timeout_argument_set" = "0" ]; then
 			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval; auto-merge; }"
 		else
-			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval, timeout; timeout $timeout_argument_set; gc-interval $gc_interval_time; auto-merge; }"
+			nft "add set $NFTABLE_NAME $nftset_name { type $ip_type; flags interval, timeout; timeout $timeout_argument_set; gc-interval $gc_interval_time; }"
 		fi
 	fi
 }
