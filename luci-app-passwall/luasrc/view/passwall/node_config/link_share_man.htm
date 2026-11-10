@@ -193,6 +193,8 @@ local current_node = map:get(section)
 			dom_prefix = "xray_"
 		} else if (v_type === "sing-box") {
 			dom_prefix = "singbox_"
+		} else if (v_type === "Socks") {
+			dom_prefix = "socks_"
 		}
 		var _address = ""
 		if (dom_prefix && dom_prefix != null) {
@@ -767,6 +769,50 @@ local current_node = map:get(section)
 				params = params.substring(1);
 			}
 			url += params;
+		} else if (v_type === "Socks" || ((v_type === "sing-box" || v_type === "Xray") && opt.get(dom_prefix + "protocol").value === "socks")) {
+			protocol = "socks";
+			var v_username = opt.get(dom_prefix + "username");
+			var v_password = opt.get(dom_prefix + "password");
+			var v_port = opt.get(dom_prefix + "port");
+			url = _address + ":" + v_port.value;
+			if (v_username.value || v_password.value) {
+				url = b64encutf8safe(v_username.value + ":" + v_password.value) + "@" + url;
+			}
+			var params = "";
+			params += opt.query("uot", dom_prefix + "uot");
+			params += opt.query("tfo", dom_prefix + "tcp_fast_open");
+			if (params) {
+				url += "?" + params.substring(1);
+			}
+			url += "#" + encodeURIComponent(v_alias.value);
+		} else if ((v_type === "sing-box" || v_type === "Xray") && opt.get(dom_prefix + "protocol").value === "http") {
+			protocol = opt.get(dom_prefix + "tls").checked ? "https" : "http";
+			var v_username = opt.get(dom_prefix + "username");
+			var v_password = opt.get(dom_prefix + "password");
+			var v_port = opt.get(dom_prefix + "port");
+			url = _address + ":" + v_port.value;
+			if (v_username.value || v_password.value) {
+				url = encodeURIComponent(v_username.value) + ":" + encodeURIComponent(v_password.value) + "@" + url;
+			}
+			var params = "";
+			if (protocol === "https") {
+				params += opt.query("sni", dom_prefix + "tls_serverName");
+				params += opt.query("alpn", dom_prefix + "alpn");
+				params += opt.query("insecure", dom_prefix + "tls_allowInsecure");
+				params += opt.query("pcs", dom_prefix + "tls_pinSHA256");
+				params += opt.query("vcn", dom_prefix + "tls_CertByName");
+				if (opt.get(dom_prefix + "utls")?.checked) {
+					params += opt.query("fp", dom_prefix + "fingerprint");
+				}
+				if (opt.get(dom_prefix + "ech")?.checked) {
+					params += opt.query("ech", dom_prefix + "ech_config");
+				}
+			}
+			params += opt.query("tfo", dom_prefix + "tcp_fast_open");
+			if (params) {
+				url += "?" + params.substring(1);
+			}
+			url += "#" + encodeURIComponent(v_alias.value);
 		}
 
 		if (url) {
@@ -1899,6 +1945,76 @@ local current_node = map:get(section)
 				opt.set(dom_prefix + 'use_finalmask', !!queryParam.fm);
 				opt.set(dom_prefix + 'finalmask', queryParam.fm || '');
 			}
+			if (m.hash) {
+				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
+			}
+		}
+
+		if (link_type === "socks" || link_type === "socks5" || link_type === "socks5h" || link_type === "http" || link_type === "https") {
+			if (other_type == "sing-box" && has_singbox) {
+				dom_prefix = "singbox_";
+				opt.set('type', "sing-box");
+			} else if (other_type == "xray" && has_xray) {
+				dom_prefix = "xray_";
+				opt.set('type', "Xray");
+			}
+			var protocol = (link_type === "http" || link_type === "https") ? "http" : "socks";
+			opt.set(dom_prefix + 'protocol', protocol);
+			var content = link_split[1];
+			var index = content.search(/[?#]/);
+			var suffix = index >= 0 ? content.substr(index) : '';
+			content = index >= 0 ? content.substr(0, index) : content;
+			var base64_auth = false;
+			if (protocol === "socks" && content.indexOf('@') === -1 && content.indexOf(':') === -1) {
+				content = b64decutf8safe(decodeURIComponent(content));
+				base64_auth = true;
+			}
+			var auth = '';
+			var index = content.lastIndexOf('@');
+			if (index >= 0) {
+				auth = content.substr(0, index);
+				content = content.substr(index + 1);
+			}
+			if (protocol === "socks" && auth.indexOf(':') === -1) {
+				auth = b64decutf8safe(decodeURIComponent(auth));
+				base64_auth = true;
+			}
+			var index = auth.indexOf(':');
+			var username = index >= 0 ? auth.substr(0, index) : auth;
+			var password = index >= 0 ? auth.substr(index + 1) : '';
+			if (!base64_auth) {
+				username = decodeURIComponent(username);
+				password = decodeURIComponent(password);
+			}
+			var m = new URL(link_type + "://" + content + suffix);
+			opt.set(dom_prefix + 'address', unbracketIP(m.hostname));
+			opt.set(dom_prefix + 'port', m.port || (protocol === "socks" ? "1080" : (link_type === "https" ? "443" : "80")));
+			opt.set(dom_prefix + 'username', username);
+			opt.set(dom_prefix + 'password', password);
+			opt.set(dom_prefix + 'transport', dom_prefix === "xray_" ? "raw" : "tcp");
+			var queryParam = {};
+			if (m.search.length > 1) {
+				var queryArray = m.search.substr(1).split('&');
+				for (var i = 0; i < queryArray.length; i++) {
+					var index = queryArray[i].indexOf('=');
+					if (index > 0) {
+						queryParam[decodeURIComponent(queryArray[i].substr(0, index)).toLowerCase()] = decodeURIComponent(queryArray[i].substr(index + 1));
+					}
+				}
+			}
+			opt.set(dom_prefix + 'uot', queryParam.uot === '1');
+			opt.set(dom_prefix + 'tcp_fast_open', queryParam.tfo === '1');
+			opt.set(dom_prefix + 'tls', link_type === "https");
+			opt.set(dom_prefix + 'reality', false);
+			opt.set(dom_prefix + 'tls_serverName', queryParam.sni || '');
+			opt.set(dom_prefix + 'alpn', queryParam.alpn || 'default');
+			opt.set(dom_prefix + 'tls_allowInsecure', (queryParam.allowinsecure || queryParam.insecure || queryParam.allow_insecure || '0') === '1');
+			opt.set(dom_prefix + 'tls_pinSHA256', queryParam.pcs || '');
+			opt.set(dom_prefix + 'tls_CertByName', queryParam.vcn || '');
+			opt.set(dom_prefix + 'utls', !!queryParam.fp);
+			opt.set(dom_prefix + 'fingerprint', queryParam.fp || 'chrome');
+			opt.set(dom_prefix + 'ech', !!queryParam.ech);
+			opt.set(dom_prefix + 'ech_config', queryParam.ech || '');
 			if (m.hash) {
 				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
 			}

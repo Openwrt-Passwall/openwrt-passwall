@@ -1711,6 +1711,74 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.wireguard_keepAlive = params["persistent-keepalive"] or params.keepalive or "0"
 		result.use_finalmask = (params.fm and params.fm ~= "") and "1" or nil
 		result.finalmask = (params.fm and params.fm ~= "") and api.base64Encode(params.fm) or nil
+	elseif szType == "socks" or szType == "socks5" or szType == "socks5h" or szType == "http" or szType == "https" then
+		if sub_other_type == "sing-box" and has_singbox then
+			result.type = "sing-box"
+		elseif sub_other_type == "xray" and has_xray then
+			result.type = "Xray"
+		else
+			log("跳过 " .. szType .. " 节点，因未安装 " .. szType .. " 核心程序 Xray 或 Sing-box。")
+			return nil
+		end
+		result.protocol = (szType == "http" or szType == "https") and "http" or "socks"
+
+		local alias = ""
+		if content:find("#") then
+			local idx_sp = content:find("#")
+			alias = content:sub(idx_sp + 1, -1)
+			content = content:sub(0, idx_sp - 1)
+		end
+		result.remarks = UrlDecode(alias)
+		local query = split(content, "%?")
+		local Info = query[1]
+		local base64_auth = false
+		if result.protocol == "socks" and not Info:find("@", 1, true) and not Info:find(":", 1, true) then
+			Info = base64Decode(UrlDecode(Info:gsub("%+", "%%2B")))
+			base64_auth = true
+		end
+		local auth, host_port = Info:match("^(.*)@(.*)$")
+		host_port = host_port or Info
+		auth = auth or ""
+		if result.protocol == "socks" and not auth:find(":", 1, true) then
+			auth = base64Decode(UrlDecode(auth:gsub("%+", "%%2B")))
+			base64_auth = true
+		end
+		local idx = auth:find(":", 1, true)
+		result.username = idx and auth:sub(1, idx - 1) or auth
+		result.password = idx and auth:sub(idx + 1) or ""
+		if not base64_auth then
+			result.username = UrlDecode(result.username:gsub("%+", "%%2B"))
+			result.password = UrlDecode(result.password:gsub("%+", "%%2B"))
+		end
+		local params = {}
+		for _, v in pairs(split(query[2], '&')) do
+			local s = v:find("=", 1, true)
+			if s and s > 1 then
+				params[UrlDecode(v:sub(1, s - 1)):lower()] = UrlDecode(v:sub(s + 1):gsub("%+", "%%2B"))
+			end
+		end
+		local port = result.protocol == "socks" and "1080" or (szType == "https" and "443" or "80")
+		result.address, result.port = parse_host_port(host_port, port)
+		result.transport = result.type == "Xray" and "raw" or "tcp"
+		result.uot = params.uot
+		result.tcp_fast_open = params.tfo
+		result.tls = szType == "https" and "1" or "0"
+		if result.tls == "1" then
+			result.tls_serverName = params.sni
+			result.alpn = params.alpn
+			local insecure = params.allowinsecure or params.insecure or params.allow_insecure
+			result.tls_allowInsecure = (insecure == "1" or insecure == "0") and insecure or (sub_allowinsecure and "1" or "0")
+			result.tls_pinSHA256 = params.pcs
+			result.tls_CertByName = params.vcn
+			if params.fp and params.fp ~= "" then
+				result.utls = "1"
+				result.fingerprint = params.fp
+			end
+			if params.ech and params.ech ~= "" then
+				result.ech = "1"
+				result.ech_config = params.ech
+			end
+		end
 	else
 		log("暂时不支持 " .. szType .. " 类型的节点订阅，跳过此节点。")
 		return nil
