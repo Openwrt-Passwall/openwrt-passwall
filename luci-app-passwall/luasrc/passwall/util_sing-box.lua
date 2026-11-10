@@ -362,16 +362,22 @@ function gen_outbound(flag, node, tag, proxy_table)
 					["User-Agent"] = node.user_agent
 				} or nil,
 			}
-			local path = api.UrlDecode(node.ws_path)
-			local path_dat = api.split(path, "?")
-			local params = {}
-			for _, v in pairs(api.split(path_dat[2], '&')) do
-				local t = api.split(v, '=')
+			local path, query = (node.ws_path or "/"):match("^(.-)%?(.*)$")
+			local params, query_params = {}, {}
+			for v in (query or ""):gmatch("[^&]+") do
+				local t = api.split(api.UrlDecode(v), '=')
 				params[t[1]] = t[2]
+				if t[1] ~= "ed" and t[1] ~= "eh" then
+					table.insert(query_params, v)
+				end
 			end
 			local ed = tonumber(params.ed)
 			if ed then
-				v2ray_transport.path = path_dat[1]
+				-- Consume early-data options while preserving the remaining query.
+				v2ray_transport.path = path
+				if #query_params > 0 then
+					v2ray_transport.path = path .. "?" .. table.concat(query_params, "&")
+				end
 				v2ray_transport.max_early_data = ed
 			end
 			v2ray_transport.early_data_header_name = params.eh or "Sec-WebSocket-Protocol"
