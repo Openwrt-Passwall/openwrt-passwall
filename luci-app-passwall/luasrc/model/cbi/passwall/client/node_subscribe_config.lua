@@ -23,6 +23,7 @@ local trojan_type = {}
 local vmess_type = {}
 local vless_type = {}
 local hysteria2_type = {}
+local other_type = {}
 local xray_version = api.get_app_version("xray")
 if has_ss_rust then
 	local s = "shadowsocks-rust"
@@ -35,6 +36,7 @@ if has_singbox then
 	table.insert(vmess_type, s)
 	table.insert(vless_type, s)
 	table.insert(hysteria2_type, s)
+	table.insert(other_type, s)
 end
 if has_xray then
 	local s = "xray"
@@ -42,6 +44,7 @@ if has_xray then
 	table.insert(ss_type, s)
 	table.insert(vmess_type, s)
 	table.insert(vless_type, s)
+	table.insert(other_type, s)
 	if api.compare_versions(xray_version, ">=", "26.1.13") then
 		table.insert(hysteria2_type, s)
 	end
@@ -222,7 +225,18 @@ if #hysteria2_type > 0 then
 	for key, value in pairs(hysteria2_type) do
 		o:value(value)
 	end
+end
 
+if #other_type > 0 then
+	o = s:option(ListValue, "other_type", translatef("%s Node Use Type", translate("Other")))
+	o.default = "global"
+	o:value("global", translate("Use global config"))
+	for key, value in pairs(other_type) do
+		o:value(value)
+	end
+end
+
+if #hysteria2_type > 0 then
 	o = s:option(Value, "hysteria_up_mbps", "Hy/Hy2 " .. translate("Max upload Mbps"))
 	o.datatype = "uinteger"
 

@@ -10,6 +10,7 @@ local trojan_type = {}
 local vmess_type = {}
 local vless_type = {}
 local hysteria2_type = {}
+local other_type = {}
 local xray_version = api.get_app_version("xray")
 if has_ss_rust then
 	local s = "shadowsocks-rust"
@@ -22,6 +23,7 @@ if has_singbox then
 	table.insert(vmess_type, s)
 	table.insert(vless_type, s)
 	table.insert(hysteria2_type, s)
+	table.insert(other_type, s)
 end
 if has_xray then
 	local s = "xray"
@@ -29,6 +31,7 @@ if has_xray then
 	table.insert(ss_type, s)
 	table.insert(vmess_type, s)
 	table.insert(vless_type, s)
+	table.insert(other_type, s)
 	if api.compare_versions(xray_version, ">=", "26.1.13") then
 		table.insert(hysteria2_type, s)
 	end
@@ -100,7 +103,15 @@ if #hysteria2_type > 0 then
 	end
 end
 
-if #ss_type > 0 or #trojan_type > 0 or #vmess_type > 0 or #vless_type > 0 or #hysteria2_type > 0 then
+if #other_type > 0 then
+	o = s:option(ListValue, "other_type", translatef("%s Node Use Type", translate("Other")))
+	o:value("", translate("Auto"))
+	for key, value in pairs(other_type) do
+		o:value(value)
+	end
+end
+
+if #ss_type > 0 or #trojan_type > 0 or #vmess_type > 0 or #vless_type > 0 or #hysteria2_type > 0 or #other_type > 0 then
 	o.description = string.format("<font color='red'>%s</font>",
 			translate("The configured type also applies to the core specified when manually importing nodes."))
 end

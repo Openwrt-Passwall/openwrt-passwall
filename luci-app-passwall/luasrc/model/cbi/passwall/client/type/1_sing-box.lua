@@ -706,6 +706,10 @@ if singbox_tags:find("with_wireguard") then
 
 	o = s:option(Value, "wireguard_reserved", translate("Reserved"), translate("Decimal numbers separated by \",\" or Base64-encoded strings."))
 	o:depends({ protocol = "wireguard" })
+
+	o = s:option(Value, "wireguard_keepAlive", translate("Keep Alive"))
+	o.default = "0"
+	o:depends({ protocol = "wireguard" })
 end
 
 -- [[ TCP部分（模拟） ]]--

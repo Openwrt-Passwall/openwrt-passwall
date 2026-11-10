@@ -436,7 +436,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 				peers = (node.protocol == "wireguard") and {
 					{
 						publicKey = node.wireguard_public_key,
-						endpoint = node.address .. ":" .. node.port,
+						endpoint = (api.is_ipv6(node.address) and ("[" .. node.address .. "]") or node.address) .. ":" .. node.port,
 						preSharedKey = node.wireguard_preSharedKey,
 						keepAlive = node.wireguard_keepAlive and tonumber(node.wireguard_keepAlive) or nil
 					}

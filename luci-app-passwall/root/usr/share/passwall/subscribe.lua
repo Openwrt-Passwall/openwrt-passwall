@@ -86,6 +86,7 @@ local DEFAULT_TROJAN_TYPE =  api.get_core("trojan_type", {{has_singbox,"sing-box
 local DEFAULT_VMESS_TYPE = api.get_core("vmess_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
 local DEFAULT_VLESS_TYPE = api.get_core("vless_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
 local DEFAULT_HYSTERIA2_TYPE = api.get_core("hysteria2_type", {{has_hysteria2,"hysteria2"},{has_singbox,"sing-box"},{has_xray,"xray"}})
+local DEFAULT_OTHER_TYPE = api.get_core("other_type", {{has_singbox,"sing-box"},{has_xray,"xray"}})
 local core_has = {
 	["xray"] = has_xray,
 	["sing-box"] = has_singbox,
@@ -569,6 +570,7 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 	local sub_vmess_type = DEFAULT_VMESS_TYPE
 	local sub_vless_type = DEFAULT_VLESS_TYPE
 	local sub_hysteria2_type = DEFAULT_HYSTERIA2_TYPE
+	local sub_other_type = DEFAULT_OTHER_TYPE
 	local sub_hy_up_mbps, sub_hy_down_mbps = 1000, 1000
 	if sub_cfg then
 		if sub_cfg.allowInsecure and sub_cfg.allowInsecure ~= "1" then
@@ -593,6 +595,10 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		local hysteria2_type = sub_cfg.hysteria2_type or "global"
 		if hysteria2_type ~= "global" and core_has[hysteria2_type] then
 			sub_hysteria2_type = hysteria2_type
+		end
+		local other_type = sub_cfg.other_type or "global"
+		if other_type ~= "global" and core_has[other_type] then
+			sub_other_type = other_type
 		end
 		sub_hy_up_mbps = sub_cfg.hysteria_up_mbps
 		sub_hy_down_mbps = sub_cfg.hysteria_down_mbps
@@ -1664,6 +1670,47 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 			result.snell_mode = params.mode or "default"
 		end
 		result.snell_reuse = (params.reuse == "1") and "1" or "0"
+	elseif szType == "wireguard" then
+		if sub_other_type == "sing-box" and has_singbox then
+			result.type = "sing-box"
+		elseif sub_other_type == "xray" and has_xray then
+			result.type = "Xray"
+		else
+			log("跳过 WireGuard 节点，因未安装 WireGuard 核心程序 Xray 或 Sing-box。")
+			return nil
+		end
+		result.protocol = "wireguard"
+
+		local alias = ""
+		if content:find("#") then
+			local idx_sp = content:find("#")
+			alias = content:sub(idx_sp + 1, -1)
+			content = content:sub(0, idx_sp - 1)
+		end
+		result.remarks = UrlDecode(alias)
+		local contents = split(content, "@")
+		result.wireguard_secret_key = UrlDecode(contents[1]:gsub("%+", "%%2B"))
+		local query = split(contents[2], "%?")
+		local host_port = query[1]
+		local params = {}
+		for _, v in pairs(split(query[2], '&')) do
+			local s = v:find("=", 1, true)
+			if s and s > 1 then
+				params[UrlDecode(v:sub(1, s - 1)):lower()] = UrlDecode(v:sub(s + 1):gsub("%+", "%%2B"))
+			end
+		end
+		result.address, result.port = parse_host_port(host_port, "51820")
+		result.wireguard_public_key = params.publickey
+		result.wireguard_preSharedKey = params.presharedkey
+		result.wireguard_local_address = {}
+		for value in ((params.address or params.ip or "") .. "," .. (params.ipv6 or "")):gmatch("[^,%s]+") do
+			result.wireguard_local_address[#result.wireguard_local_address + 1] = value
+		end
+		result.wireguard_reserved = params.reserved
+		result.wireguard_mtu = params.mtu or "1420"
+		result.wireguard_keepAlive = params["persistent-keepalive"] or params.keepalive or "0"
+		result.use_finalmask = (params.fm and params.fm ~= "") and "1" or nil
+		result.finalmask = (params.fm and params.fm ~= "") and api.base64Encode(params.fm) or nil
 	else
 		log("暂时不支持 " .. szType .. " 类型的节点订阅，跳过此节点。")
 		return nil

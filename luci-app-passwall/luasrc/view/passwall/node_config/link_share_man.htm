@@ -14,6 +14,7 @@ local trojan_type = api.get_core("trojan_type", {{has_singbox,"sing-box"},{has_x
 local vmess_type = api.get_core("vmess_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
 local vless_type = api.get_core("vless_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
 local hysteria2_type = api.get_core("hysteria2_type", {{has_hysteria2,"hysteria2"},{has_singbox,"sing-box"}, {has_xray,"xray"}})
+local other_type = api.get_core("other_type", {{has_singbox,"sing-box"},{has_xray,"xray"}})
 
 local current_node = map:get(section)
 -%>
@@ -27,6 +28,7 @@ local current_node = map:get(section)
 	let vmess_type = "<%=vmess_type%>"
 	let vless_type = "<%=vless_type%>"
 	let hysteria2_type = "<%=hysteria2_type%>"
+	let other_type = "<%=other_type%>"
 
 	function padright(str, cnt, pad) {
 		return str + Array(cnt + 1).join(pad);
@@ -737,6 +739,30 @@ local current_node = map:get(section)
 			params += opt.query("reuse", dom_prefix + "snell_reuse");
 
 			params += "#" + encodeURI(v_alias.value);
+			if (params[0] == "&") {
+				params = params.substring(1);
+			}
+			url += params;
+		} else if ((v_type === "Xray" || v_type === "sing-box") && opt.get(dom_prefix + "protocol").value === "wireguard") {
+			protocol = "wireguard";
+			var v_password = opt.get(dom_prefix + "wireguard_secret_key");
+			var v_port = opt.get(dom_prefix + "port");
+			url = encodeURIComponent(v_password.value) +
+				"@" + _address +
+				":" + v_port.value + "?";
+
+			var params = "";
+			params += opt.query("publickey", dom_prefix + "wireguard_public_key");
+			params += opt.query("presharedkey", dom_prefix + "wireguard_preSharedKey");
+			var addresses = opt.getlist(dom_prefix + "wireguard_local_address").map(value => value.trim()).filter(Boolean);
+			params += "&address=" + encodeURIComponent(addresses.join(","));
+			params += opt.query("reserved", dom_prefix + "wireguard_reserved");
+			params += opt.query("mtu", dom_prefix + "wireguard_mtu");
+			params += opt.query("persistent-keepalive", dom_prefix + "wireguard_keepAlive");
+			if (v_type === "Xray" && opt.get(dom_prefix + "use_finalmask")?.checked) {
+				params += opt.query("fm", dom_prefix + "finalmask");
+			}
+			params += "#" + encodeURIComponent(v_alias.value);
 			if (params[0] == "&") {
 				params = params.substring(1);
 			}
@@ -1823,6 +1849,56 @@ local current_node = map:get(section)
 			opt.set(dom_prefix + 'snell_obfs_mode', queryParam.obfs || 'none');
 			opt.set(dom_prefix + 'snell_obfs_host', queryParam['obfs-host'] || queryParam.obfs_host || '');
 			opt.set(dom_prefix + 'snell_mode', queryParam.mode || 'default');
+			if (m.hash) {
+				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
+			}
+		}
+
+		if (link_type === "wireguard") {
+			if (other_type == "sing-box" && has_singbox) {
+				dom_prefix = "singbox_";
+				opt.set('type', "sing-box");
+			} else if (other_type == "xray" && has_xray) {
+				dom_prefix = "xray_";
+				opt.set('type', "Xray");
+			}
+			opt.set(dom_prefix + 'protocol', "wireguard");
+			var info = link_split[1].split('@');
+			var m = parseNodeUrl("wireguard://" + info[1]);
+			var host_port = info[1].split(/[/?#]/)[0];
+			opt.set(dom_prefix + 'address', unbracketIP(m.hostname));
+			opt.set(dom_prefix + 'port', host_port.match(/:(\d+)$/)?.[1] || '51820');
+			opt.set(dom_prefix + 'wireguard_secret_key', decodeURIComponent(info[0]));
+			var queryParam = {};
+			if (m.search.length > 1) {
+				var queryArray = m.search.substr(1).split('&');
+				for (var i = 0; i < queryArray.length; i++) {
+					var index = queryArray[i].indexOf('=');
+					if (index > 0) {
+						queryParam[decodeURIComponent(queryArray[i].substr(0, index)).toLowerCase()] = decodeURIComponent(queryArray[i].substr(index + 1));
+					}
+				}
+			}
+			opt.set(dom_prefix + 'wireguard_public_key', queryParam.publickey);
+			opt.set(dom_prefix + 'wireguard_preSharedKey', queryParam.presharedkey || '');
+			var addresses = ((queryParam.address || queryParam.ip || '') + ',' + (queryParam.ipv6 || '')).split(/[,\s]+/).filter(Boolean);
+			var fullName = opt.base + '.' + dom_prefix + 'wireguard_local_address';
+			var lists = document.querySelectorAll('.cbi-dynlist');
+			for (var i = 0; i < lists.length; i++) {
+				var label = lists[i].closest('.cbi-value')?.querySelector('label.cbi-value-title');
+				if (label?.getAttribute('for') === fullName) {
+					L.dom.callClassMethod(lists[i], 'setValue', addresses);
+					lists[i].dispatchEvent(new Event('change', { bubbles: true }));
+					break;
+				}
+			}
+			opt.set(dom_prefix + 'wireguard_reserved', queryParam.reserved || '');
+			opt.set(dom_prefix + 'wireguard_mtu', queryParam.mtu || '1420');
+			opt.set(dom_prefix + 'wireguard_keepAlive', queryParam['persistent-keepalive'] || queryParam.keepalive || '0');
+			if (dom_prefix === "xray_") {
+				opt.set(dom_prefix + 'use_finalmask', !!queryParam.fm);
+				opt.set(dom_prefix + 'finalmask', queryParam.fm || '');
+			}
 			if (m.hash) {
 				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
 			}

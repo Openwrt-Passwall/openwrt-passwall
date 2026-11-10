@@ -507,6 +507,7 @@ function gen_outbound(flag, node, tag, proxy_table)
 				pre_shared_key = node.wireguard_preSharedKey,
 				reserved = node.wireguard_reserved,
 				mtu = tonumber(node.wireguard_mtu),
+				persistent_keepalive_interval = tonumber(node.wireguard_keepAlive),
 			}
 		end
 
@@ -2438,7 +2439,8 @@ function gen_config(var)
 								port = value.server_port,
 								public_key = value.peer_public_key,
 								pre_shared_key = value.pre_shared_key,
-								allowed_ips = {"0.0.0.0/0"},
+								allowed_ips = {"0.0.0.0/0", "::/0"},
+								persistent_keepalive_interval = value.persistent_keepalive_interval,
 								reserved = value.reserved
 							}
 						},
