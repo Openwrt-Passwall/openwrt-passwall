@@ -36,10 +36,12 @@ o = s:option(ListValue, "type", translate("Type"))
 
 local type_table = {}
 for filename in api.fs.dir(types_dir) do
-	table.insert(type_table, filename)
+	if filename:match("^%d+_") then
+		table.insert(type_table, filename)
+	end
 end
 table.sort(type_table, function(a, b)
-	return a < b
+	return tonumber(a:match("^%d+")) < tonumber(b:match("^%d+"))
 end)
 
 for index, value in ipairs(type_table) do
