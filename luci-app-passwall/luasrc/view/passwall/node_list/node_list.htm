@@ -139,7 +139,17 @@ table td, .table .td {
 }
 
 ._now_use_bg {
-	background: #5e72e445 !important;
+	/* Argon: --primary, Bootstrap: --primary-color-high,
+	   Aurora: --brand, Vantage: --v-accent */
+	--pw-accent: var(--primary,
+	              var(--primary-color-high,
+	              var(--brand,
+	              var(--v-accent,
+	              var(--accent, currentColor)))));
+	/* Prefer each theme's own soft accent surface. */
+	background-color: var(--brand-subtle,
+	                    var(--v-accent-soft,
+	                    color-mix(in srgb, var(--pw-accent) 27%, transparent))) !important;
 }
 
 .ping a,
@@ -147,12 +157,6 @@ table td, .table .td {
 .tcping_value a {
 	text-decoration: none;
 	cursor: pointer;
-}
-
-@media (prefers-color-scheme: dark) {
-	._now_use_bg {
-		background: #4a90e2 !important;
-	}
 }
 
 .td.cbi-section-actions {
