@@ -73,6 +73,8 @@ url_test_node() {
 		fi
 		sleep 2s
 		probeUrl=$(config_n_get @global_other[0] url_test_url https://www.google.com/generate_204)
+		# 预热代理链路，减轻首次请求的冷启动影响，提高部分节点的测试成功率和延迟稳定性
+		curl --connect-timeout 3 --max-time 5 -o /dev/null -I -sk "$@" -x "$curlx" "$probeUrl" >/dev/null 2>&1
 		result=$(curl --connect-timeout 3 --max-time 5 -o /dev/null -I -sk -w "%{http_code}:%{time_pretransfer}:%{time_starttransfer}" "$@" -x "$curlx" "${probeUrl}") || result=0
 		# 结束 SS 插件进程
 		if [ "$_type" != "socks" ]; then
