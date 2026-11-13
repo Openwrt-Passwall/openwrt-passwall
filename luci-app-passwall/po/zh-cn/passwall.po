@@ -2069,3 +2069,99 @@ msgstr "显示全部行"
 
 msgid "The filter only hides rows on this page and changes nothing on the router. Select all skips hidden rows."
 msgstr "筛选只在本页隐藏行，不会改动路由器上的设置。全选会跳过隐藏行。"
+
+msgid "Zray UDP requires TCP with XTLS Vision. Other modes support TCP only."
+msgstr "Zray 的 UDP 转发需要 TCP + XTLS Vision，其他模式仅支持 TCP。"
+
+msgid "Zray WebSocket requires flow=none"
+msgstr "Zray 使用 WebSocket 时必须关闭 flow。"
+
+msgid "Zray requires TLS or REALITY"
+msgstr "Zray 需要启用 TLS 或 REALITY。"
+
+msgid "Zray TLS currently supports skipping certificate verification only. REALITY authenticates using its public key."
+msgstr "Zray 的普通 TLS 目前仅支持跳过证书校验；REALITY 使用公钥认证。"
+
+msgid "Zray TLS requires explicit Allow insecure"
+msgstr "Zray 的普通 TLS 需要显式允许跳过证书校验。"
+
+msgid "Unsupported Zray node settings"
+msgstr "该节点包含 Zray 尚不支持的设置。"
+
+msgid "Advanced parameters"
+msgstr "高级参数"
+
+msgid "These settings apply to each Zray process started for this node. Save and apply to restart with the new values."
+msgstr "这些设置对该节点启动的每个 Zray 进程生效，保存并应用后重启生效。"
+
+msgid "Network workers"
+msgstr "网络工作线程数"
+
+msgid "0 selects automatically (up to 4); 1 uses one worker; 2-16 requests that many workers. Limited by the connection count. A single connection is not split across workers."
+msgstr "0 为自动选择（最多 4 个），1 为单线程，2–16 为指定线程数，实际数量受连接数限制。单个连接不会拆分到多个线程。"
+
+msgid "Maximum connections"
+msgstr "最大连接数"
+
+msgid "Total connection slots per Zray process, shared by all workers. More slots reserve more memory at startup."
+msgstr "每个 Zray 进程的连接槽位总数，由所有工作线程共享。槽位越多，启动时预留的内存越多。"
+
+msgid "Handshake timeout (seconds)"
+msgstr "握手超时（秒）"
+
+msgid "Connect timeout (seconds)"
+msgstr "连接超时（秒）"
+
+msgid "Deadline for one upstream connection attempt; at least 1 second."
+msgstr "单次上游连接尝试的超时时间，至少为 1 秒。"
+
+msgid "Idle timeout (seconds)"
+msgstr "空闲超时（秒）"
+
+msgid "Close connections that have no traffic for this long. 0 does not disable the timeout."
+msgstr "关闭超过此时间没有流量的连接，填 0 不会禁用超时。"
+
+msgid "Socket buffer (bytes)"
+msgstr "套接字缓冲区（字节）"
+
+msgid "0 keeps the kernel defaults and automatic buffer tuning."
+msgstr "0 表示保留内核默认值及缓冲区自动调整。"
+
+msgid "Statistics interval (seconds)"
+msgstr "统计间隔（秒）"
+
+msgid "0 disables periodic statistics. Enable node logging to view the output."
+msgstr "0 表示关闭周期统计，需要启用节点日志才能查看输出。"
+
+msgid "Bootstrap DNS"
+msgstr "启动 DNS"
+
+msgid "Resolve the proxy server using this DNS server at startup. Use an IP address, IPv4:port or [IPv6]:port. Empty uses the system resolver; a failed query also falls back to it."
+msgstr "启动时使用此 DNS 解析代理服务器域名。可填 IP、IPv4:端口或 [IPv6]:端口。留空使用系统解析器，查询失败也会回退到系统解析器。"
+
+msgid "Invalid bootstrap DNS address."
+msgstr "启动 DNS 地址格式不正确。"
+
+msgid "Kernel encryption backend"
+msgstr "内核加密后端"
+
+msgid "auto tries devcrypto, then AF_ALG, then software. Unavailable backends fall back to software. Vision direct traffic bypasses outer TLS encryption."
+msgstr "auto 依次尝试 devcrypto、AF_ALG 和软件加密，后端不可用时回退到软件加密。Vision 直拷贝流量不经过外层 TLS 加密。"
+
+msgid "Asynchronous kernel encryption"
+msgstr "异步内核加密"
+
+msgid "When kernel encryption is enabled, use one encryption executor per network worker."
+msgstr "启用内核加密时，为每个网络工作线程分配一个加密执行线程。"
+
+msgid "Minimum encryption payload (bytes)"
+msgstr "最小加密负载（字节）"
+
+msgid "Maximum encryption payload (bytes)"
+msgstr "最大加密负载（字节）"
+
+msgid "Only payloads within these inclusive bounds use the kernel backend. Require 1 <= minimum <= maximum <= 32768."
+msgstr "仅在此范围内（含边界）的负载使用内核后端，必须满足 1 ≤ 最小值 ≤ 最大值 ≤ 32768。"
+
+msgid "Minimum encryption payload must not exceed maximum."
+msgstr "最小加密负载不能大于最大值。"

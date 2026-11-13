@@ -13,10 +13,12 @@ LUA_UTIL_PATH=/usr/lib/lua/luci/passwall
 UTIL_SINGBOX=$LUA_UTIL_PATH/util_sing-box.lua
 UTIL_SS=$LUA_UTIL_PATH/util_shadowsocks.lua
 UTIL_XRAY=$LUA_UTIL_PATH/util_xray.lua
+UTIL_ZRAY=$LUA_UTIL_PATH/util_zray.lua
 UTIL_NAIVE=$LUA_UTIL_PATH/util_naiveproxy.lua
 UTIL_HYSTERIA2=$LUA_UTIL_PATH/util_hysteria2.lua
 SINGBOX_BIN=$(first_type $(config_n_get @global_app[0] sing_box_file) sing-box)
 XRAY_BIN=$(first_type $(config_n_get @global_app[0] xray_file) xray)
+ZRAY_BIN=$(first_type $(config_n_get @global_app[0] zray_file) zray)
 
 check_run_environment() {
 	local prefer_nft=$(config_n_get @global_forwarding[0] prefer_nft 1)
@@ -463,6 +465,28 @@ run_socks() {
 		[ -n "$no_run" ] && _args="${_args} no_run=1"
 		run_xray flag=$flag node=$node socks_address=$bind socks_port=$socks_port config_file=$config_file log_file=$log_file loglevel=$loglevel ${_args}
 	;;
+	zray)
+		[ -n "$ZRAY_BIN" ] || { echolog "找不到 Zray 内核。"; return 1; }
+		json_add_string "local_socks_address" "$bind"
+		json_add_string "local_socks_port" "$socks_port"
+		lua "$UTIL_ZRAY" gen_config "$(json_dump)" > "$config_file" || {
+			rm -f "$config_file"
+			echolog "Zray 节点配置无效，请检查协议、传输方式和 TLS 设置。"
+			return 1
+		}
+		[ -n "$no_run" ] || ln_run "$ZRAY_BIN" zray "$log_file" "$config_file"
+		# Zray has a mixed SOCKS/HTTP listener. A second port needs its own
+		# instance; no Xray/Sing-box HTTP-to-SOCKS adapter is required.
+		[ "$http_port" != "0" ] && {
+			http_flag=1
+			[ "$http_port" = "$socks_port" ] || {
+				local zray_http_config="${config_file%.json}_http.json"
+				json_add_string "local_socks_port" "$http_port"
+				lua "$UTIL_ZRAY" gen_config "$(json_dump)" > "$zray_http_config" || return 1
+				[ -n "$no_run" ] || ln_run "$ZRAY_BIN" zray "$log_file" "$zray_http_config"
+			}
+		}
+	;;
 	naiveproxy)
 		json_add_string "run_type" "socks"
 		json_add_string "local_addr" "$bind"
@@ -539,6 +563,7 @@ run_socks() {
 	unset http_flag
 
 	[ -z "$no_run" ] && [ "${server_host}" != "127.0.0.1" ] && [ "$type" != "sing-box" ] && [ "$type" != "xray" ] && echo "${node}" >> $TMP_PATH/direct_node_list
+	return 0
 }
 
 start_global() {
@@ -614,7 +639,7 @@ start_global() {
 			local _config_file="global_${NODE}_socks.json"
 			_socks_address="127.0.0.1"
 			_socks_port=$GLOBAL_SOCKS_port
-			run_socks flag="global" node=$NODE bind=${node_socks_bind} socks_port=${_socks_port} config_file=${_config_file} http_port=${GLOBAL_HTTP_port} http_config_file=${GLOBAL_ACL_PATH}/global_socks_http.json
+			run_socks flag="global" node=$NODE bind=${node_socks_bind} socks_port=${_socks_port} config_file=${_config_file} http_port=${GLOBAL_HTTP_port} http_config_file=${GLOBAL_ACL_PATH}/global_socks_http.json || return 1
 			node_socks_flag=1
 			[ "$on_node_http" = "1" ] && node_http_flag=1
 			unset _socks_username
@@ -1676,7 +1701,7 @@ acl_app() {
 								run_${type} flag=$node node=$node redir_port=$redir_port ${_extra_param} config_file=$config_file log_file=$log_file loglevel=$loglevel
 							else
 								config_file="acl/${node}_SOCKS_${socks_port}.json"
-								run_socks flag=$node node=$node bind=127.0.0.1 socks_port=$socks_port config_file=$config_file log_file=$log_file loglevel=$loglevel
+								run_socks flag=$node node=$node bind=127.0.0.1 socks_port=$socks_port config_file=$config_file log_file=$log_file loglevel=$loglevel || continue
 								# log_file=$TMP_ACL_PATH/ipt2socks_${node}_${redir_port}.log
 								log_file="/dev/null"
 								run_ipt2socks flag=acl_${node} tcp_tproxy=${is_tproxy} local_port=$redir_port socks_address=127.0.0.1 socks_port=$socks_port log_file=$log_file
@@ -1701,6 +1726,44 @@ acl_app() {
 	fi
 }
 
+# Zray only implements XUDP on Vision TCP. Refuse an incompatible active
+# configuration before touching DNS/firewall instead of redirecting UDP to a
+# listener that cannot forward it. SOCKS-only instances can still use WS.
+check_zray_node() {
+	local node="$1" proxy_udp="$2" dns_mode="$3" error
+	[ "$(config_n_get "$node" type)" = "Zray" ] || return 0
+	[ -n "$ZRAY_BIN" ] || { echolog "找不到 Zray 内核。"; return 1; }
+	case "$dns_mode" in
+		xray) [ -n "$XRAY_BIN" ] || { echolog "Zray 节点请将 DNS 模式改为 TCP 或 dns2socks。"; return 1; } ;;
+		sing-box) [ -n "$SINGBOX_BIN" ] || { echolog "Zray 节点请将 DNS 模式改为 TCP 或 dns2socks。"; return 1; } ;;
+	esac
+	json_init
+	json_add_string node "$node"
+	json_add_string proxy_udp "$proxy_udp"
+	error=$(lua "$UTIL_ZRAY" check_node "$(json_dump)" 2>&1) || {
+		echolog "Zray 节点 $(config_n_get "$node" remarks)：$error"
+		return 1
+	}
+}
+
+check_zray_nodes() {
+	[ "$ENABLED_DEFAULT_ACL" != "1" ] || check_zray_node "$NODE" "$UDP_PROXY_MODE" "$DNS_MODE" || return 1
+	[ "$ENABLED_ACLS" = "1" ] || return 0
+	local sid node udp dns
+	for sid in $(uci show "$CONFIG" | grep '=acl_rule' | cut -d '.' -sf 2 | cut -d '=' -sf 1); do
+		[ "$(config_n_get "$sid" enabled)" = "1" ] || continue
+		[ "$(config_n_get "$sid" mode 0)" != "0" ] || continue
+		node=$(config_n_get "$sid" node)
+		if [ "$(config_n_get "$sid" use_global_config 0)" = "1" ] || [ "$node" = "default" ] || [ "$node" = "$NODE" ]; then
+			node="$NODE"; udp="$UDP_PROXY_MODE"; dns="$DNS_MODE"
+		else
+			udp=$(config_n_get "$sid" udp_proxy_mode proxy)
+			dns=$(config_n_get "$sid" dns_mode dns2socks)
+		fi
+		check_zray_node "$node" "$udp" "$dns" || return 1
+	done
+}
+
 start() {
 	busybox pgrep -f ${TMP_PATH}/bin > /dev/null 2>&1 && {
 		logger -t PSW-RESTART "Upgrade or overload residue is detected, and the subprocess is being called to perform complete cleaning..."
@@ -1710,6 +1773,7 @@ start() {
 	mkdir -p /tmp/etc /tmp/log $TMP_PATH $TMP_BIN_PATH $TMP_SCRIPT_FUNC_PATH $TMP_ROUTE_PATH $TMP_ACL_PATH $TMP_PATH2
 	set_cache_var "LOCAL_DNS" "$LOCAL_DNS"
 	get_config
+	check_zray_nodes || return 1
 	GEO_DIR=$(config_n_get @global_rules[0] v2ray_location_asset "/usr/share/v2ray/")
 	export XRAY_LOCATION_ASSET="$TMP_PATH2/geodata"
 	mkdir -p "$XRAY_LOCATION_ASSET" 2>/dev/null

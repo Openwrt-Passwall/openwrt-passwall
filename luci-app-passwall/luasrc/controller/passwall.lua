@@ -356,6 +356,14 @@ function index_status()
 	end
 
 	if api.get_cache_var("ENABLED_DEFAULT_ACL") == "1" then
+		local node = api.get_cache_var("ACL_GLOBAL_node") or uci_get("@global[0]", "node")
+		if node and uci_get(node, "type") == "Zray" then
+			e.tcp_status = require("luci.passwall.util_zray").global_tcp_status(node)
+			-- Keep UDP unreported for Zray until its status is verified separately.
+			e.udp_status = false
+			http_write_json(e)
+			return
+		end
 		local has_tproxy = api.get_cache_var("HAS_TPROXY")
 		if not has_tproxy then
 			local handle = io.popen("lsmod")
@@ -494,7 +502,14 @@ function add_node()
 		uci_set(uid, "group", group)
 	end
 
-	if api.is_finded("ipt2socks") then
+	if api.finded_com("zray") and not api.finded_com("xray") and not api.finded_com("sing-box") then
+		uci_set(uid, "type", "Zray")
+		uci_set(uid, "protocol", "vless")
+		uci_set(uid, "transport", "tcp")
+		uci_set(uid, "flow", "xtls-rprx-vision")
+		uci_set(uid, "tls", "1")
+		uci_set(uid, "reality", "1")
+	elseif api.is_finded("ipt2socks") then
 		uci_set(uid, "type", "Socks")
 	elseif api.finded_com("sing-box") then
 		uci_set(uid, "type", "sing-box")

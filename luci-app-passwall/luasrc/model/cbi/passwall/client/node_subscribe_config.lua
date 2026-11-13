@@ -17,6 +17,7 @@ m:appendTemplate("/cbi/nodes_listvalue_com")
 local has_ss_rust = api.is_finded("sslocal")
 local has_singbox = api.finded_com("sing-box")
 local has_xray = api.finded_com("xray")
+local has_zray = api.finded_com("zray")
 local has_hysteria2 = api.finded_com("hysteria")
 local ss_type = {}
 local trojan_type = {}
@@ -49,6 +50,7 @@ if has_xray then
 		table.insert(hysteria2_type, s)
 	end
 end
+if has_zray then table.insert(vless_type, "zray") end
 if has_hysteria2 then
 	local s = "hysteria2"
 	table.insert(hysteria2_type, s)

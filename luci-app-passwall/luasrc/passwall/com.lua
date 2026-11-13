@@ -15,6 +15,7 @@ _M.order = {
 	"geoview",
 	"chinadns-ng",
 	"xray",
+	"zray",
 	"sing-box",
 	"hysteria"
 }
@@ -63,6 +64,27 @@ _M["sing-box"] = {
 		armv7   = "armv7%-musl",
 		armv8   = "arm64%-musl",
 		riscv64 = "riscv64%-musl"
+	}
+}
+
+_M.zray = {
+	name = "Zray",
+	repo = "yunnysunny/zray",
+	get_url = function(self)
+		return "https://api.github.com/repos/" .. self.repo .. "/releases/latest"
+	end,
+	-- Zray treats its first argument as a configuration, not --version.
+	cmd_version = function(file)
+		return require("luci.passwall.util_zray_update").version(file)
+	end,
+	zipped = false,
+	default_path = "/usr/bin/zray",
+	match_fmt_str = "^zray%%-%s$",
+	strict_arch = true,
+	file_tree = {
+		aarch64 = "aarch64", rockchip = "aarch64", armv8 = "aarch64",
+		x86_64 = "x86_64", armv7 = "arm%-v7",
+		mips = "mips%-softfloat", mipsel = "mipsel%-softfloat"
 	}
 }
 

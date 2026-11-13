@@ -665,7 +665,7 @@ function get_valid_nodes()
 			if (port and e.address) or is_realm then
 				local address = e.address
 				if is_ip(address) or datatypes.hostname(address) or is_realm then
-					if (e.type == "sing-box" or e.type == "Xray") and e.protocol then
+					if (e.type == "sing-box" or e.type == "Xray" or e.type == "Zray") and e.protocol then
 						local protocol = e.protocol
 						if protocol == "vmess" then
 							protocol = "VMess"
@@ -762,7 +762,7 @@ function get_node_remarks(n)
 		if n.protocol and (n.protocol == "_balancing" or n.protocol == "_shunt" or n.protocol == "_iface" or n.protocol == "_urltest") then
 			remarks = trim("%s：[%s]" % {type_name .. " " .. i18n.translatef(n.protocol), n.remarks})
 		else
-			if (n.type == "sing-box" or n.type == "Xray") and n.protocol then
+			if (n.type == "sing-box" or n.type == "Xray" or n.type == "Zray") and n.protocol then
 				local protocol = n.protocol
 				if protocol == "vmess" then
 					protocol = "VMess"
@@ -910,6 +910,8 @@ function get_bin_version_cache(file, cmd, sb_tags)
 			local output = sys.exec(string.format("%s %s", util.shellquote(file), cmd))
 			version = output:match("^sing%-box%s+version%s+(%S+)") or ""
 			tags = trim(output:match("\nTags:[ \t]*([^\r\n]*)"))
+		elseif type(cmd) == "function" then
+			version = cmd(file)
 		else
 			version = sys.exec(string.format("echo -n $(%s %s)", util.shellquote(file), cmd))
 		end
@@ -935,6 +937,7 @@ function get_app_path(app_name)
 end
 
 function get_app_version(app_name, file)
+	if not com[app_name] or not com[app_name].cmd_version then return "" end
 	if file == nil then file = get_app_path(app_name) end
 	local version = get_bin_version_cache(file, com[app_name].cmd_version, app_name == "sing-box")
 	return version
@@ -1219,14 +1222,16 @@ local default_file_tree = {
 	riscv64 = "riscv64"
 }
 
-local function get_api_json(url)
+local function get_api_json(url, strict_tls)
+	local args = clone(curl_args)
+	if strict_tls then args[1] = args[1]:gsub("k", "") end
 	local gh_proxy = uci_get_c("@global_app[0]", "gh_proxy_url") or ""
 	local return_code, content
 	if gh_proxy ~= "" then
 		url = gh_proxy .. url
-		return_code, content = curl_direct(url, nil, curl_args)
+		return_code, content = curl_direct(url, nil, args)
 	else
-		return_code, content = curl_auto(url, nil, curl_args)
+		return_code, content = curl_auto(url, nil, args)
 	end
 	if return_code ~= 0 or content == "" then return {} end
 	return jsonc.parse(content) or {}
@@ -1265,7 +1270,8 @@ function to_check(arch, app_name)
 
 	if not arch or arch == "" then arch = auto_get_arch() end
 
-	local file_tree = com[app_name].file_tree[arch] or default_file_tree[arch] or ""
+	local file_tree = com[app_name].file_tree[arch] or
+		(not com[app_name].strict_arch and default_file_tree[arch]) or ""
 
 	if file_tree == "" then
 		return {
@@ -1276,7 +1282,7 @@ function to_check(arch, app_name)
 
 	local local_version = get_app_version(app_name)
 	local match_file_name = string.format(com[app_name].match_fmt_str, file_tree)
-	local json = get_api_json(com[app_name]:get_url())
+	local json = get_api_json(com[app_name]:get_url(), app_name == "zray")
 
 	if #json > 0 then
 		json = json[1]
@@ -1304,7 +1310,7 @@ function to_check(arch, app_name)
 	end
 ]]--
 	local asset = {}
-	for _, v in ipairs(json.assets) do
+	for _, v in ipairs(json.assets or {}) do
 		if v.name and v.name:match(match_file_name) then
 			asset = v
 			break
@@ -1366,6 +1372,7 @@ function to_download(app_name, url, size, task_id, keep_files)
 	end
 
 	local _curl_args = clone(curl_args)
+	if app_name == "zray" then _curl_args[1] = _curl_args[1]:gsub("k", "") end
 	table.insert(_curl_args, "--speed-limit 51200 --speed-time 15 --max-time 300")
 
 	local gh_proxy = uci_get_c("@global_app[0]", "gh_proxy_url") or ""

@@ -58,6 +58,7 @@ local has_ss_rust = api.is_finded("sslocal")
 local has_ssr = api.is_finded("ssr-local") and api.is_finded("ssr-redir")
 local has_singbox = api.finded_com("sing-box")
 local has_xray = api.finded_com("xray")
+local has_zray = api.finded_com("zray")
 local has_hysteria2 = api.finded_com("hysteria")
 local DEFAULT_ALLOWINSECURE = true
 -- 展开 DynamicList 每行中的关键字，保留原有空格并忽略空项和重复项。
@@ -84,11 +85,12 @@ local DEFAULT_FILTER_KEYWORD = {
 local DEFAULT_SS_TYPE = api.get_core("ss_type", {{has_ss_rust,"shadowsocks-rust"},{has_singbox,"sing-box"},{has_xray,"xray"}})
 local DEFAULT_TROJAN_TYPE =  api.get_core("trojan_type", {{has_singbox,"sing-box"},{has_xray,"xray"}})
 local DEFAULT_VMESS_TYPE = api.get_core("vmess_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
-local DEFAULT_VLESS_TYPE = api.get_core("vless_type", {{has_xray,"xray"},{has_singbox,"sing-box"}})
+local DEFAULT_VLESS_TYPE = api.get_core("vless_type", {{has_xray,"xray"},{has_singbox,"sing-box"},{has_zray,"zray"}})
 local DEFAULT_HYSTERIA2_TYPE = api.get_core("hysteria2_type", {{has_hysteria2,"hysteria2"},{has_singbox,"sing-box"},{has_xray,"xray"}})
 local DEFAULT_OTHER_TYPE = api.get_core("other_type", {{has_singbox,"sing-box"},{has_xray,"xray"}})
 local core_has = {
 	["xray"] = has_xray,
+	["zray"] = has_zray,
 	["sing-box"] = has_singbox,
 	["shadowsocks-rust"] = has_ss_rust,
 	["hysteria2"] = has_hysteria2
@@ -1225,7 +1227,9 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 		result.group = content.airport
 		result.remarks = content.remarks
 	elseif szType == "vless" then
-		if sub_vless_type == "sing-box" and has_singbox then
+		if sub_vless_type == "zray" and has_zray then
+			result.type = "Zray"
+		elseif sub_vless_type == "sing-box" and has_singbox then
 			result.type = 'sing-box'
 		elseif sub_vless_type == "xray" and has_xray then
 			result.type = "Xray"
@@ -1259,10 +1263,10 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 
 			if not params.type then params.type = "tcp" end
 			params.type = string.lower(params.type)
-			if ({ xhttp=true, kcp=true, mkcp=true })[params.type] and result.type ~= "Xray" and has_xray then
+			if ({ xhttp=true, kcp=true, mkcp=true })[params.type] and result.type ~= "Xray" and result.type ~= "Zray" and has_xray then
 				result.type = "Xray"
 			end
-			if result.type == "sing-box" and params.type == "raw" then
+			if (result.type == "sing-box" or result.type == "Zray") and params.type == "raw" then
 				params.type = "tcp"
 			elseif result.type == "Xray" and params.type == "tcp" then
 				params.type = "raw"
@@ -1357,7 +1361,7 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 					result.reality_mldsa65Verify = params.pqv or nil
 				end
 				local insecure = params.allowinsecure or params.allowInsecure or params.insecure
-				result.tls_allowInsecure = (insecure == "1" or insecure == "0") and insecure or (sub_allowinsecure and "1" or "0")
+				result.tls_allowInsecure = (insecure == "1" or insecure == "0") and insecure or ((result.type ~= "Zray" and sub_allowinsecure) and "1" or "0")
 			end
 
 			result.port = port
@@ -1367,6 +1371,15 @@ local function processData(szType, content, add_mode, group, sub_cfg)
 
 			if result.type == "sing-box" and (result.transport == "mkcp" or result.transport == "xhttp") then
 				log("跳过节点：" .. result.remarks .."，因 Sing-Box 不支持 " .. szType .. " 协议的 " .. result.transport .. " 传输方式，需更换 Xray。")
+				return nil
+			end
+		end
+		if result.type == "Zray" then
+			result.reality = result.reality or "0"
+			result.flow = (result.flow and result.flow ~= "") and result.flow or "none"
+			local _, err = require("luci.passwall.util_zray").validate_node(result)
+			if err then
+				log("跳过 Zray 节点：" .. (result.remarks or "") .. "，" .. err)
 				return nil
 			end
 		end

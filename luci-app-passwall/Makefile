@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-passwall
 PKG_VERSION:=26.11.11
-PKG_RELEASE:=1
+PKG_RELEASE:=4
 PKG_PO_VERSION:=$(PKG_VERSION)
 
 PKG_CONFIG_DEPENDS:= \
@@ -28,6 +28,7 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_SingBox \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Geodata \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin \
+	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Zray \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin
 
@@ -142,6 +143,12 @@ config PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin
 	bool "Include V2ray-Plugin (Shadowsocks Plugin)"
 	select PACKAGE_v2ray-plugin
 	default y if aarch64||arm||i386||x86_64
+
+config PACKAGE_$(PKG_NAME)_INCLUDE_Zray
+	bool "Include Zray"
+	depends on aarch64||arm||x86_64||mips||mipsel
+	select PACKAGE_zray
+	default n
 
 config PACKAGE_$(PKG_NAME)_INCLUDE_Xray
 	bool "Include Xray"
