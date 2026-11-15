@@ -48,19 +48,14 @@
 	text-overflow: ellipsis;
 	transition: background-color 0.15s ease;
 }
-/* 鼠标悬停效果 - 使用透明度避免覆盖问题 */
-.cbi-listvalue-panel li[data-key]:hover {
-	background-color: rgba(0, 123, 255, 0.1);
+/* 悬停和选中颜色由当前控件的主题样式提供 */
+.lv-dropdown-panel li[data-key]:hover {
+	background-color: var(--lv-hover-background, rgba(127, 127, 127, 0.1));
 }
-/* 选中项样式 - 使用更高优先级 */
-.cbi-listvalue-panel li[data-key].is-selected {
-	background-color: #007bff !important;
-	color: white !important;
+.lv-dropdown-panel li[data-key].is-selected {
+	background: var(--lv-selected-background, Highlight) !important;
+	color: var(--lv-selected-color, HighlightText) !important;
 	font-weight: 600 !important;
-}
-/* 选中项悬停时保持主色调 */
-.cbi-listvalue-panel li[data-key].is-selected:hover {
-	background-color: #0056b3 !important;
 }
 
 .lv-dropdown-container {
@@ -68,11 +63,6 @@
 	position: relative;
 	min-width: 220px;
 	white-space: nowrap;
-}
-@media (max-width: 1152px) {
-	.lv-dropdown-container {
-		white-space: normal;
-	}
 }
 @media (max-width: 600px) {
 	.lv-dropdown-container {
@@ -143,6 +133,32 @@
 	text-overflow: ellipsis;
 	text-align: left !important;
 }
+@media screen and (max-width: 1152px) {
+	.lv-dropdown-container {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
+		white-space: normal;
+	}
+
+	/* Override widths copied from the theme by adaptiveStyle(). */
+	.lv-dropdown-display.cbi-input-select {
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: 100% !important;
+	}
+
+	.lv-dropdown-label {
+		flex: 1;
+		width: 0;
+		min-width: 0;
+		text-overflow: ellipsis;
+	}
+
+	.lv-arrow-down {
+		flex-shrink: 0;
+	}
+}
 </style>
 
 <script type="text/javascript">
@@ -200,12 +216,6 @@
 		return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 	}
 
-	function lv_isTransparent(color) {
-		const cleanColor = lv_parseColorToRgba(color);
-		// check #RRGGBBAA for transparency
-		return !cleanColor || (cleanColor.a !== undefined && !cleanColor.a);
-	}
-
 	function lv_getColorSchema(color) {
 		const rgb = lv_parseColorToRgba(color);
 		if (!rgb) return 'unknown'; // Handle invalid colors
@@ -237,6 +247,67 @@
 		return lv_rgbToHex(r, g, b);
 	}
 
+	function lv_getNodeSelectorColors(select) {
+		const selectedIndex = select.selectedIndex;
+		const probe = document.createElement('option');
+		let backgroundColor, color;
+		let selectedBackground = 'Highlight', selectedColor = 'HighlightText';
+		// A selected option may use the theme's translucent accent, not its menu surface.
+		select.appendChild(probe);
+		try {
+			const style = getComputedStyle(probe);
+			backgroundColor = style.backgroundColor;
+			color = style.color;
+			const selectedOption = select.options[selectedIndex];
+			if (selectedOption) {
+				const selectedStyle = getComputedStyle(selectedOption);
+				// Preserve theme gradients and translucent tints for the selected row only.
+				if (selectedStyle.background !== style.background || selectedStyle.color !== color) {
+					selectedBackground = selectedStyle.background;
+					selectedColor = selectedStyle.color;
+				}
+			}
+		} finally {
+			probe.remove();
+			if (select.selectedIndex !== selectedIndex) select.selectedIndex = selectedIndex;
+		}
+
+		let ctx = lv_getNodeSelectorColors._context;
+		if (!ctx) {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 1;
+			ctx = lv_getNodeSelectorColors._context = canvas.getContext('2d', { willReadFrequently: true });
+		}
+		const rgb = [0, 0, 0];
+		let remaining = 1;
+		function composite(value) {
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = value;
+			ctx.fillRect(0, 0, 1, 1);
+			const pixel = ctx.getImageData(0, 0, 1, 1).data;
+			const alpha = pixel[3] / 255;
+			for (let i = 0; i < 3; i++) rgb[i] += pixel[i] * alpha * remaining;
+			remaining *= 1 - alpha;
+		}
+
+		// Flatten transparent surfaces before the popup is moved outside the form.
+		composite(backgroundColor);
+		for (let element = select; element && remaining > 0; element = element.parentElement) {
+			composite(getComputedStyle(element).backgroundColor);
+		}
+		if (remaining > 0) {
+			const canvasColor = document.createElement('span');
+			canvasColor.style.cssText = 'display:none; background-color:Canvas;';
+			select.parentElement.appendChild(canvasColor);
+			try {
+				composite(getComputedStyle(canvasColor).backgroundColor);
+			} finally {
+				canvasColor.remove();
+			}
+		}
+		return { backgroundColor: `rgb(${rgb.map(Math.round).join(', ')})`, color, selectedBackground, selectedColor };
+	}
+
 	// copy select styles
 	function lv_adaptiveStyle(cbid) {
 		const display = document.getElementById(cbid + ".display");
@@ -246,7 +317,6 @@
 			const elOption = hiddenSelect.getElementsByTagName("option")[0]
 			const styleSelect = window.getComputedStyle(hiddenSelect)
 			const styleOption = window.getComputedStyle(elOption)
-			const styleBody = window.getComputedStyle(document.body)
 
 			const styleNode = document.createElement('style')
 			const styleNames = ["width", "color", "height", "padding", "margin", "lineHeight", "border", "borderRadius", "minWidth", "minHeight"]
@@ -254,14 +324,14 @@
 				styleNames.push("borderBottomWidth", "borderBottomStyle", "borderBottomColor");
 			}
 			document.head.appendChild(styleNode)
-			// trace back from option -> select -> body for background color
+			const colors = lv_getNodeSelectorColors(hiddenSelect);
 			const panelRadius = styleSelect.borderRadius;
-			const optionColor = !lv_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !lv_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
+			const optionColor = colors.backgroundColor;
 			const titleColor = lv_getColorSchema(optionColor) === "light" ? lv_darker(optionColor, 30) : lv_lighter(optionColor, 30)
 			// 自带箭头已占据布局空间，右内边距使用主题的左内边距
 			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")} {`, lv_style2Css(styleSelect, styleNames), lv_style2Css(styleSelect, ["backgroundColor"]), `padding-right: ${styleSelect.paddingLeft} !important;`, "}"]
-			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, lv_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
-			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .lv-group-title  {`, `background-color: ${titleColor} !important;`, "}"]
+			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, lv_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `color: ${colors.color};`, `border-radius: ${panelRadius};`, `color-scheme: ${styleSelect.colorScheme};`, `--lv-selected-background: ${colors.selectedBackground};`, `--lv-selected-color: ${colors.selectedColor};`, `--lv-hover-background: ${titleColor};`, "}"]
+			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .lv-group-title  {`, `background-color: ${titleColor} !important;`, `color: ${colors.color};`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")
 		}
 	}
@@ -319,7 +389,7 @@
 				});
 				span.textContent = "(" + selectedCount + "/" + items.length + ")";
 				if (selectedCount > 0) {
-					span.style.color = "#007bff";
+					span.style.color = "";
 					span.style.fontWeight = "600";
 				} else {
 					span.style.color = "";

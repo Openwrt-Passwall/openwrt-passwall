@@ -156,12 +156,6 @@
 		return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 	}
 
-	function mv_isTransparent(color) {
-		const cleanColor = mv_parseColorToRgba(color);
-		// check #RRGGBBAA for transparency
-		return !cleanColor || (cleanColor.a !== undefined && !cleanColor.a);
-	}
-
 	function mv_getColorSchema(color) {
 		const rgb = mv_parseColorToRgba(color);
 		if (!rgb) return 'unknown'; // Handle invalid colors
@@ -193,6 +187,57 @@
 		return mv_rgbToHex(r, g, b);
 	}
 
+	function mv_getNodeSelectorColors(select) {
+		const selectedIndex = select.selectedIndex;
+		const probe = document.createElement('option');
+		let backgroundColor, color;
+		// A selected option may use the theme's translucent accent, not its menu surface.
+		select.appendChild(probe);
+		try {
+			const style = getComputedStyle(probe);
+			backgroundColor = style.backgroundColor;
+			color = style.color;
+		} finally {
+			probe.remove();
+			if (select.selectedIndex !== selectedIndex) select.selectedIndex = selectedIndex;
+		}
+
+		let ctx = mv_getNodeSelectorColors._context;
+		if (!ctx) {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 1;
+			ctx = mv_getNodeSelectorColors._context = canvas.getContext('2d', { willReadFrequently: true });
+		}
+		const rgb = [0, 0, 0];
+		let remaining = 1;
+		function composite(value) {
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = value;
+			ctx.fillRect(0, 0, 1, 1);
+			const pixel = ctx.getImageData(0, 0, 1, 1).data;
+			const alpha = pixel[3] / 255;
+			for (let i = 0; i < 3; i++) rgb[i] += pixel[i] * alpha * remaining;
+			remaining *= 1 - alpha;
+		}
+
+		// Flatten transparent surfaces before the popup is moved outside the form.
+		composite(backgroundColor);
+		for (let element = select; element && remaining > 0; element = element.parentElement) {
+			composite(getComputedStyle(element).backgroundColor);
+		}
+		if (remaining > 0) {
+			const canvasColor = document.createElement('span');
+			canvasColor.style.cssText = 'display:none; background-color:Canvas;';
+			select.parentElement.appendChild(canvasColor);
+			try {
+				composite(getComputedStyle(canvasColor).backgroundColor);
+			} finally {
+				canvasColor.remove();
+			}
+		}
+		return { backgroundColor: `rgb(${rgb.map(Math.round).join(', ')})`, color };
+	}
+
 	// copy select styles
 	function mv_adaptiveStyle(cbid) {
 		const mainDiv = document.getElementById(cbid);
@@ -203,20 +248,19 @@
 			const styleMain = window.getComputedStyle(mainDiv)
 			const styleSelect = window.getComputedStyle(hiddenRef)
 			const styleOption = window.getComputedStyle(elOption)
-			const styleBody = window.getComputedStyle(document.body)
 
 			const styleNode = document.createElement('style')
 			const styleNames = ["width", "color", "height", "margin", "lineHeight", "borderRadius", "minWidth", "minHeight"]
 
 			document.head.appendChild(styleNode)
-			// trace back from option -> select -> body for background color
+			const colors = mv_getNodeSelectorColors(hiddenRef);
 			const panelRadius = styleSelect.borderRadius;
-			const optionColor = !mv_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !mv_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
+			const optionColor = colors.backgroundColor;
 			const titleColor = mv_getColorSchema(optionColor) === "light" ? mv_darker(optionColor, 30) : mv_lighter(optionColor, 30)
 			// 多选容器无需为下拉箭头留白，右内边距跟随当前主题的左内边距
 			const selectStyleCSS = [`#${CSS.escape(cbid)} {`, mv_style2Css(styleSelect, styleNames), `padding-right: ${styleMain.paddingLeft} !important;`, "}"]
-			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, mv_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
-			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .group-title  {`, `background-color: ${titleColor} !important;`, "}"]
+			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, mv_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `color: ${colors.color};`, `border-radius: ${panelRadius};`, "}"]
+			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .group-title  {`, `background-color: ${titleColor} !important;`, `color: ${colors.color};`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")
 		}
 	}

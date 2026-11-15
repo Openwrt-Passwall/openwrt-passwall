@@ -4,7 +4,7 @@ local appname = map.config
 -%>
 
 <style>
-@media screen and (min-width: 1152px) {
+@media screen and (min-width: 1153px) {
 	#cbi-<%=appname%>-haproxy_config input[id*=".<%=appname%>."][id$=".haproxy_port"],
 	#cbi-<%=appname%>-haproxy_config input[id*=".<%=appname%>."][id$=".lbweight"] {
 		width: 100px !important;
@@ -23,6 +23,59 @@ local appname = map.config
 		width: 100px !important;
 		min-width: unset !important;
 		max-width: unset !important;
+	}
+}
+
+@media screen and (max-width: 1152px) {
+	/* Use the same narrow-screen table layout across themes. */
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table,
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table > tbody {
+		display: block;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-titles {
+		display: none !important;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row > .td {
+		display: block;
+		box-sizing: border-box;
+		margin: 0;
+		flex: 1 1 50%;
+		min-width: 0;
+		width: auto !important;
+		height: auto;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row > .td[data-title]::before {
+		content: attr(data-title);
+		display: block;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row > .td.cbi-section-actions {
+		flex: 1 1 100%;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-value-field input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+	#cbi-<%=appname%>-haproxy_config .cbi-value-field select {
+		box-sizing: border-box;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	/* Keep the enable column compact in mobile table cards. */
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row > .td[data-name="enabled"] {
+		flex: 0 0 4.5em;
+	}
+
+	#cbi-<%=appname%>-haproxy_config .cbi-section-table-row > .td[data-name="lbss"] {
+		flex: 1 1 calc(100% - 4.5em);
+		min-width: 0;
 	}
 }
 </style>

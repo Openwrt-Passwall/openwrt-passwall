@@ -13,6 +13,59 @@ local tab_name = self.tab_name
 	display: none !important;
 	visibility: hidden !important;
 }
+
+@media screen and (max-width: 1152px) {
+	/* Use the same narrow-screen table layout across themes. */
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table,
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table > tbody {
+		display: block;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-titles {
+		display: none !important;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row > .td {
+		display: block;
+		box-sizing: border-box;
+		margin: 0;
+		flex: 1 1 50%;
+		min-width: 0;
+		width: auto !important;
+		height: auto;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row > .td[data-title]::before {
+		content: attr(data-title);
+		display: block;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row > .td.cbi-section-actions {
+		flex: 1 1 100%;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-value-field input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+	#cbi-<%=config%>-<%=section_type%> .cbi-value-field select {
+		box-sizing: border-box;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	/* Leave most of each mobile row for the node selector. */
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row > .td:is([data-name="remarks"], [data-name="_fakedns"]) {
+		flex: 0 0 6.5em;
+	}
+
+	#cbi-<%=config%>-<%=section_type%> .cbi-section-table-row > .td:is([data-name="_node"], [data-name="_proxy_tag"]) {
+		flex: 1 1 calc(100% - 6.5em);
+		min-width: 0;
+	}
+}
 </style>
 <script type="text/javascript">
 	//<![CDATA[

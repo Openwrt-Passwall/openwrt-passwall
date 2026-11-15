@@ -8,15 +8,61 @@ local sid = "@global[0]"
 #cbi-<%=appname%>-socks .td.cbi-value-field > div {
 	white-space: nowrap;
 }
-@media (max-width: 1152px) {
+
+@media screen and (max-width: 1152px) {
 	#cbi-<%=appname%>-socks .td.cbi-value-field > div {
 		white-space: normal;
 	}
-}
 
-@media screen and (max-width: 1152px) {
+	/* Use the same narrow-screen table layout across themes. */
+	#cbi-<%=appname%>-socks .cbi-section-table,
+	#cbi-<%=appname%>-socks .cbi-section-table > tbody {
+		display: block;
+	}
+
 	#cbi-<%=appname%>-socks .cbi-section-table-titles {
 		display: none !important;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-section-table-row {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-section-table-row > .td {
+		display: block;
+		box-sizing: border-box;
+		margin: 0;
+		flex: 1 1 50%;
+		min-width: 0;
+		width: auto !important;
+		height: auto;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-section-table-row > .td[data-title]::before {
+		content: attr(data-title);
+		display: block;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-section-table-row > .td.cbi-section-actions {
+		flex: 1 1 100%;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-value-field input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+	#cbi-<%=appname%>-socks .cbi-value-field select {
+		box-sizing: border-box;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	/* Keep the enable column compact in mobile table cards. */
+	#cbi-<%=appname%>-socks .cbi-section-table-row > .td[data-name="enabled"] {
+		flex: 0 0 4.5em;
+	}
+
+	#cbi-<%=appname%>-socks .cbi-section-table-row > .td[data-name="node"] {
+		flex: 1 1 calc(100% - 4.5em);
+		min-width: 0;
 	}
 }
 </style>

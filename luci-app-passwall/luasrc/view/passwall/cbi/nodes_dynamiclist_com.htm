@@ -210,12 +210,6 @@
 		return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 	}
 
-	function dl_isTransparent(color) {
-		const cleanColor = dl_parseColorToRgba(color);
-		// check #RRGGBBAA for transparency
-		return !cleanColor || (cleanColor.a !== undefined && !cleanColor.a);
-	}
-
 	function dl_getColorSchema(color) {
 		const rgb = dl_parseColorToRgba(color);
 		if (!rgb) return 'unknown'; // Handle invalid colors
@@ -247,6 +241,57 @@
 		return dl_rgbToHex(r, g, b);
 	}
 
+	function dl_getNodeSelectorColors(select) {
+		const selectedIndex = select.selectedIndex;
+		const probe = document.createElement('option');
+		let backgroundColor, color;
+		// A selected option may use the theme's translucent accent, not its menu surface.
+		select.appendChild(probe);
+		try {
+			const style = getComputedStyle(probe);
+			backgroundColor = style.backgroundColor;
+			color = style.color;
+		} finally {
+			probe.remove();
+			if (select.selectedIndex !== selectedIndex) select.selectedIndex = selectedIndex;
+		}
+
+		let ctx = dl_getNodeSelectorColors._context;
+		if (!ctx) {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 1;
+			ctx = dl_getNodeSelectorColors._context = canvas.getContext('2d', { willReadFrequently: true });
+		}
+		const rgb = [0, 0, 0];
+		let remaining = 1;
+		function composite(value) {
+			ctx.clearRect(0, 0, 1, 1);
+			ctx.fillStyle = value;
+			ctx.fillRect(0, 0, 1, 1);
+			const pixel = ctx.getImageData(0, 0, 1, 1).data;
+			const alpha = pixel[3] / 255;
+			for (let i = 0; i < 3; i++) rgb[i] += pixel[i] * alpha * remaining;
+			remaining *= 1 - alpha;
+		}
+
+		// Flatten transparent surfaces before the popup is moved outside the form.
+		composite(backgroundColor);
+		for (let element = select; element && remaining > 0; element = element.parentElement) {
+			composite(getComputedStyle(element).backgroundColor);
+		}
+		if (remaining > 0) {
+			const canvasColor = document.createElement('span');
+			canvasColor.style.cssText = 'display:none; background-color:Canvas;';
+			select.parentElement.appendChild(canvasColor);
+			try {
+				composite(getComputedStyle(canvasColor).backgroundColor);
+			} finally {
+				canvasColor.remove();
+			}
+		}
+		return { backgroundColor: `rgb(${rgb.map(Math.round).join(', ')})`, color };
+	}
+
 	// copy select styles
 	function dl_adaptiveStyle(cbid) {
 		const display = document.getElementById(cbid + ".display");
@@ -256,7 +301,6 @@
 			const elOption = hiddenRef.getElementsByTagName("option")[0]
 			const styleSelect = window.getComputedStyle(hiddenRef)
 			const styleOption = window.getComputedStyle(elOption)
-			const styleBody = window.getComputedStyle(document.body)
 
 			const styleNode = document.createElement('style')
 			const styleNames = ["width", "color", "height", "padding", "margin", "lineHeight", "border", "borderRadius", "minWidth", "minHeight"]
@@ -264,14 +308,14 @@
 				styleNames.push("borderBottomWidth", "borderBottomStyle", "borderBottomColor");
 			}
 			document.head.appendChild(styleNode)
-			// trace back from option -> select -> body for background color
+			const colors = dl_getNodeSelectorColors(hiddenRef);
 			const panelRadius = styleSelect.borderRadius;
-			const optionColor = !dl_isTransparent(styleOption.backgroundColor) ? styleOption.backgroundColor : !dl_isTransparent(styleSelect.backgroundColor) ? styleSelect.backgroundColor : styleBody.backgroundColor
+			const optionColor = colors.backgroundColor;
 			const titleColor = dl_getColorSchema(optionColor) === "light" ? dl_darker(optionColor, 30) : dl_lighter(optionColor, 30)
 			// 自带箭头已占据布局空间，右内边距使用主题的左内边距
 			const selectStyleCSS = [`#${CSS.escape(cbid + ".display")}, .dl-selected-item {`, dl_style2Css(styleSelect, styleNames), dl_style2Css(styleSelect, ["backgroundColor"]), `padding-right: ${styleSelect.paddingLeft} !important;`, "}"]
-			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, dl_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `border-radius: ${panelRadius};`, "}"]
-			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .dl-group-title  {`, `background-color: ${titleColor} !important;`, "}"]
+			const optionStyleCSS = [`#${CSS.escape(cbid + ".panel")}  {`, dl_style2Css(styleOption, styleNames), `background-color: ${optionColor};`, `color: ${colors.color};`, `border-radius: ${panelRadius};`, "}"]
+			const titleStyleCSS = [`#${CSS.escape(cbid + ".panel")} .dl-group-title  {`, `background-color: ${titleColor} !important;`, `color: ${colors.color};`, "}"]
 			styleNode.textContent = [].concat(selectStyleCSS, optionStyleCSS, titleStyleCSS).join("\n")
 		}
 	}
