@@ -386,6 +386,7 @@ function socks_status()
 	e.socks_status = luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v -E 'grep|acl/|acl_' | grep '%s/bin/' | grep '/%s' > /dev/null", appname, id)) == 0
 	local use_http = uci_get(id, "http_port") or 0
 	e.use_http = 0
+	e.http_status = false
 	if tonumber(use_http) > 0 then
 		e.use_http = 1
 		e.http_status = luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v -E 'grep|acl/|acl_' | grep '%s/bin/' | grep '/%s' | grep -E '\\+http|_http' > /dev/null", appname, id)) == 0

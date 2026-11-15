@@ -114,13 +114,9 @@ local sid = "@global[0]"
 						socks.style.color = result.socks_status ? "green" : "red";
 					}
 					if (http) {
-						if (result.use_http) {
-							http.textContent = result.http_status ? "✓" : "X";
-							http.style.fontWeight = "bold";
-							http.style.color = result.http_status ? "green" : "red";
-						} else {
-							http.textContent = "";
-						}
+						http.textContent = result.http_status ? "✓" : "X";
+						http.style.fontWeight = "bold";
+						http.style.color = result.http_status ? "green" : "red";
 					}
 				}
 			);
