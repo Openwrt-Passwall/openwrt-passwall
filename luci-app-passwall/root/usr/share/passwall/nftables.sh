@@ -559,7 +559,7 @@ load_acl() {
 							[ "${chn_list}" != "0" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto tcp ${_ipt_source} $(factor $tcp_redir_ports "tcp dport") ip6 daddr" "$NFTSET_CHN6" "$(get_jump_nft ${chn_list} "counter jump PSW_RULE") comment \"$remarks\"" 2>/dev/null
 							[ "${use_shunt_node}" = "1" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto tcp ${_ipt_source} $(factor $tcp_redir_ports "tcp dport") ip6 daddr" "$shunt6_set_name" "counter jump PSW_RULE comment \"$remarks\"" 2>/dev/null
 							[ "${tcp_proxy_mode}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp ${_ipt_source} $(factor $tcp_redir_ports "tcp dport") counter jump PSW_RULE comment \"$remarks\"" 2>/dev/null
-							nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp ${_ipt_source} $(REDIRECT $tcp_port TPROXY) comment \"$remarks\"" 2>/dev/null
+							nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp ${_ipt_source} $(REDIRECT $tcp_port TPROXY6) comment \"$remarks\"" 2>/dev/null
 						}
 					else
 						msg2="${msg}不代理 TCP"
@@ -590,7 +590,7 @@ load_acl() {
 							[ "${chn_list}" != "0" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto udp ${_ipt_source} $(factor $udp_redir_ports "udp dport") ip6 daddr" "$NFTSET_CHN6" "$(get_jump_nft ${chn_list} "counter jump PSW_RULE") comment \"$remarks\"" 2>/dev/null
 							[ "${use_shunt_node}" = "1" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto udp ${_ipt_source} $(factor $udp_redir_ports "udp dport") ip6 daddr" "$shunt6_set_name" "counter jump PSW_RULE comment \"$remarks\"" 2>/dev/null
 							[ "${udp_proxy_mode}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp ${_ipt_source} $(factor $udp_redir_ports "udp dport") counter jump PSW_RULE comment \"$remarks\"" 2>/dev/null
-							nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp ${_ipt_source} $(REDIRECT $udp_port TPROXY) comment \"$remarks\"" 2>/dev/null
+							nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp ${_ipt_source} $(REDIRECT $udp_port TPROXY6) comment \"$remarks\"" 2>/dev/null
 						}
 					else
 						msg2="${msg}不代理 UDP"
@@ -754,7 +754,7 @@ load_acl() {
 					[ "${CHN_LIST}" != "0" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto tcp $(factor $TCP_REDIR_PORTS "tcp dport") ip6 daddr" "$NFTSET_CHN6" "$(get_jump_nft ${CHN_LIST} "counter jump PSW_RULE") comment \"默认\""
 					[ "${USE_SHUNT_NODE}" = "1" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto tcp $(factor $TCP_REDIR_PORTS "tcp dport") ip6 daddr" "$NFTSET_SHUNT6" "counter jump PSW_RULE comment \"默认\""
 					[ "${TCP_PROXY_MODE}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp $(factor $TCP_REDIR_PORTS "tcp dport") counter jump PSW_RULE comment \"默认\""
-					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp $(REDIRECT $REDIR_PORT TPROXY) comment \"默认\""
+					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp $(REDIRECT $REDIR_PORT TPROXY6) comment \"默认\""
 					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp counter return comment \"默认\""
 				}
 
@@ -787,7 +787,7 @@ load_acl() {
 					[ "${CHN_LIST}" != "0" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto udp $(factor $UDP_REDIR_PORTS "udp dport") ip6 daddr" "$NFTSET_CHN6" "$(get_jump_nft ${CHN_LIST} "counter jump PSW_RULE") comment \"默认\""
 					[ "${USE_SHUNT_NODE}" = "1" ] && nft_rule_dual "PSW_MANGLE_V6" "meta l4proto udp $(factor $UDP_REDIR_PORTS "udp dport") ip6 daddr" "$NFTSET_SHUNT6" "counter jump PSW_RULE comment \"默认\""
 					[ "${UDP_PROXY_MODE}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp $(factor $UDP_REDIR_PORTS "udp dport") counter jump PSW_RULE comment \"默认\""
-					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp $(REDIRECT $REDIR_PORT TPROXY) comment \"默认\""
+					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp $(REDIRECT $REDIR_PORT TPROXY6) comment \"默认\""
 					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp counter return comment \"默认\""
 				}
 
@@ -1424,7 +1424,7 @@ add_firewall_rule() {
 					[ "${CHN_LIST}" != "0" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "meta l4proto tcp ip6 daddr" "$NFTSET_CHN6" "$(factor $TCP_REDIR_PORTS "tcp dport") $(get_jump_nft ${CHN_LIST} "counter jump PSW_RULE")"
 					[ "${USE_SHUNT_NODE}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "meta l4proto tcp ip6 daddr" "$NFTSET_SHUNT6" "$(factor $TCP_REDIR_PORTS "tcp dport") counter jump PSW_RULE"
 					[ "${LOCALHOST_TCP_PROXY_MODE}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 meta l4proto tcp $(factor $TCP_REDIR_PORTS "tcp dport") counter jump PSW_RULE"
-					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp iif lo $(REDIRECT $REDIR_PORT TPROXY) comment \"本机\""
+					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp iif lo $(REDIRECT $REDIR_PORT TPROXY6) comment \"本机\""
 				}
 				nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto tcp iif lo counter return comment \"本机\""
 			}
@@ -1475,7 +1475,7 @@ add_firewall_rule() {
 					[ "${CHN_LIST}" != "0" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "meta l4proto udp ip6 daddr" "$NFTSET_CHN6" "$(factor $UDP_REDIR_PORTS "udp dport") $(get_jump_nft ${CHN_LIST} "counter jump PSW_RULE")"
 					[ "${USE_SHUNT_NODE}" = "1" ] && nft_rule_dual "PSW_OUTPUT_MANGLE_V6" "meta l4proto udp ip6 daddr" "$NFTSET_SHUNT6" "$(factor $UDP_REDIR_PORTS "udp dport") counter jump PSW_RULE"
 					[ "${LOCALHOST_UDP_PROXY_MODE}" != "disable" ] && nft "add rule $NFTABLE_NAME PSW_OUTPUT_MANGLE_V6 meta l4proto udp $(factor $UDP_REDIR_PORTS "udp dport") counter jump PSW_RULE"
-					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp iif lo $(REDIRECT $REDIR_PORT TPROXY) comment \"本机\""
+					nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp iif lo $(REDIRECT $REDIR_PORT TPROXY6) comment \"本机\""
 				}
 				nft "add rule $NFTABLE_NAME PSW_MANGLE_V6 meta l4proto udp iif lo counter return comment \"本机\""
 			}
