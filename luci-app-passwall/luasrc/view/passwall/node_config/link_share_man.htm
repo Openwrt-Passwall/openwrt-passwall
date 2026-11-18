@@ -813,6 +813,51 @@ local current_node = map:get(section)
 				url += "?" + params.substring(1);
 			}
 			url += "#" + encodeURIComponent(v_alias.value);
+		} else if ((v_type === "sing-box" || v_type === "Xray") && opt.get(dom_prefix + "protocol").value === "masque") {
+			protocol = "masque";
+			var v_username = opt.get(dom_prefix + "username");
+			var v_password = opt.get(dom_prefix + "password");
+			var v_port = opt.get(dom_prefix + "port");
+			var warp = v_type === "Xray" && opt.get(dom_prefix + "masque_warp").checked;
+			url = _address + ":" + v_port.value;
+			var params = "security=tls&type=masque";
+			if (warp) {
+				url = encodeURIComponent(opt.get(dom_prefix + "masque_warp_private_key").value) + "@" + url;
+				params += opt.query("publickey", dom_prefix + "masque_warp_public_key");
+				var addresses = opt.getlist(dom_prefix + "masque_warp_address").map(value => value.trim()).filter(Boolean);
+				params += "&address=" + encodeURIComponent(addresses.join(","));
+			} else if (v_username.value || v_password.value) {
+				url = encodeURIComponent(v_username.value) + ":" + encodeURIComponent(v_password.value) + "@" + url;
+			}
+			params += opt.query("path", dom_prefix + "masque_path");
+			params += opt.query("sni", dom_prefix + "tls_serverName");
+			params += opt.query("pcs", dom_prefix + "tls_pinSHA256");
+			if (v_type === "Xray") {
+				var alpn = opt.get(dom_prefix + "alpn").value;
+				params += "&alpn=" + encodeURIComponent(!alpn || alpn === "default" ? "h3" : alpn);
+				params += opt.query("vcn", dom_prefix + "tls_CertByName");
+				if (opt.get(dom_prefix + "use_finalmask").checked) {
+					params += opt.query("fm", dom_prefix + "finalmask");
+				}
+			} else {
+				params += "&alpn=h3";
+				params += opt.query("insecure", dom_prefix + "tls_allowInsecure");
+				params += opt.query("disable_sni", dom_prefix + "tls_disable_sni");
+			}
+			if (opt.get(dom_prefix + "ech").checked) {
+				params += opt.query("ech", dom_prefix + "ech_config");
+			}
+			var headers = {};
+			var user_agent = opt.get(dom_prefix + "user_agent").value;
+			if (user_agent) headers["user-agent"] = user_agent;
+			for (var line of opt.get(dom_prefix + "masque_headers").value.split(/[\r\n]+/)) {
+				var index = line.indexOf(':');
+				if (index > 0) headers[line.substr(0, index).trim().toLowerCase()] = line.substr(index + 1).trim();
+			}
+			if (Object.keys(headers).length) {
+				params += "&headers=" + encodeURIComponent(JSON.stringify(headers));
+			}
+			url += "?" + params + "#" + encodeURIComponent(v_alias.value);
 		}
 
 		if (url) {
@@ -2015,6 +2060,79 @@ local current_node = map:get(section)
 			opt.set(dom_prefix + 'fingerprint', queryParam.fp || 'chrome');
 			opt.set(dom_prefix + 'ech', !!queryParam.ech);
 			opt.set(dom_prefix + 'ech_config', queryParam.ech || '');
+			if (m.hash) {
+				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
+			}
+		}
+
+		if (link_type === "masque") {
+			var content = link_split[1];
+			var index = content.indexOf('@');
+			var auth = index >= 0 ? content.substr(0, index) : '';
+			var m = parseNodeUrl("masque://" + (index >= 0 ? content.substr(index + 1) : content));
+			var queryParam = {};
+			if (m.search.length > 1) {
+				var queryArray = m.search.substr(1).split('&');
+				for (var i = 0; i < queryArray.length; i++) {
+					var index = queryArray[i].indexOf('=');
+					if (index > 0) {
+						queryParam[decodeURIComponent(queryArray[i].substr(0, index)).toLowerCase()] = decodeURIComponent(queryArray[i].substr(index + 1));
+					}
+				}
+			}
+			var public_key = queryParam.publickey || queryParam['public-key'] || queryParam.public_key || '';
+			var warp = !!public_key;
+			var alpn = queryParam.alpn || queryParam.vhttp || queryParam.network || 'h3';
+			var use_xray = warp || alpn === 'h2' || !!queryParam.fm;
+			if ((use_xray || other_type == "xray") && has_xray) {
+				dom_prefix = "xray_";
+				opt.set('type', "Xray");
+			} else if (!use_xray && other_type == "sing-box" && has_singbox) {
+				dom_prefix = "singbox_";
+				opt.set('type', "sing-box");
+			}
+			opt.set(dom_prefix + 'protocol', "masque");
+			opt.set(dom_prefix + 'address', unbracketIP(m.hostname));
+			opt.set(dom_prefix + 'port', m.port || '443');
+			var index = auth.indexOf(':');
+			opt.set(dom_prefix + 'username', !warp ? decodeURIComponent(index >= 0 ? auth.substr(0, index) : auth) : '');
+			opt.set(dom_prefix + 'password', !warp && index >= 0 ? decodeURIComponent(auth.substr(index + 1)) : '');
+			opt.set(dom_prefix + 'masque_path', queryParam.path || '');
+			opt.set(dom_prefix + 'tls_serverName', queryParam.sni || '');
+			opt.set(dom_prefix + 'tls_pinSHA256', queryParam.pcs || '');
+			opt.set(dom_prefix + 'ech', !!queryParam.ech);
+			opt.set(dom_prefix + 'ech_config', queryParam.ech || '');
+			var headers = JSON.parse(queryParam.headers || '{}');
+			var lines = [], user_agent = '';
+			for (var key of Object.keys(headers)) {
+				if (key.toLowerCase() === 'user-agent') user_agent = headers[key];
+				else lines.push(key + ': ' + headers[key]);
+			}
+			opt.set(dom_prefix + 'user_agent', user_agent);
+			opt.set(dom_prefix + 'masque_headers', lines.join('\n'));
+			if (dom_prefix === "xray_") {
+				opt.set(dom_prefix + 'masque_warp', warp);
+				opt.set(dom_prefix + 'masque_warp_private_key', warp ? (queryParam.privatekey || queryParam['private-key'] || queryParam.private_key || decodeURIComponent(auth)) : '');
+				opt.set(dom_prefix + 'masque_warp_public_key', public_key);
+				var addresses = ((queryParam.address || queryParam.ip || '') + ',' + (queryParam.ipv6 || '')).split(/[,\s]+/).filter(Boolean);
+				var fullName = opt.base + '.' + dom_prefix + 'masque_warp_address';
+				var lists = document.querySelectorAll('.cbi-dynlist');
+				for (var i = 0; i < lists.length; i++) {
+					var label = lists[i].closest('.cbi-value')?.querySelector('label.cbi-value-title');
+					if (label?.getAttribute('for') === fullName) {
+						L.dom.callClassMethod(lists[i], 'setValue', addresses);
+						lists[i].dispatchEvent(new Event('change', { bubbles: true }));
+						break;
+					}
+				}
+				opt.set(dom_prefix + 'alpn', alpn);
+				opt.set(dom_prefix + 'tls_CertByName', queryParam.vcn || '');
+				opt.set(dom_prefix + 'use_finalmask', !!queryParam.fm);
+				opt.set(dom_prefix + 'finalmask', queryParam.fm || '');
+			} else {
+				opt.set(dom_prefix + 'tls_allowInsecure', (queryParam.allowinsecure || queryParam.insecure || '0') === '1');
+				opt.set(dom_prefix + 'tls_disable_sni', queryParam.disable_sni === '1');
+			}
 			if (m.hash) {
 				opt.set('remarks', decodeURIComponent(m.hash.substr(1)));
 			}
