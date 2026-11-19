@@ -2173,48 +2173,55 @@ local function update_node(manual)
 			chain_node_type = (outbound_iface_group ~= "") and "iface" or chain_node_type
 		end
 		for _, vv in ipairs(list) do
-			local cfgid = uci:section(c_config, "nodes", api.gen_random_char())
-			for kkk, vvv in pairs(vv) do
-				if type(vvv) == "table" and next(vvv) ~= nil then
-					uci_set(cfgid, kkk, vvv)
-				else
-					if kkk ~= "group" or vvv ~= "default" then
-						uci_set(cfgid, kkk, vvv)
+			-- 先复制节点字段，再叠加订阅组的 DNS、域名策略和链式代理设置，避免修改解析结果。
+			-- 默认分组不写入配置；其余字段在全部组装完成后统一处理数字、空值和列表。
+			local values = {}
+			for key, value in pairs(vv) do
+				if key ~= "group" or value ~= "default" then
+					values[key] = value
+				end
+			end
+			local node_type = vv.type
+			if node_type == "Xray" or node_type == "sing-box" then
+				-- sing-box/xray 节点域名解析
+				if domain_resolver and domain_resolver ~= "" and domain_resolver ~= "disable" then
+					values.domain_resolver = domain_resolver
+					if domain_resolver == "https" and domain_resolver_dns_https then
+						values.domain_resolver_dns_https = domain_resolver_dns_https
+					elseif (domain_resolver == "udp" or domain_resolver == "tcp") and domain_resolver_dns then
+						values.domain_resolver_dns = domain_resolver_dns
 					end
-					-- sing-box/xray 节点域名解析
-					if kkk == "type" and (vvv == "Xray" or vvv == "sing-box") then
-						if domain_resolver and domain_resolver ~= "" and domain_resolver ~= "disable" then
-							uci_set(cfgid, "domain_resolver", domain_resolver)
-							if domain_resolver == "https" and domain_resolver_dns_https then
-								uci_set(cfgid, "domain_resolver_dns_https", domain_resolver_dns_https)
-							elseif (domain_resolver == "udp" or domain_resolver == "tcp") and domain_resolver_dns then
-								uci_set(cfgid, "domain_resolver_dns", domain_resolver_dns)
-							end
-						end
-						if domain_strategy then
-							local ds = domain_strategy
-							if vvv == "sing-box" then
-								local map = { UseIPv4v6 = "prefer_ipv4", UseIPv6v4 = "prefer_ipv6", UseIPv4 = "ipv4_only", UseIPv6 = "ipv6_only" }
-								ds = map[ds] or ""
-							end
-							uci_set(cfgid, "domain_strategy", ds)
-						end
+				end
+				if domain_strategy then
+					local ds = domain_strategy
+					if node_type == "sing-box" then
+						local map = { UseIPv4v6 = "prefer_ipv4", UseIPv6v4 = "prefer_ipv6", UseIPv4 = "ipv4_only", UseIPv6 = "ipv6_only" }
+						ds = map[ds] or ""
 					end
-					-- 订阅组链式代理
-					if chain_node_type ~= "" and kkk == "type" and (vvv == "Xray" or vvv == "sing-box") then
-						if preproxy_node_group ~="" then
-							uci_set(cfgid, "chain_proxy", "1")
-							uci_set(cfgid, "preproxy_node", preproxy_node_group)
-						elseif to_node_group ~= "" then
-							uci_set(cfgid, "chain_proxy", "2")
-							uci_set(cfgid, "to_node", to_node_group)
-						elseif outbound_iface_group ~= "" then
-							uci_set(cfgid, "chain_proxy", "3")
-							uci_set(cfgid, "outbound_iface", outbound_iface_group)
-						end
+					values.domain_strategy = ds
+				end
+				-- 订阅组链式代理
+				if chain_node_type ~= "" then
+					if preproxy_node_group ~="" then
+						values.chain_proxy = "1"
+						values.preproxy_node = preproxy_node_group
+					elseif to_node_group ~= "" then
+						values.chain_proxy = "2"
+						values.to_node = to_node_group
+					elseif outbound_iface_group ~= "" then
+						values.chain_proxy = "3"
+						values.outbound_iface = outbound_iface_group
 					end
 				end
 			end
+			-- 按 uci_set 的规则把数字转为字符串，省略空字符串和空列表，非空列表保留为 table。
+			-- 在覆盖完成后过滤空值，使订阅组的空设置也能清除同名节点字段。
+			for key, value in pairs(values) do
+				if type(value) == "number" then value = value .. "" end
+				values[key] = #value > 0 and value or nil
+			end
+			-- 整个节点创建时只传一次字段表；ubus UCI 合并为一次请求，原生 UCI 也支持此接口。
+			uci:section(c_config, "nodes", api.gen_random_char(), values)
 		end
 	end
 	if next(CONFIG) then
