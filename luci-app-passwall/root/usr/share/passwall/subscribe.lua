@@ -2404,6 +2404,16 @@ local execute = function()
 					-- 开启日志事务缓冲：前置解析期间日志暂存，未变更时静默丢弃，避免定时任务刷屏
 					log_buffer = {}
 					local parsed_nodes = parse_link(raw_data, "2", remark, value)
+					if auto_dns and resolver and resolver.nodes then
+						for _, node in ipairs(parsed_nodes) do
+							local dns = resolver.nodes[node.address:lower():gsub("%.$", "")]
+							if dns and (node.type == "Xray" or node.type == "sing-box") then
+								node.domain_resolver = dns.domain_resolver
+								node.domain_resolver_dns = dns.domain_resolver_dns
+								node.domain_resolver_dns_https = dns.domain_resolver_dns_https
+							end
+						end
+					end
 					local old_md5 = value.md5 or ""
 					local md5_content = jsonStringify(parsed_nodes)
 					if value.domain_resolver and value.domain_resolver ~= "" and value.domain_resolver ~= "disable" then
