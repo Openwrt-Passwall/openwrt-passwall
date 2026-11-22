@@ -210,10 +210,26 @@ function gen_outbound(flag, node, tag, proxy_table)
 									end
 									return r
 								end)() or {"/"},
-							headers = (node.tcp_guise_http_host or node.user_agent) and {
-								Host = node.tcp_guise_http_host,
-								["User-Agent"] = node.user_agent and {node.user_agent} or nil
-							} or nil
+							headers = (function()
+								local host = node.tcp_guise_http_host
+								if type(host) == "table" then
+									local hosts = {}
+									for _, value in ipairs(host) do
+										value = api.trim(value)
+										if value ~= "" then hosts[#hosts + 1] = value end
+									end
+									host = #hosts > 0 and hosts or nil
+								elseif host == "" then
+									host = nil
+								end
+								local user_agent = node.user_agent ~= "" and node.user_agent or nil
+								if not host and not user_agent then return nil end
+								-- Xray replaces its whole default header map when any header is set.
+								return {
+									Host = host or {"www.baidu.com", "www.bing.com"},
+									["User-Agent"] = user_agent and {user_agent} or nil
+								}
+							end)()
 						} or nil
 					}
 				} or nil,

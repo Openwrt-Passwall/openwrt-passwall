@@ -153,6 +153,13 @@ local current_node = map:get(section)
 				}
 				return ret;
 			},
+			rawTransportQuery: function (prefix) {
+				const host = this.getlist(prefix + "tcp_guise_http_host").join(",");
+				const path = this.getlist(prefix + "tcp_guise_http_path").join(",");
+				return this.query("headerType", prefix + "tcp_guise")
+					+ (host ? "&host=" + encodeURIComponent(host) : "")
+					+ (path ? "&path=" + encodeURIComponent(path) : "");
+			},
 			query: function (param, src, default_value) {
 				var obj = this.get(src);
 				if (obj) {
@@ -274,9 +281,7 @@ local current_node = map:get(section)
 					params += opt.query("path", dom_prefix + "http_path");
 				} else if (v_transport === "raw" || v_transport === "tcp") {
 					v_transport = "tcp";
-					params += opt.query("headerType", dom_prefix + "tcp_guise");
-					params += opt.query("host", dom_prefix + "tcp_guise_http_host");
-					params += opt.query("path", dom_prefix + "tcp_guise_http_path");
+					params += opt.rawTransportQuery(dom_prefix);
 				} else if (v_transport === "mkcp") {
 					v_transport = "kcp";
 					params += opt.query("headerType", dom_prefix + "mkcp_guise");
@@ -334,7 +339,7 @@ local current_node = map:get(section)
 					if (st_password) st_plugin_str += "passwd=" + st_password +";";
 					let st_host = opt.get(dom_prefix + "shadowtls_serverName")?.value;
 					if (st_host) st_plugin_str += "host=" + st_host +";";
-					if (opt.get(dom_prefix + "shadowtls_utls").checked) {
+					if (opt.get(dom_prefix + "shadowtls_utls")?.checked) {
 						let st_fingerprint = opt.get(dom_prefix + "shadowtls_fingerprint")?.value;
 						if (st_fingerprint) st_plugin_str += "fingerprint=" + st_fingerprint;
 					}
@@ -388,14 +393,14 @@ local current_node = map:get(section)
 				info.host = opt.get(dom_prefix + "ws_host").value;
 				info.path = opt.get(dom_prefix + "ws_path").value;
 			} else if (v_transport === "http") {
-				info.host = opt.get(dom_prefix + "http_host").value;
-				info.path = opt.get(dom_prefix + "http_path").value;
+				info.host = opt.get(dom_prefix + "http_host")?.value ?? "";
+				info.path = opt.get(dom_prefix + "http_path")?.value ?? "";
 			} else if (v_transport === "raw" || v_transport === "tcp") {
 				v_transport = "tcp";
 				info.type = opt.get(dom_prefix + "tcp_guise").value;
 				if (info.type === "http") {
-					info.host = opt.get(dom_prefix + "tcp_guise_http_host").value;
-					info.path = opt.get(dom_prefix + "tcp_guise_http_path").value;
+					info.host = opt.getlist(dom_prefix + "tcp_guise_http_host").join(",");
+					info.path = opt.getlist(dom_prefix + "tcp_guise_http_path").join(",");
 				}
 			} else if (v_transport === "mkcp") {
 				v_transport = "kcp";
@@ -448,9 +453,7 @@ local current_node = map:get(section)
 				params += opt.query("path", dom_prefix + "http_path");
 			} else if (v_transport === "raw" || v_transport === "tcp") {
 				v_transport = "tcp";
-				params += opt.query("headerType", dom_prefix + "tcp_guise");
-				params += opt.query("host", dom_prefix + "tcp_guise_http_host");
-				params += opt.query("path", dom_prefix + "tcp_guise_http_path");
+				params += opt.rawTransportQuery(dom_prefix);
 			} else if (v_transport === "mkcp") {
 				v_transport = "kcp";
 				params += opt.query("headerType", dom_prefix + "mkcp_guise");
@@ -536,9 +539,7 @@ local current_node = map:get(section)
 				params += opt.query("path", dom_prefix + "http_path");
 			} else if (v_transport === "raw" || v_transport === "tcp") {
 				v_transport = "tcp";
-				params += opt.query("headerType", dom_prefix + "tcp_guise");
-				params += opt.query("host", dom_prefix + "tcp_guise_http_host");
-				params += opt.query("path", dom_prefix + "tcp_guise_http_path");
+				params += opt.rawTransportQuery(dom_prefix);
 			} else if (v_transport === "mkcp") {
 				v_transport = "kcp";
 				params += opt.query("headerType", dom_prefix + "mkcp_guise");
@@ -925,6 +926,22 @@ local current_node = map:get(section)
 			get: function (opt) {
 				return getOption("<%=config%>", "<%=self.value%>", opt);
 			},
+			setRawHttp: function (prefix, host, path) {
+				for (const [field, value] of [["host", host], ["path", path]]) {
+					const name = prefix + "tcp_guise_http_" + field;
+					const values = typeof value === "string" ? value.split(",") : value;
+					const entries = (Array.isArray(values) ? values : [])
+						.map(item => typeof item === "string" ? item.trim() : "").filter(Boolean);
+					for (const list of document.querySelectorAll(".cbi-dynlist")) {
+						const label = list.closest(".cbi-value")?.querySelector("label.cbi-value-title");
+						if (label?.getAttribute("for") === this.base + "." + name) {
+							L.dom.callClassMethod(list, "setValue", entries);
+							list.dispatchEvent(new Event("change", { bubbles: true }));
+							break;
+						}
+					}
+				}
+			},
 			set: function (opt, val) {
 				if (!switch_type && opt == "type" && current_type != val) {
 					switch_type = val;
@@ -1233,9 +1250,8 @@ local current_node = map:get(section)
 				}
 				if (queryParam.type === "raw" || queryParam.type === "tcp") {
 					opt.set(dom_prefix + 'tcp_guise', queryParam.headerType || "none");
-					if (queryParam.headerType && queryParam.headerType != "none") {
-						opt.set(dom_prefix + 'tcp_guise_http_host', queryParam.host || "");
-						opt.set(dom_prefix + 'tcp_guise_http_path', queryParam.path || "");
+					if (queryParam.headerType === "http") {
+						opt.setRawHttp(dom_prefix, queryParam.host, queryParam.path);
 					}
 				} else if (queryParam.type === "ws") {
 					opt.set(dom_prefix + 'ws_host', queryParam.host || "");
@@ -1362,9 +1378,8 @@ local current_node = map:get(section)
 			}
 			if (queryParam.type === "raw" || queryParam.type === "tcp") {
 				opt.set(dom_prefix + 'tcp_guise', queryParam.headerType || "none");
-				if (queryParam.headerType && queryParam.headerType != "none") {
-					opt.set(dom_prefix + 'tcp_guise_http_host', queryParam.host || "");
-					opt.set(dom_prefix + 'tcp_guise_http_path', queryParam.path || "");
+				if (queryParam.headerType === "http") {
+					opt.setRawHttp(dom_prefix, queryParam.host, queryParam.path);
 				}
 			} else if (queryParam.type === "ws") {
 				opt.set(dom_prefix + 'ws_host', queryParam.host || "");
@@ -1530,10 +1545,10 @@ local current_node = map:get(section)
 				opt.set(dom_prefix + 'transport', ssm.net);
 			}
 			if (ssm.net === "raw" || ssm.net === "tcp") {
-				opt.set(dom_prefix + 'tcp_guise', (ssm.host && ssm.host != "") ? "http" : "none");
-				if (ssm.host && ssm.host != "") {
-					opt.set(dom_prefix + 'tcp_guise_http_host', ssm.host);
-					opt.set(dom_prefix + 'tcp_guise_http_path', ssm.path || "");
+				const headerType = ssm.type || (ssm.host ? "http" : "none");
+				opt.set(dom_prefix + 'tcp_guise', headerType === "http" ? "http" : "none");
+				if (headerType === "http") {
+					opt.setRawHttp(dom_prefix, ssm.host, ssm.path);
 				}
 			} else if (ssm.net === "ws") {
 				opt.set(dom_prefix + 'ws_host', ssm.host);
@@ -1656,9 +1671,8 @@ local current_node = map:get(section)
 			}
 			if (queryParam.type === "raw" || queryParam.type === "tcp") {
 				opt.set(dom_prefix + 'tcp_guise', queryParam.headerType || "none");
-				if (queryParam.headerType && queryParam.headerType != "none") {
-					opt.set(dom_prefix + 'tcp_guise_http_host', queryParam.host || "");
-					opt.set(dom_prefix + 'tcp_guise_http_path', queryParam.path || "");
+				if (queryParam.headerType === "http") {
+					opt.setRawHttp(dom_prefix, queryParam.host, queryParam.path);
 				}
 			} else if (queryParam.type === "ws") {
 				opt.set(dom_prefix + 'ws_host', queryParam.host || "");
