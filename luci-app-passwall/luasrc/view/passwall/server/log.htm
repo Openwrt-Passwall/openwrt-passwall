@@ -45,5 +45,7 @@ local api = map.api
 		<%:Logs%>
 	</legend>
 	<input class="btn cbi-button cbi-button-remove" type="button" onclick="clear_log()" value="<%:Clear logs%>" />
-	<textarea id="log_textarea" class="cbi-input-textarea" style="width: 100%;margin-top: 10px;" data-update="change" rows="20" wrap="off" readonly="readonly"></textarea>
+	<textarea id="log_textarea" class="cbi-input-textarea"
+		style="width: 100%; margin-top: 10px; white-space: pre !important; overflow-x: auto !important;"
+		data-update="change" rows="20" wrap="off" readonly="readonly"></textarea>
 </fieldset>

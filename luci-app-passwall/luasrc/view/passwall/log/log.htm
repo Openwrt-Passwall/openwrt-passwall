@@ -43,6 +43,8 @@ local section_tag = api.is_js_luci() and "div" or "fieldset"
 </script>
 <<%=section_tag%> class="cbi-section" id="_log_fieldset">
 	<input class="btn cbi-button cbi-button-remove" type="button" onclick="clearlog()" value="<%:Clear logs%>" />
-	<textarea id="log_textarea" class="cbi-input-textarea" style="width: 100%;margin-top: 10px;" data-update="change" rows="40" wrap="off" readonly="readonly"></textarea>
+	<textarea id="log_textarea" class="cbi-input-textarea"
+		style="width: 100%; margin-top: 10px; white-space: pre !important; overflow-x: auto !important;"
+		data-update="change" rows="40" wrap="off" readonly="readonly"></textarea>
 </<%=section_tag%>>
 <%+footer%>
