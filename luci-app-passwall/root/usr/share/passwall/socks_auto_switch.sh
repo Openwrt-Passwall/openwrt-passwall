@@ -26,7 +26,7 @@ test_url() {
 	local max_time=$((timeout + 3))
 	local retry_max_time=$((max_time * (try + 1) + try))
 	curl_test() {
-		/usr/bin/curl -skIL -o /dev/null ${extra_params} --max-time ${max_time} --connect-timeout ${timeout} --retry ${try} --retry-delay 1 --retry-max-time ${retry_max_time} -w "%{http_code}" "$url" 8>&- 9>&-
+		/usr/bin/curl -skIL -A 'Mozilla/5.0' -o /dev/null ${extra_params} --max-time ${max_time} --connect-timeout ${timeout} --retry ${try} --retry-delay 1 --retry-max-time ${retry_max_time} -w "%{http_code}" "$url" 8>&- 9>&-
 	}
 
 	local status

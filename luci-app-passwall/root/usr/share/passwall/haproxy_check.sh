@@ -22,7 +22,7 @@ case "$server_address" in
 esac
 
 # 每轮只探测一次，连续成功/失败由 HAProxy 的 rise/fall 判定。
-status=$(/usr/bin/curl -q -I -o /dev/null -sk --noproxy "" -x "socks5h://${server_address}:${server_port}" --connect-timeout 3 --max-time 6 -w "%{http_code}" "$probeUrl") || exit 1
+status=$(/usr/bin/curl -q -I -o /dev/null -sk -A 'Mozilla/5.0' --noproxy "" -x "socks5h://${server_address}:${server_port}" --connect-timeout 3 --max-time 6 -w "%{http_code}" "$probeUrl") || exit 1
 
 case "$status" in
 	200|204)
