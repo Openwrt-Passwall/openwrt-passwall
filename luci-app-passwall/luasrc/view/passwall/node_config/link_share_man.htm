@@ -115,17 +115,40 @@ local current_node = map:get(section)
 	}
 
 	function genQrcode(btn, urlname, sid) {
-		var qrcode_div = document.getElementById("qrcode_div");
-		qrcode_div.style.display = null;
-		document.getElementById("qrcode").innerHTML = "";
-		var url = buildUrl(btn, urlname, sid);
-		if (url) {
-			var qrcode = new QRCode(document.getElementById("qrcode"), {
-				width: 150,
-				height: 150
-			});
-			qrcode.makeCode(url);
+		const qrcodeDiv = document.getElementById("qrcode_div");
+		const qrcodeElement = document.getElementById("qrcode");
+		const s = document.getElementById(urlname + "-status");
+		qrcodeDiv.style.display = "none";
+		qrcodeElement.innerHTML = "";
+		s.innerHTML = "";
+		const url = buildUrl(btn, urlname, sid);
+		if (!url) {
+			return false;
 		}
+		// 二维码库计算多字节文本长度时会计入 3 字节的 BOM。
+		const urlByteLength = new TextEncoder().encode(url).length;
+		const qrByteLength = urlByteLength + (urlByteLength !== url.length ? 3 : 0);
+		// 版本 40 在 H 级纠错和字节模式下最多容纳 1273 字节。
+		if (qrByteLength <= 1273) {
+			const qrcode = new QRCode(qrcodeElement, {
+				width: 150,
+				height: 150,
+				correctLevel: QRCode.CorrectLevel.H
+			});
+			try {
+				qrcode.makeCode(url);
+				qrcodeDiv.style.display = null;
+				return;
+			} catch (error) {
+				// 编码 Unicode 补充字符时，实际字节数可能超过二维码库的估算值。
+				if (!error.message.startsWith("code length overflow.")) {
+					throw error;
+				}
+				qrcodeElement.innerHTML = "";
+			}
+		}
+		s.innerHTML = "<font color='red'><%:Share URL is too long to generate a QR code.%></font>";
+		return false;
 	}
 
 	function buildUrl(btn, urlname, sid) {

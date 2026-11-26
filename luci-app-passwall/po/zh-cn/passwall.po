@@ -542,6 +542,9 @@ msgstr "导出分享URL"
 msgid "Generate QRCode"
 msgstr "生成二维码"
 
+msgid "Share URL is too long to generate a QR code."
+msgstr "分享链接过长，无法生成二维码。"
+
 msgid "Export Config File"
 msgstr "导出配置文件"
 
