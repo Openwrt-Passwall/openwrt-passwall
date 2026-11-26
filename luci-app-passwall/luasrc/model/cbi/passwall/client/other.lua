@@ -117,12 +117,8 @@ o.default = "1"
 o:value("0", "Iptables")
 o:value("1", "Nftables")
 
----- Check the transparent proxy component
-local handle = io.popen("lsmod")
-local mods = handle and handle:read("*a") or ""
-if handle then handle:close() end
-
-if (mods:find("REDIRECT") and mods:find("TPROXY")) or (mods:find("nft_redir") and mods:find("nft_tproxy")) then
+local has_tproxy, has_ipv6_tproxy = api.get_transparent_proxy_support()
+if has_tproxy then
 	o = s:option(ListValue, "tcp_proxy_way", translate("TCP Proxy Way"))
 	o.default = "redirect"
 	o:value("redirect", "REDIRECT")
@@ -140,8 +136,7 @@ if (mods:find("REDIRECT") and mods:find("TPROXY")) or (mods:find("nft_redir") an
 		self.map:set(section, "tcp_proxy_way", value)
 	end
 
-	if mods:find("ip6table_mangle") or mods:find("nft_tproxy") then
-		---- IPv6 TProxy
+	if has_ipv6_tproxy then
 		o = s:option(Flag, "ipv6_tproxy", translate("IPv6 TProxy"),
 					"<font color='red'>" .. translate(
 						"Experimental feature. Make sure that your node supports IPv6.") ..

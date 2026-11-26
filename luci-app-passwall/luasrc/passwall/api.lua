@@ -871,6 +871,40 @@ function is_finded(e)
 	return finded(e) ~= "" and true or false
 end
 
+function get_transparent_proxy_support()
+	local modules = "\n" .. (fs.readfile("/proc/modules") or "")
+
+	local function loaded(name)
+		return modules:find("\n" .. name .. " ", 1, true) ~= nil
+	end
+
+	local function detect_backends(available)
+		local nft = available("nft_redir", "NFT_REDIR") and available("nft_tproxy", "NFT_TPROXY")
+		local iptables = available("xt_REDIRECT", "NETFILTER_XT_TARGET_REDIRECT") and available("xt_TPROXY", "NETFILTER_XT_TARGET_TPROXY")
+		return nft, iptables
+	end
+
+	local nft, iptables = detect_backends(loaded)
+	local has_tproxy = nft or iptables
+	-- Preserve IPv6 option visibility when the loaded modules satisfy the old checks.
+	if has_tproxy and (loaded("ip6table_mangle") or loaded("nft_tproxy")) then
+		return true, true
+	end
+	if not fs.access("/proc/config.gz") then
+		return has_tproxy, false
+	end
+
+	local config = "\n" .. (sys.exec("zcat /proc/config.gz 2>/dev/null") or "") .. "\n"
+	local function available(module_name, config_name)
+		return loaded(module_name) or config:find("\nCONFIG_" .. config_name .. "=y\n", 1, true) ~= nil
+	end
+
+	nft, iptables = detect_backends(available)
+	local has_ipv6 = (nft and (loaded("nft_tproxy") or available("nf_tproxy_ipv6", "NF_TPROXY_IPV6"))) or (iptables and available("ip6table_mangle", "IP6_NF_MANGLE"))
+
+	return nft or iptables, has_ipv6
+end
+
 function clone(org)
 	local function copy(org, res)
 		for k,v in pairs(org) do
