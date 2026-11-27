@@ -59,7 +59,7 @@ local map = self.map
 			<%- else %>
 				window.location.href = "<%=map.redirect%>";
 			<%- end %>
-		}, (L.env.apply_display + L.env.apply_holdoff) * 1000);
+		}, 2000);
 	});
 </script>
 <%- end %>
