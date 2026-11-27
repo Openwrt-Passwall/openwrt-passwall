@@ -102,13 +102,6 @@ add_port_rules() {
 	done
 }
 
-destroy_ipset() {
-	for i in "$@"; do
-		ipset -q -F $i
-		ipset -q -X $i
-	done
-}
-
 insert_rule_before() {
 	[ $# -ge 3 ] || {
 		return 1
@@ -1439,26 +1432,76 @@ add_firewall_rule() {
 	echolog "防火墙规则加载完成！"
 }
 
+delete_iptables_batch() {
+	local ipt_bin="$1"
+	local rules batch
+	rules=$("${ipt_bin}-save") || return 1
+	batch=$(printf '%s\n' "$rules" | awk '
+		function emit(command) {
+			if (!changed) print table
+			changed = 1
+			print command
+		}
+		BEGIN { psw_chain = "PSW(_(OUTPUT|DIVERT|DNS|RULE))?" }
+		/^\*/ {
+			table = $1
+			chain_count = changed = 0
+			next
+		}
+		table ~ /^\*(nat|mangle)$/ && $1 ~ ("^:" psw_chain "$") && $2 == "-" {
+			chains[++chain_count] = substr($1, 2)
+		}
+		table ~ /^\*(nat|mangle)$/ && $1 == "-A" && $2 ~ /^(PREROUTING|OUTPUT)$/ {
+			if ($0 ~ (" -(j|g) " psw_chain "$") || / -m comment --comment "?(PSW|PSW_DNS|PSW_DIRECT|mangle-OUTPUT-PSW)"?( |$)/)
+				emit("-D" substr($0, 3))
+		}
+		table == "*filter" && $1 == "-A" && $2 ~ /^(FORWARD|INPUT|OUTPUT)$/ && / -m comment --comment "?PSW_REJECT"?( |$)/ {
+			emit("-D" substr($0, 3))
+		}
+		$0 == "COMMIT" {
+			# 先清空所有 PassWall 链以解除相互引用，再删除这些链。
+			for (i = 1; i <= chain_count; i++) emit("-F " chains[i])
+			for (i = 1; i <= chain_count; i++) emit("-X " chains[i])
+			if (changed) print "COMMIT"
+		}
+	') || return 1
+	[ -z "$batch" ] || printf '%s\n' "$batch" | "${ipt_bin}-restore" -w -n
+}
+
+delete_ipset_batch() {
+	local names batch
+	names=$(ipset list -name) || return 1
+
+	local sets="$IPSET_LOCAL $IPSET_LOCAL6"
+	sets="$sets $IPSET_WAN $IPSET_WAN6"
+	sets="$sets $IPSET_LAN $IPSET_LAN6"
+	sets="$sets $IPSET_VPS $IPSET_VPS6"
+	sets="$sets $IPSET_SHUNT $IPSET_SHUNT6"
+	#sets="$sets $IPSET_GFW $IPSET_GFW6"
+	#sets="$sets $IPSET_CHN $IPSET_CHN6"
+	#sets="$sets $IPSET_BLACK $IPSET_BLACK6"
+	sets="$sets $IPSET_BLOCK $IPSET_BLOCK6"
+	sets="$sets $IPSET_WHITE $IPSET_WHITE6"
+
+	batch=$(printf '%s\n' "$names" | awk -v sets="$sets" -v flush_sets="$1" '
+		BEGIN {
+			count = split(sets, names, " ")
+			for (i = 1; i <= count; i++) delete_set[names[i]] = 1
+		}
+		/^psw_[^[:space:]]+$/ && (flush_sets == 1 || $0 in delete_set || /^psw_.+_shunt6?$/) {
+			print "destroy", $0
+		}
+	') || return 1
+	[ -z "$batch" ] || printf '%s\n' "$batch" | ipset restore
+}
+
 del_firewall_rule() {
-	for ipt in "$ipt_n" "$ipt_m" "$ip6t_n" "$ip6t_m"; do
-		for chain in "PREROUTING" "OUTPUT"; do
-			for i in $(seq 1 $($ipt -nL $chain | grep -c PSW)); do
-				local index=$($ipt --line-number -nL $chain | grep PSW | head -1 | awk '{print $1}')
-				$ipt -D $chain $index 2>/dev/null
-			done
-		done
-		for chain in "PSW" "PSW_OUTPUT" "PSW_DIVERT" "PSW_DNS" "PSW_RULE"; do
-			$ipt -F $chain 2>/dev/null
-			$ipt -X $chain 2>/dev/null
-		done
-	done
-	for ipt in "$ipt_f" "$ip6t_f"; do
-		for chain in "FORWARD" "INPUT" "OUTPUT"; do
-			for i in $(seq 1 $($ipt -nL $chain | grep -c PSW_REJECT)); do
-				local index=$($ipt --line-number -nL $chain | grep PSW_REJECT | head -1 | awk '{print $1}')
-				$ipt -D $chain $index 2>/dev/null
-			done
-		done
+	local ipt_bin status=0
+	for ipt_bin in "$ipt" "$ip6t"; do
+		[ -n "$ipt_bin" ] || continue
+		if ! delete_iptables_batch "$ipt_bin" 2>/dev/null && ! delete_iptables_batch "$ipt_bin" 2>/dev/null; then
+			status=1
+		fi
 	done
 
 	ip rule del fwmark ${FWMARK} 2>/dev/null
@@ -1467,41 +1510,11 @@ del_firewall_rule() {
 	ip -6 rule del fwmark ${FWMARK} 2>/dev/null
 	ip -6 route del local ::/0 dev lo table 999 2>/dev/null
 
-	destroy_ipset $IPSET_LOCAL
-	destroy_ipset $IPSET_WAN
-	destroy_ipset $IPSET_LAN
-	destroy_ipset $IPSET_VPS
-	destroy_ipset $IPSET_SHUNT
-	#destroy_ipset $IPSET_GFW
-	#destroy_ipset $IPSET_CHN
-	#destroy_ipset $IPSET_BLACK
-	destroy_ipset $IPSET_BLOCK
-	destroy_ipset $IPSET_WHITE
-
-	destroy_ipset $IPSET_LOCAL6
-	destroy_ipset $IPSET_WAN6
-	destroy_ipset $IPSET_LAN6
-	destroy_ipset $IPSET_VPS6
-	destroy_ipset $IPSET_SHUNT6
-	#destroy_ipset $IPSET_GFW6
-	#destroy_ipset $IPSET_CHN6
-	#destroy_ipset $IPSET_BLACK6
-	destroy_ipset $IPSET_BLOCK6
-	destroy_ipset $IPSET_WHITE6
-
-	local ipset_name
-	for ipset_name in $(ipset list -name 2>/dev/null | grep -E '^psw_.+_shunt6?$'); do
-		destroy_ipset "$ipset_name"
-	done
-
-	echolog "删除 iptables 规则完成。"
-}
-
-flush_ipset() {
-	echolog "清空 IPSet。"
-	for _name in $(ipset list | grep "Name: " | grep "psw_" | awk '{print $2}'); do
-		destroy_ipset ${_name}
-	done
+	if ! delete_ipset_batch "$1" 2>/dev/null && ! delete_ipset_batch "$1" 2>/dev/null; then
+		status=1
+	fi
+	[ "$status" = "0" ] && echolog "删除 iptables 规则完成。"
+	return "$status"
 }
 
 flush_include() {
@@ -1597,18 +1610,21 @@ start() {
 
 stop() {
 	[ -z "$(command -v echolog)" ] && . "$UTILS_PATH"
-	del_firewall_rule
-	[ $(config_n_get @global[0] flush_set_on_reboot "0") = "1" ] || [ $(config_n_get @global[0] flush_set "0") = "1" ] && {
+	local flush_sets=0
+	if [ "$(config_n_get @global[0] flush_set_on_reboot 0)" = "1" ] || [ "$(config_n_get @global[0] flush_set 0)" = "1" ]; then
+		flush_sets=1
+	fi
+	if del_firewall_rule "$flush_sets" && [ "$flush_sets" = "1" ]; then
+		echolog "清空 IPSet。"
 		uci -q delete ${CONFIG}.@global[0].flush_set
 		uci -q commit ${CONFIG}
-		flush_ipset
 		rm -rf $TMP_PATH2/singbox*
 		rm -rf $TMP_PATH2/dnsmasq*
 		rm -rf $TMP_PATH2/geo_output
 		rm -rf $TMP_PATH2/geodata
 		rm -rf $TMP_PATH2/user_rules
-	}
-	flush_include
+	fi
+	flush_include 2>/dev/null || :
 }
 
 arg1=$1

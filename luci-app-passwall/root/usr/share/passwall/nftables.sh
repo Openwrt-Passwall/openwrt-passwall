@@ -148,13 +148,6 @@ REDIRECT() {
 	echo $s
 }
 
-destroy_nftset() {
-	for i in "$@"; do
-		nft flush set $NFTABLE_NAME $i 2>/dev/null
-		nft delete set $NFTABLE_NAME $i 2>/dev/null
-	done
-}
-
 gen_nft_tables() {
 	if ! nft list table "$NFTABLE_NAME" >/dev/null 2>&1; then
 		nft -f - <<-EOF
@@ -1503,20 +1496,74 @@ add_firewall_rule() {
 	echolog "防火墙规则加载完成！"
 }
 
+delete_nftables_batch() {
+	local flush_sets="$1"
+	local rules tables batch
+	if ! rules=$(nft -t -a list table $NFTABLE_NAME 2>&1); then
+		if tables=$(nft list tables) && ! printf '%s\n' "$tables" | grep -Fxq "table $NFTABLE_NAME"; then
+			return 0
+		fi
+		printf '%s\n' "$rules" >&2
+		return 1
+	fi
+
+	local sets="$NFTSET_LOCAL $NFTSET_LOCAL6"
+	sets="$sets $NFTSET_WAN $NFTSET_WAN6"
+	sets="$sets $NFTSET_LAN $NFTSET_LAN6"
+	sets="$sets $NFTSET_VPS $NFTSET_VPS6"
+	#sets="$sets $NFTSET_SHUNT $NFTSET_SHUNT6"
+	sets="$sets $NFTSET_SHUNT_STATIC $NFTSET_SHUNT6_STATIC"
+	#sets="$sets $NFTSET_GFW $NFTSET_GFW6"
+	#sets="$sets $NFTSET_CHN $NFTSET_CHN6"
+	sets="$sets $NFTSET_CHN_STATIC $NFTSET_CHN6_STATIC"
+	#sets="$sets $NFTSET_BLACK $NFTSET_BLACK6"
+	sets="$sets $NFTSET_BLACK_STATIC $NFTSET_BLACK6_STATIC"
+	sets="$sets $NFTSET_BLOCK $NFTSET_BLOCK6"
+	sets="$sets $NFTSET_BLOCK_STATIC $NFTSET_BLOCK6_STATIC"
+	sets="$sets $NFTSET_WHITE $NFTSET_WHITE6"
+	sets="$sets $NFTSET_WHITE_STATIC $NFTSET_WHITE6_STATIC"
+
+	batch=$(printf '%s\n' "$rules" | awk -v table="$NFTABLE_NAME" -v sets="$sets" -v flush_sets="$flush_sets" '
+		BEGIN {
+			count = split(sets, names, /[[:space:]]+/)
+			for (i = 1; i <= count; i++)
+				delete_set[names[i]] = 1
+		}
+		$1 == "chain" && $3 == "{" {
+			chain = $2
+			if (chain ~ /^PSW_[[:alnum:]_]+$/)
+				chains[++chain_count] = chain
+			next
+		}
+		$1 == "}" { chain = "" }
+		chain ~ /^(dstnat|srcnat|nat_output|mangle_prerouting|mangle_output)$/ && /# handle [0-9]+$/ {
+			if (/[[:space:]](jump|goto) PSW_[[:alnum:]_]+( comment ".*")?[[:space:]]+# handle / ||
+			    /[[:space:]]comment "PSW_[[:alnum:]_]+"[[:space:]]+# handle /)
+				print "delete rule", table, chain, "handle", $NF
+		}
+		$1 == "set" && $3 == "{" && $2 ~ /^psw_[[:alnum:]_]+$/ {
+			if (flush_sets == 1 || $2 in delete_set || $2 ~ /^psw_.+_shunt6?_static$/)
+				sets_to_delete[++set_count] = $2
+		}
+		END {
+			# 先清空所有 PassWall 链以解除相互引用，再删除这些链。
+			for (i = 1; i <= chain_count; i++)
+				print "flush chain", table, chains[i]
+			for (i = 1; i <= chain_count; i++)
+				print "delete chain", table, chains[i]
+			for (i = 1; i <= set_count; i++)
+				print "delete set", table, sets_to_delete[i]
+		}
+	') || return 1
+	[ -z "$batch" ] || printf '%s\n' "$batch" | nft -f -
+}
+
 del_firewall_rule() {
-	for nft in "dstnat" "srcnat" "nat_output" "mangle_prerouting" "mangle_output"; do
-		local handles=$(nft -a list chain $NFTABLE_NAME ${nft} 2>/dev/null | grep -E "PSW_" | awk -F '# handle ' '{print$2}')
-		for handle in $handles; do
-			nft delete rule $NFTABLE_NAME ${nft} handle ${handle} 2>/dev/null
-		done
-	done
-
-	for handle in $(nft -a list chains | grep -E "chain PSW_" | grep -v "PSW_RULE" | awk -F '# handle ' '{print$2}'); do
-		nft delete chain $NFTABLE_NAME handle ${handle} 2>/dev/null
-	done
-
-	# Need to be removed at the end, otherwise it will show "Resource busy"
-	nft delete chain $NFTABLE_NAME handle $(nft -a list chains | grep -E "PSW_RULE" | awk -F '# handle ' '{print$2}') 2>/dev/null
+	local status=0
+	# 防火墙可能在读取规则后重载，失败时重新读取并重试。
+	if ! delete_nftables_batch "$1" 2>/dev/null && ! delete_nftables_batch "$1" 2>/dev/null; then
+		status=1
+	fi
 
 	ip rule del fwmark ${FWMARK} 2>/dev/null
 	ip route del local 0.0.0.0/0 dev lo table 999 2>/dev/null
@@ -1524,54 +1571,10 @@ del_firewall_rule() {
 	ip -6 rule del fwmark ${FWMARK} 2>/dev/null
 	ip -6 route del local ::/0 dev lo table 999 2>/dev/null
 
-	destroy_nftset $NFTSET_LOCAL
-	destroy_nftset $NFTSET_WAN
-	destroy_nftset $NFTSET_LAN
-	destroy_nftset $NFTSET_VPS
-	#destroy_nftset $NFTSET_SHUNT
-	destroy_nftset $NFTSET_SHUNT_STATIC
-	#destroy_nftset $NFTSET_GFW
-	#destroy_nftset $NFTSET_CHN
-	destroy_nftset $NFTSET_CHN_STATIC
-	#destroy_nftset $NFTSET_BLACK
-	destroy_nftset $NFTSET_BLACK_STATIC
-	destroy_nftset $NFTSET_BLOCK $NFTSET_BLOCK_STATIC
-	destroy_nftset $NFTSET_WHITE $NFTSET_WHITE_STATIC
-
-	destroy_nftset $NFTSET_LOCAL6
-	destroy_nftset $NFTSET_WAN6
-	destroy_nftset $NFTSET_LAN6
-	destroy_nftset $NFTSET_VPS6
-	#destroy_nftset $NFTSET_SHUNT6
-	destroy_nftset $NFTSET_SHUNT6_STATIC
-	#destroy_nftset $NFTSET_GFW6
-	#destroy_nftset $NFTSET_CHN6
-	destroy_nftset $NFTSET_CHN6_STATIC
-	#destroy_nftset $NFTSET_BLACK6
-	destroy_nftset $NFTSET_BLACK6_STATIC
-	destroy_nftset $NFTSET_BLOCK6 $NFTSET_BLOCK6_STATIC
-	destroy_nftset $NFTSET_WHITE6 $NFTSET_WHITE6_STATIC
-
-	local nftset
-	for nftset in $(nft -t list table $NFTABLE_NAME 2>/dev/null | awk '$1 == "set" && $2 ~ /^psw_.+_shunt6?_static$/ {print $2}'); do
-		destroy_nftset "$nftset"
-	done
-
 	del_script_mwan3
 
-	echolog "删除 nftables 规则完成。"
-}
-
-flush_nftset() {
-	echolog "清空 NFTSet。"
-	for _name in $(nft -a list sets | grep -E "psw_" | awk -F 'set ' '{print $2}' | awk '{print $1}'); do
-		destroy_nftset ${_name}
-	done
-}
-
-flush_table() {
-	nft flush table $NFTABLE_NAME
-	nft delete table $NFTABLE_NAME
+	[ "$status" = "0" ] && echolog "删除 nftables 规则完成。"
+	return "$status"
 }
 
 flush_include() {
@@ -1609,19 +1612,21 @@ start() {
 
 stop() {
 	[ -z "$(command -v echolog)" ] && . "$UTILS_PATH"
-	del_firewall_rule
-	[ $(config_n_get @global[0] flush_set_on_reboot "0") = "1" ] || [ $(config_n_get @global[0] flush_set "0") = "1" ] && {
+	local flush_sets=0
+	if [ "$(config_n_get @global[0] flush_set_on_reboot 0)" = "1" ] || [ "$(config_n_get @global[0] flush_set 0)" = "1" ]; then
+		flush_sets=1
+	fi
+	if del_firewall_rule "$flush_sets" && [ "$flush_sets" = "1" ]; then
+		echolog "清空 NFTSet。"
 		uci -q delete ${CONFIG}.@global[0].flush_set
 		uci -q commit ${CONFIG}
-		#flush_table
-		flush_nftset
 		rm -rf $TMP_PATH2/singbox*
 		rm -rf $TMP_PATH2/dnsmasq*
 		rm -rf $TMP_PATH2/geo_output
 		rm -rf $TMP_PATH2/geodata
 		rm -rf $TMP_PATH2/user_rules
-	}
-	flush_include
+	fi
+	flush_include 2>/dev/null || :
 }
 
 arg1=$1
