@@ -1,6 +1,6 @@
 #!/usr/bin/lua
 
--- Copyright(c): lwb1978 2025–2027
+-- Copyright(c): lwbwrt 2025–2027
 
 local api = require("luci.passwall.api")
 local base64 = api.base64Encode
