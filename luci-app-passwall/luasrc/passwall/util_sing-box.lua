@@ -4,7 +4,7 @@ local sys = api.sys
 local jsonc = api.jsonc
 local fs = api.fs
 local CACHE_PATH = api.CACHE_PATH
-local ech_domain = {}
+local ECH_DNS_TAG = "ech-dns"
 
 local local_version = api.get_app_version("sing-box"):match("[^v]+")
 local version_ge_1_14_0 = api.compare_versions(local_version, ">=", "1.14.0")
@@ -82,6 +82,40 @@ end
 local function get_log_level(s)
 	if s == "warning" then s = "warn" end
 	return s
+end
+
+local function add_ech_dns(dns, outbounds)
+	local domains, seen = {}, {}
+	for _, outbound in ipairs(outbounds) do
+		local tls = outbound.tls
+		local ech = tls and tls.ech
+		if ech and ech.enabled and not ech.config then
+			local query_name = ech.query_server_name or tls.server_name
+			if not query_name or query_name == "" then
+				query_name = outbound.server and api.datatypes.hostname(outbound.server) and outbound.server
+			end
+			if query_name then
+				if not seen[query_name] then
+					domains[#domains + 1] = query_name
+					seen[query_name] = true
+				end
+				-- sing-box can query ECH through the outbound resolver, bypassing DNS rules.
+				outbound.domain_resolver.server = ECH_DNS_TAG
+			end
+		end
+	end
+	if #domains > 0 then
+		table.insert(dns.servers, {
+			tag = ECH_DNS_TAG,
+			type = "https",
+			server = "223.5.5.5"
+		})
+		dns.rules = dns.rules or {}
+		table.insert(dns.rules, 1, {
+			domain = domains,
+			server = ECH_DNS_TAG
+		})
+	end
 end
 
 function gen_outbound(flag, node, tag, proxy_table)
@@ -268,21 +302,18 @@ function gen_outbound(flag, node, tag, proxy_table)
 						return domain
 					end
 					local ech = { enabled = true }
-					local config = node.ech_config
-					local qname = node.ech_query_server_name
-					if config and not qname then
-						qname = get_ech_domain(config)
-						if not qname and not (config:match("%-+%s*BEGIN") and config:match("%-+%s*END")) then
+					local config = api.trim(node.ech_config)
+					local qname = api.trim(node.ech_query_server_name)
+					if config ~= "" and qname == "" then
+						qname = get_ech_domain(config) or ""
+						if qname == "" and not (config:match("%-+%s*BEGIN") and config:match("%-+%s*END")) then
 							config = "-----BEGIN ECH CONFIGS-----\n" .. config:gsub("%s+", "") .. "\n-----END ECH CONFIGS-----"
 						end
 					end
-					if qname then
+					if qname ~= "" then
 						ech.query_server_name = qname
-						ech_domain[qname] = true
-					elseif config then
+					elseif config ~= "" then
 						ech.config = api.split(config:gsub("\\n", "\n"), "\n")
-					elseif node.tls_serverName and node.tls_serverName ~= "" then
-						ech_domain[node.tls_serverName] = true
 					end
 					return ech
 				end)() or nil,
@@ -1184,6 +1215,7 @@ function gen_config_server(node)
 		route = route
 	}
 
+	add_ech_dns(config.dns, config.outbounds)
 	for index, value in ipairs(config.outbounds) do
 		for k, v in pairs(config.outbounds[index]) do
 			if k:find("_") == 1 then
@@ -2302,19 +2334,7 @@ function gen_config(var)
 		})
 	end
 
-	if next(ech_domain) ~= nil then
-		table.insert(dns.servers, {
-			tag = "ech-dns",
-			type = "https",
-			server = "223.5.5.5"
-		})
-		local domain = {}
-		for line, _ in pairs(ech_domain) do domain[#domain+1] = line end
-		table.insert(dns.rules, 1, {
-			domain = domain,
-			server = "ech-dns"
-		})
-	end
+	add_ech_dns(dns, outbounds)
 
 	table.insert(dns.servers, {
 		tag = "hosts",
@@ -2411,7 +2431,8 @@ function gen_config(var)
 			if not value.detour and not value.bind_interface and value.server then
 				value.detour = "direct"
 			end
-			if (value.server and not api.datatypes.hostname(value.server)) and not value.realm then
+			if value.server and not api.datatypes.hostname(value.server) and not value.realm
+				and value.domain_resolver and value.domain_resolver.server ~= ECH_DNS_TAG then
 				value.domain_resolver = nil
 			end
 			for k, v in pairs(config.outbounds[index]) do
