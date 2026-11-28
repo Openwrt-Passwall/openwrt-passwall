@@ -1814,7 +1814,19 @@ stop() {
 		if [ -z "${ACL_default_dns_port}" ] || [ -n "${bak_dnsmasq_dns_redirect}" ]; then
 			uci -q del_list dhcp.@dnsmasq[0].addnmount="${GLOBAL_DNSMASQ_CONF_PATH}"
 			uci -q commit dhcp
-			lua $APP_PATH/helper_dnsmasq.lua restart -LOG 0
+			# 重启前后都由全局代理使用系统 dnsmasq 时，交给 start_dns() 加载新配置。
+			# 单独停服、禁用全局代理、切换模式或启动失败时，由 stop() 恢复系统 DNS。
+			local restart_dnsmasq=1
+			if [ "${PASSWALL_RESTART:-0}" = "1" ] && [ "$ENABLED_DEFAULT_ACL" = "1" ] && [ -z "$ACL_default_dns_port" ] &&
+			   [ "$(config_n_get @global[0] enabled 0)" = "1" ] && [ "$(config_n_get @global[0] dns_redirect 1)" = "0" ]; then
+				local next_node=$(config_n_get @global[0] node)
+				if [ -n "$next_node" ]; then
+					case "$(config_get_type "$next_node")" in
+						nodes|socks) restart_dnsmasq=0 ;;
+					esac
+				fi
+			fi
+			[ "$restart_dnsmasq" = "1" ] && lua $APP_PATH/helper_dnsmasq.lua restart -LOG 0
 		fi
 		[ -n "${bak_bridge_nf_ipt}" ] && sysctl -w net.bridge.bridge-nf-call-iptables=${bak_bridge_nf_ipt} >/dev/null 2>&1
 		[ -n "${bak_bridge_nf_ip6t}" ] && sysctl -w net.bridge.bridge-nf-call-ip6tables=${bak_bridge_nf_ip6t} >/dev/null 2>&1

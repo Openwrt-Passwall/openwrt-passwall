@@ -73,7 +73,8 @@ restart() {
 		unset_lock
 		return 1
 	fi
-	"$APP_FILE" stop "$action" 9>&-
+	# PASSWALL_RESTART 标记本次停服属于重启流程，符合条件时由 start_dns() 重启 dnsmasq。
+	PASSWALL_RESTART=1 "$APP_FILE" stop "$action" 9>&-
 	"$APP_FILE" start "$action" 9>&-
 	unset_lock
 }

@@ -96,10 +96,14 @@ function logic_restart(var)
 			api.uci_set("dhcp", "@dnsmasq[0]", "server", dns_table)
 			api.uci_save(nil, "dhcp", true)
 		end
-		sys.call("/etc/init.d/dnsmasq restart >/dev/null 2>&1")
+	end
+	local status = sys.call("/etc/init.d/dnsmasq restart >/dev/null 2>&1")
+	if DEFAULT_DNS then
 		restore_servers()
-	else
-		sys.call("/etc/init.d/dnsmasq restart >/dev/null 2>&1")
+	end
+	-- 把失败交给启动流程，让它通过停服恢复系统 DNS。
+	if status ~= 0 then
+		os.exit(1)
 	end
 	if LOG == "1" then
 		api.log("重启 dnsmasq 服务")
